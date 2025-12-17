@@ -1,0 +1,19 @@
+[
+{"name":"M97", "ra_deg":168.698791666667, "dec_deg":55.0190277777778, "vmag":11, "type":"Planetary Nebula", "size_arcmin":[3], "con":"UMa", "proper":"ふくろう星雲", "scope":"", "notes":""},
+{"name":"M27", "ra_deg":299.901583333333, "dec_deg":22.7210277777778, "vmag":8, "type":"Planetary Nebula", "size_arcmin":[7], "con":"Vul", "proper":"亜鈴状星雲", "scope":"", "notes":""},
+{"name":"M76", "ra_deg":25.5820416666667, "dec_deg":51.5754722222222, "vmag":10, "type":"Planetary Nebula", "size_arcmin":[2,1], "con":"Per", "proper":"小亜鈴状星雲", "scope":"", "notes":""},
+{"name":"M57", "ra_deg":283.395875, "dec_deg":33.0285833333333, "vmag":9, "type":"Planetary Nebula", "size_arcmin":[1], "con":"Lyr", "proper":"環状星雲", "scope":"", "notes":""},
+{"name":"NGC40", "ra_deg":3.25429166666667, "dec_deg":72.5219444444444, "vmag":12.4, "type":"Planetary Nebula", "size_arcmin":[0.63], "con":"Cep", "proper":"", "scope":"", "notes":""},
+{"name":"NGC6543", "ra_deg":269.639125, "dec_deg":66.6331944444444, "vmag":8.1, "type":"Planetary Nebula", "size_arcmin":[0.3,5.8], "con":"Dra", "proper":"キャッツアイ星雲", "scope":"", "notes":""},
+{"name":"NGC6826", "ra_deg":296.200458333333, "dec_deg":50.5250277777778, "vmag":8.8, "type":"Planetary Nebula", "size_arcmin":[0.5,2.3], "con":"Cyg", "proper":"まばたき星雲", "scope":"", "notes":""},
+{"name":"NGC7662", "ra_deg":351.474583333333, "dec_deg":42.5349444444444, "vmag":8.3, "type":"Planetary Nebula", "size_arcmin":[0.3,2.2], "con":"And", "proper":"青い雪だるま星雲", "scope":"", "notes":""},
+{"name":"NGC2392", "ra_deg":112.294833333333, "dec_deg":20.9118333333333, "vmag":9.2, "type":"Planetary Nebula", "size_arcmin":[0.2,0.7], "con":"Gem", "proper":"エスキモー星雲", "scope":"", "notes":""},
+{"name":"NGC7009", "ra_deg":316.044958333333, "dec_deg":-11.36325, "vmag":8, "type":"Planetary Nebula", "size_arcmin":[0.4,1.6], "con":"Aqr", "proper":"土星状星雲", "scope":"", "notes":""},
+{"name":"NGC246", "ra_deg":11.764, "dec_deg":-11.8719444444444, "vmag":10.9, "type":"Planetary Nebula", "size_arcmin":[3.8], "con":"Cet", "proper":"", "scope":"", "notes":""},
+{"name":"NGC3242", "ra_deg":156.192, "dec_deg":-18.6422222222222, "vmag":7.8, "type":"Planetary Nebula", "size_arcmin":[0.3,21], "con":"Hya", "proper":"木星状星雲", "scope":"", "notes":""},
+{"name":"NGC7293", "ra_deg":337.410708333333, "dec_deg":-20.8373333333333, "vmag":7.3, "type":"Planetary Nebula", "size_arcmin":[13], "con":"Aqr", "proper":"らせん星雲", "scope":"", "notes":""},
+{"name":"NGC6302", "ra_deg":258.435958333333, "dec_deg":-37.1031388888889, "vmag":9.6, "type":"Planetary Nebula", "size_arcmin":[0.8], "con":"Sco", "proper":"バグ星雲", "scope":"", "notes":""},
+{"name":"NGC3132", "ra_deg":151.757208333333, "dec_deg":-40.4365833333333, "vmag":9.4, "type":"Planetary Nebula", "size_arcmin":[0.8], "con":"Vel", "proper":"8の字星雲", "scope":"", "notes":""},
+{"name":"NGC2867", "ra_deg":140.354041666667, "dec_deg":-58.3116666666667, "vmag":9.7, "type":"Planetary Nebula", "size_arcmin":[0.2], "con":"Car", "proper":"", "scope":"", "notes":""},
+{"name":"NGC3195", "ra_deg":152.337416666667, "dec_deg":-80.8585833333333, "vmag":11.6, "type":"Planetary Nebula", "size_arcmin":[0.6], "con":"Cha", "proper":"", "scope":"", "notes":""}
+]

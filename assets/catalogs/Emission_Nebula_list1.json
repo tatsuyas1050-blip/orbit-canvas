@@ -1,0 +1,18 @@
+[
+{"name":"M8", "ra_deg":270.921958333333, "dec_deg":-24.3801666666667, "vmag":5, "type":"Emission Nebula", "size_arcmin":[90.0,40.0], "con":"Sgr", "proper":"干潟星雲", "scope":"", "notes":""},
+{"name":"M17", "ra_deg":275.196291666667, "dec_deg":-16.1715277777778, "vmag":6, "type":"Emission Nebula", "size_arcmin":[45.0,35.0], "con":"Sgr", "proper":"オメガ星雲", "scope":"", "notes":""},
+{"name":"M16", "ra_deg":274.700708333333, "dec_deg":-13.8072222222222, "vmag":6, "type":"Emission Nebula", "size_arcmin":[25], "con":"Se2", "proper":"わし星雲", "scope":"", "notes":""},
+{"name":"M42", "ra_deg":83.8186666666667, "dec_deg":-5.38966666666667, "vmag":4, "type":"Emission Nebula", "size_arcmin":[30], "con":"Ori", "proper":"オリオン大星雲", "scope":"", "notes":""},
+{"name":"M20", "ra_deg":270.675458333333, "dec_deg":-22.9718888888889, "vmag":6, "type":"Emission Nebula", "size_arcmin":[29.0,27.0], "con":"Sgr", "proper":"三裂星雲", "scope":"", "notes":""},
+{"name":"NGC7023", "ra_deg":315.398416666667, "dec_deg":68.1695555555556, "vmag":6.8, "type":"Emission Nebula", "size_arcmin":[18,18], "con":"Cep", "proper":"アイリス星雲", "scope":"", "notes":""},
+{"name":"Sh2-155", "ra_deg":344.571291666667, "dec_deg":62.5183333333333, "vmag":7.7, "type":"Emission Nebula", "size_arcmin":[50,10], "con":"Cep", "proper":"洞窟星雲", "scope":"", "notes":""},
+{"name":"NGC7635", "ra_deg":350.19, "dec_deg":61.2123611111111, "vmag":10, "type":"Emission Nebula", "size_arcmin":[15,8], "con":"Cas", "proper":"バブル星雲", "scope":"", "notes":""},
+{"name":"IC5146", "ra_deg":328.369833333333, "dec_deg":47.2669166666667, "vmag":7.2, "type":"Emission Nebula", "size_arcmin":[12,12], "con":"Cyg", "proper":"まゆ星雲", "scope":"", "notes":""},
+{"name":"NGC7000", "ra_deg":314.821416666667, "dec_deg":44.5287777777778, "vmag":4, "type":"Emission Nebula", "size_arcmin":[120100], "con":"Cyg", "proper":"北アメリカ星雲", "scope":"", "notes":""},
+{"name":"NGC6888", "ra_deg":303.027291666667, "dec_deg":38.3549444444445, "vmag":7.4, "type":"Emission Nebula", "size_arcmin":[20,10], "con":"Cyg", "proper":"三日月星雲", "scope":"", "notes":""},
+{"name":"IC405", "ra_deg":79.1228333333333, "dec_deg":34.3561666666667, "vmag":6, "type":"Emission Nebula", "size_arcmin":[30,19], "con":"Aur", "proper":"勾玉星雲", "scope":"", "notes":""},
+{"name":"NGC2237", "ra_deg":97.7275416666667, "dec_deg":5.04916666666667, "vmag":6, "type":"Emission Nebula", "size_arcmin":[80,60], "con":"Mon", "proper":"ばら星雲", "scope":"", "notes":""},
+{"name":"NGC6729", "ra_deg":285.480833333333, "dec_deg":-36.9576388888889, "vmag":9.5, "type":"Emission Nebula", "size_arcmin":[1], "con":"CrA", "proper":"", "scope":"", "notes":""},
+{"name":"NGC3372", "ra_deg":161.285541666667, "dec_deg":-59.8666944444445, "vmag":1, "type":"Emission Nebula", "size_arcmin":[120120], "con":"Car", "proper":"イータカリーナ星雲", "scope":"", "notes":""},
+{"name":"NGC2070", "ra_deg":84.6765, "dec_deg":-69.1008888888889, "vmag":7.25, "type":"Emission Nebula", "size_arcmin":[40,25], "con":"Dor", "proper":"タランチュラ星雲", "scope":"", "notes":""}
+]

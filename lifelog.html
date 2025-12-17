@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星空ライフログ - My Observation Log</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/pages.css">
+    
+    <style>
+        /* Lifelog specific adjustments */
+        .container { grid-template-columns: 300px 1fr; display: grid; gap: 2rem; }
+        .avatar {
+            width: 100px; height: 100px; background: var(--accent-gold);
+            border-radius: 50%; margin: 0 auto 1rem;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 3rem; color: var(--bg-dark);
+        }
+        .user-name { font-size: 1.4rem; margin-bottom: 0.5rem; }
+        .user-rank { 
+            display: inline-block; padding: 4px 12px; 
+            border: 1px solid var(--accent-gold); color: var(--accent-gold);
+            font-size: 0.8rem; border-radius: 20px; margin-bottom: 1.5rem;
+        }
+        .stats-row {
+            display: flex; justify-content: space-around;
+            border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;
+        }
+        .stat-item h4 { margin: 0; font-size: 0.8rem; opacity: 0.6; font-weight: normal; }
+        .stat-item p { margin: 5px 0 0; font-size: 1.2rem; font-family: sans-serif; }
+        .main-content { display: flex; flex-direction: column; gap: 2rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+        label { display: block; font-size: 0.85rem; opacity: 0.7; margin-bottom: 0.3rem; }
+        .log-list { display: flex; flex-direction: column; gap: 1rem; }
+        .log-date-box {
+            text-align: center; border-right: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .log-date-box .year { font-size: 0.7rem; opacity: 0.6; }
+        .log-date-box .date { font-size: 1.4rem; font-family: sans-serif; font-weight: bold; color: var(--accent-gold); }
+        .log-details h3 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+        .log-meta { font-size: 0.8rem; opacity: 0.7; margin-bottom: 0.5rem; }
+        .log-comment { font-size: 0.9rem; line-height: 1.6; opacity: 0.9; }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="menu-container">
+        <button id="menu-toggle" class="menu-toggle" aria-label="メニューを開く">
+            <span class="line"></span>
+            <span class="line"></span>
+            <span class="line"></span>
+        </button>
+        
+        <nav id="nav-overlay" class="nav-overlay">
+            <ul class="nav-list">
+                <li><a href="index.html" class="nav-link">トップページ<span>Home</span></a></li>
+                <li><a href="stars.html" class="nav-link">星を探す<span>Star Chart</span></a></li>
+                <li><a href="events.html" class="nav-link">星空情報局<span>Sky Events</span></a></li>
+                <li><a href="theater.html" class="nav-link">宇宙シアター<span>Space Theater</span></a></li>
+                <li><a href="lifelog.html" class="nav-link">星空ライフログ<span>My Logbook</span></a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <header class="common-header">
+        <a href="index.html" class="header-back-btn">トップへ戻る</a>
+        <h1 class="page-title">星空ライフログ</h1>
+    </header>
+
+    <div class="container">
+        <aside class="panel-bg" style="text-align:center; height:fit-content; box-shadow: 0 0 15px rgba(0,0,0,0.5);">
+            <div class="avatar">🔭</div>
+            <h2 class="user-name">南阿蘇 太郎</h2>
+            <span class="user-rank">ランク：星空マイスター</span>
+            
+            <div class="stats-row">
+                <div class="stat-item">
+                    <h4>観測回数</h4>
+                    <p id="total-logs">12</p>
+                </div>
+                <div class="stat-item">
+                    <h4>見つけた星</h4>
+                    <p>48</p>
+                </div>
+            </div>
+            <p style="margin-top:1.5rem; font-size:0.8rem; opacity:0.6;">
+                最終ログイン: 2025/12/17
+            </p>
+        </aside>
+
+        <main class="main-content">
+            
+            <section class="panel-bg" style="padding:1.5rem;">
+                <div class="section-header">観測を記録する</div>
+                <form id="log-form">
+                    <div class="form-row">
+                        <div>
+                            <label>日付</label>
+                            <input type="date" id="input-date" required>
+                        </div>
+                        <div>
+                            <label>観測対象 / タイトル</label>
+                            <input type="text" id="input-target" placeholder="例: 木星、オリオン座" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div>
+                            <label>機材</label>
+                            <select id="input-tool">
+                                <option>肉眼</option>
+                                <option>双眼鏡</option>
+                                <option>天体望遠鏡</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>評価</label>
+                            <select id="input-rating">
+                                <option value="5">★★★★★ (最高)</option>
+                                <option value="4">★★★★☆ (綺麗)</option>
+                                <option value="3">★★★☆☆ (普通)</option>
+                                <option value="2">★★☆☆☆ (微妙)</option>
+                                <option value="1">★☆☆☆☆ (見えなかった)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:1rem;">
+                        <label>メモ・感想</label>
+                        <textarea id="input-comment" rows="3" placeholder="感想や気象条件などを記録..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-submit">記録に追加</button>
+                </form>
+            </section>
+
+            <section>
+                <div class="section-header">過去の観測記録</div>
+                <div class="log-list" id="log-list-container"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="assets/js/script.js"></script>
+    <script>
+        const initialLogs = [
+            { date: "2025-12-14", target: "ふたご座流星群", tool: "肉眼", rating: "5", comment: "1時間で15個も見えた！寒かったけど最高に綺麗だった。" },
+            { date: "2025-11-20", target: "木星", tool: "天体望遠鏡", rating: "4", comment: "縞模様がはっきり見えた。ガリレオ衛星も4つ確認。" },
+            { date: "2025-10-05", target: "中秋の名月", tool: "双眼鏡", rating: "5", comment: "クレーターの陰影が美しかった。" }
+        ];
+
+        const listContainer = document.getElementById('log-list-container');
+        const logForm = document.getElementById('log-form');
+        const totalLogsEl = document.getElementById('total-logs');
+
+        document.getElementById('input-date').valueAsDate = new Date();
+
+        function renderLogs(logs) {
+            listContainer.innerHTML = '';
+            logs.forEach(log => {
+                const d = new Date(log.date);
+                const month = d.getMonth() + 1;
+                const day = d.getDate();
+                const stars = "★".repeat(parseInt(log.rating)) + "☆".repeat(5 - parseInt(log.rating));
+
+                const html = `
+                    <div class="log-card">
+                        <div class="log-date-box">
+                            <span class="year">${d.getFullYear()}</span>
+                            <span class="date">${month}/${day}</span>
+                        </div>
+                        <div class="log-details">
+                            <h3>${log.target}</h3>
+                            <div class="log-meta">
+                                <span>🔭 ${log.tool}</span> | 
+                                <span style="color:var(--accent-gold);">${stars}</span>
+                            </div>
+                            <div class="log-comment">${log.comment}</div>
+                        </div>
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('afterbegin', html);
+            });
+            totalLogsEl.textContent = logs.length + 9;
+        }
+
+        renderLogs(initialLogs);
+
+        logForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newLog = {
+                date: document.getElementById('input-date').value,
+                target: document.getElementById('input-target').value,
+                tool: document.getElementById('input-tool').value,
+                rating: document.getElementById('input-rating').value,
+                comment: document.getElementById('input-comment').value
+            };
+            initialLogs.push(newLog);
+            renderLogs(initialLogs);
+            logForm.reset();
+            document.getElementById('input-date').valueAsDate = new Date();
+            alert("観測記録を保存しました！");
+        });
+    </script>
+</body>
+</html>

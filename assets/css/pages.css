@@ -1,0 +1,109 @@
+@charset "UTF-8";
+
+/* コンテナレイアウト */
+.container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem 4rem;
+    width: 90%;
+}
+
+/* パネル・カード共通スタイル */
+.panel-bg {
+    background: var(--panel-bg);
+    border: 1px solid var(--accent-gold);
+    border-radius: 8px;
+    padding: 2rem;
+    backdrop-filter: blur(5px);
+}
+
+.section-header {
+    font-size: 1.1rem;
+    color: var(--accent-gold);
+    border-bottom: 1px solid rgba(212,175,55,0.3);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* フォーム共通 */
+input, select, textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--input-bg);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 0.6rem;
+    border-radius: 4px;
+    font-family: sans-serif;
+}
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+}
+
+.btn-submit {
+    width: 100%;
+    padding: 0.8rem;
+    background: var(--accent-gold);
+    color: var(--bg-dark);
+    border: none;
+    font-family: var(--font-main);
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.3s;
+    border-radius: 4px;
+}
+.btn-submit:hover { opacity: 0.8; }
+
+/* アニメーション */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Events (Calendar) Specific --- */
+.calendar-wrapper {
+    background: rgba(5, 10, 20, 0.8);
+    border: 1px solid var(--accent-gold);
+    border-radius: 8px; padding: 2rem;
+    backdrop-filter: blur(5px);
+}
+.calendar-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 5px; text-align: center;
+}
+.calendar-day {
+    background: rgba(255,255,255,0.05); min-height: 80px; padding: 5px;
+    border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
+    transition: all 0.2s; display: flex; flex-direction: column; align-items: center;
+}
+.calendar-day:hover { background: rgba(212, 175, 55, 0.1); border-color: var(--accent-gold); }
+.calendar-day.today { background: rgba(212, 175, 55, 0.2); border: 1px solid var(--accent-gold); }
+.event-dot { width: 6px; height: 6px; border-radius: 50%; margin: 2px; display: inline-block; }
+.dot-star { background-color: #a0d9ff; box-shadow: 0 0 4px #a0d9ff; }
+.dot-rocket { background-color: #ff9999; box-shadow: 0 0 4px #ff9999; }
+
+/* --- Theater Specific --- */
+.tab-btn {
+    background: transparent; border: none;
+    color: var(--text-white); font-family: var(--font-main);
+    font-size: 1.1rem; cursor: pointer;
+    padding-bottom: 0.5rem; opacity: 0.6;
+    transition: all 0.3s; border-bottom: 2px solid transparent;
+}
+.tab-btn.active { opacity: 1; color: var(--accent-gold); border-bottom: 2px solid var(--accent-gold); }
+.video-card {
+    background: var(--panel-bg); border-radius: 8px; overflow: hidden;
+    cursor: pointer; transition: transform 0.2s; border: 1px solid rgba(255,255,255,0.1);
+}
+.video-card:hover { transform: translateY(-5px); border-color: var(--accent-gold); }
+
+/* --- Lifelog Specific --- */
+.log-card {
+    background: rgba(255,255,255,0.03);
+    border-left: 3px solid var(--accent-gold);
+    padding: 1rem; border-radius: 0 4px 4px 0;
+    display: grid; grid-template-columns: 80px 1fr; gap: 1rem;
+    transition: transform 0.2s;
+}
+.log-card:hover { transform: translateX(5px); background: rgba(255,255,255,0.06); }

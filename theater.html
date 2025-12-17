@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宇宙シアター - Space Theater</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/pages.css">
+    
+    <style>
+         /* Theater specific extra styles */
+        .section-content { display: none; animation: fadeIn 0.5s ease; }
+        .section-content.active { display: block; }
+        .main-screen {
+            width: 100%; aspect-ratio: 16/9; background: #000;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            box-shadow: 0 0 20px rgba(0,0,0,0.8); margin-bottom: 2rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .screen-placeholder { text-align: center; color: rgba(255,255,255,0.3); }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+        .thumbnail { width: 100%; aspect-ratio: 16/9; background: #222; object-fit: cover; }
+        .video-info { padding: 1rem; }
+        .video-title { margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--text-white); }
+        .video-meta { font-size: 0.8rem; color: #aaa; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+        .gallery-item { position: relative; aspect-ratio: 1/1; overflow: hidden; border-radius: 4px; cursor: pointer; }
+        .gallery-item div[style*="background"] { transition: transform 0.5s; }
+        .gallery-item:hover div[style*="background"] { transform: scale(1.1); }
+        .gallery-caption {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 1rem 0.5rem 0.5rem; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s;
+        }
+        .gallery-item:hover .gallery-caption { opacity: 1; }
+        #lightbox {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 200;
+            display: none; align-items: center; justify-content: center; flex-direction: column;
+        }
+        #lightbox.open { display: flex; animation: fadeIn 0.3s; }
+        #lightbox-img { max-width: 90%; max-height: 80vh; border: 2px solid var(--accent-gold); box-shadow: 0 0 30px rgba(212,175,55,0.2); }
+        #lightbox-caption { margin-top: 1rem; color: var(--accent-gold); font-size: 1.2rem; letter-spacing: 0.1em; }
+        .close-btn { position: absolute; top: 2rem; right: 2rem; color: #fff; font-size: 2rem; cursor: pointer; background: none; border: none; }
+    </style>
+</head>
+<body>
+    
+    <div class="menu-container">
+        <button id="menu-toggle" class="menu-toggle" aria-label="メニューを開く">
+            <span class="line"></span>
+            <span class="line"></span>
+            <span class="line"></span>
+        </button>
+        
+        <nav id="nav-overlay" class="nav-overlay">
+            <ul class="nav-list">
+                <li><a href="index.html" class="nav-link">トップページ<span>Home</span></a></li>
+                <li><a href="stars.html" class="nav-link">星を探す<span>Star Chart</span></a></li>
+                <li><a href="events.html" class="nav-link">星空情報局<span>Sky Events</span></a></li>
+                <li><a href="theater.html" class="nav-link">宇宙シアター<span>Space Theater</span></a></li>
+                <li><a href="lifelog.html" class="nav-link">星空ライフログ<span>My Logbook</span></a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <header class="common-header">
+        <a href="index.html" class="header-back-btn">トップへ戻る</a>
+        <h1 class="page-title">宇宙シアター</h1>
+    </header>
+
+    <nav style="display: flex; justify-content: center; gap: 2rem; padding: 2rem 0;">
+        <button class="tab-btn active" data-target="tab-live">LIVE 配信</button>
+        <button class="tab-btn" data-target="tab-archive">動画アーカイブ</button>
+        <button class="tab-btn" data-target="tab-gallery">天体写真館</button>
+    </nav>
+
+    <div class="container">
+        
+        <div id="tab-live" class="section-content active">
+            <div class="main-screen">
+                <div class="screen-placeholder">
+                    <h2 style="color:var(--accent-gold);">NOW ON AIR</h2>
+                    <p>南阿蘇ルナ天文台 4Kライブカメラ</p>
+                    <button style="margin-top:1rem; padding:0.5rem 1.5rem; background:transparent; border:1px solid var(--accent-gold); color:var(--accent-gold); cursor:pointer;">▶ 再生する</button>
+                </div>
+            </div>
+            <div style="text-align:center; opacity:0.8; line-height:1.8;">
+                <p>現在の南阿蘇の星空をリアルタイムでお届けしています。<br>天候不良時は過去のベストショット映像を配信します。</p>
+            </div>
+        </div>
+
+        <div id="tab-archive" class="section-content">
+            <div class="video-grid" id="video-list"></div>
+        </div>
+
+        <div id="tab-gallery" class="section-content">
+            <div class="gallery-grid" id="gallery-list"></div>
+        </div>
+    </div>
+
+    <div id="lightbox">
+        <button class="close-btn" id="lightbox-close">×</button>
+        <img src="" alt="" id="lightbox-img">
+        <div id="lightbox-caption">Caption</div>
+    </div>
+
+    <script src="assets/js/script.js"></script>
+    <script>
+        const videos = [
+            { title: "冬のダイヤモンドの見つけ方", time: "12:30", thumb: "linear-gradient(45deg, #112, #224)" },
+            { title: "【解説】望遠鏡の使い方 初級編", time: "08:45", thumb: "linear-gradient(45deg, #221, #442)" },
+            { title: "2024年 ペルセウス座流星群 ハイライト", time: "03:12", thumb: "linear-gradient(45deg, #001, #003)" },
+            { title: "月面着陸の歴史と未来", time: "15:00", thumb: "linear-gradient(45deg, #333, #555)" },
+            { title: "南阿蘇の星空 タイムラプス 4K", time: "05:00", thumb: "linear-gradient(45deg, #123, #145)" },
+        ];
+
+        const photos = [
+            { title: "オリオン大星雲 (M42)", color: "#ff99cc" },
+            { title: "アンドロメダ銀河 (M31)", color: "#ddeeff" },
+            { title: "すばる (M45)", color: "#aaccff" },
+            { title: "月面クレーター", color: "#eeeeee" },
+            { title: "天の川と天文台", color: "#334466" },
+            { title: "土星の環", color: "#ddcc88" },
+            { title: "夏の整列", color: "#aa99ff" },
+            { title: "皆既月食", color: "#aa4444" },
+        ];
+
+        const videoList = document.getElementById('video-list');
+        const galleryList = document.getElementById('gallery-list');
+
+        videos.forEach(v => {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+            card.innerHTML = `
+                <div class="thumbnail" style="background:${v.thumb}"></div>
+                <div class="video-info">
+                    <h3 class="video-title">${v.title}</h3>
+                    <div class="video-meta">⏱ ${v.time} | 視聴回数 1.2万回</div>
+                </div>
+            `;
+            videoList.appendChild(card);
+        });
+
+        photos.forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+            item.innerHTML = `
+                <div style="width:100%; height:100%; background:${p.color};"></div>
+                <div class="gallery-caption">${p.title}</div>
+            `;
+            item.addEventListener('click', () => openLightbox(p.color, p.title));
+            galleryList.appendChild(item);
+        });
+
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const sections = document.querySelectorAll('.section-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                sections.forEach(s => s.classList.remove('active'));
+                btn.classList.add('active');
+                const targetId = btn.getAttribute('data-target');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+
+        const lightbox = document.getElementById('lightbox');
+        const lbImg = document.getElementById('lightbox-img');
+        const lbCap = document.getElementById('lightbox-caption');
+        const lbClose = document.getElementById('lightbox-close');
+
+        function openLightbox(color, title) {
+            const cvs = document.createElement('canvas');
+            cvs.width = 800; cvs.height = 600;
+            const ctx = cvs.getContext('2d');
+            ctx.fillStyle = color; ctx.fillRect(0,0,800,600);
+            ctx.fillStyle = "#fff";
+            for(let i=0; i<100; i++){
+                ctx.beginPath(); ctx.arc(Math.random()*800, Math.random()*600, Math.random()*2, 0, Math.PI*2); ctx.fill();
+            }
+            lbImg.src = cvs.toDataURL();
+            lbCap.textContent = title;
+            lightbox.classList.add('open');
+        }
+
+        lbClose.addEventListener('click', () => lightbox.classList.remove('open'));
+        lightbox.addEventListener('click', (e) => { if(e.target === lightbox) lightbox.classList.remove('open'); });
+    </script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星空情報局 - Starry Sky Bureau</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/pages.css">
+</head>
+<body>
+    
+    <div class="menu-container">
+        <button id="menu-toggle" class="menu-toggle" aria-label="メニューを開く">
+            <span class="line"></span>
+            <span class="line"></span>
+            <span class="line"></span>
+        </button>
+        
+        <nav id="nav-overlay" class="nav-overlay">
+            <ul class="nav-list">
+                <li><a href="index.html" class="nav-link">トップページ<span>Home</span></a></li>
+                <li><a href="stars.html" class="nav-link">星を探す<span>Star Chart</span></a></li>
+                <li><a href="events.html" class="nav-link">星空情報局<span>Sky Events</span></a></li>
+                <li><a href="theater.html" class="nav-link">宇宙シアター<span>Space Theater</span></a></li>
+                <li><a href="lifelog.html" class="nav-link">星空ライフログ<span>My Logbook</span></a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <header class="common-header">
+        <a href="index.html" class="header-back-btn">トップへ戻る</a>
+        <h1 class="page-title">星空情報局</h1>
+    </header>
+
+    <div class="container">
+        <div class="calendar-wrapper">
+            <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; border:none;">
+                <button class="btn-submit" id="prev-month" style="width:auto; padding:5px 15px;">&lt;</button>
+                <div class="month-label" id="current-month" style="font-size:1.5rem; color:var(--accent-gold);">----年 --月</div>
+                <button class="btn-submit" id="next-month" style="width:auto; padding:5px 15px;">&gt;</button>
+            </div>
+            <div class="calendar-grid" id="calendar-grid"></div>
+        </div>
+
+        <div class="panel-bg" style="height:fit-content;">
+            <div class="section-header" id="selected-date">日付を選択してください</div>
+            <div id="event-list">
+                <p style="opacity:0.6;">カレンダーの日付をクリックすると、<br>その日の詳細が表示されます。</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/script.js"></script>
+    <script>
+        const eventsData = {
+            "2025-12-14": [{ title: "ふたご座流星群 極大", type: "star", time: "22:00頃", desc: "1時間に40個程度の出現が予想されます。" }],
+            "2025-12-25": [{ title: "クリスマス観望会", type: "star", time: "19:00 - 21:00", desc: "ルナ天文台にて特別観望会を実施。" }],
+            "2025-12-28": [{ title: "H3ロケット 打ち上げ予定", type: "rocket", time: "14:30 (JST)", desc: "種子島宇宙センターより打ち上げ予定。" }]
+        };
+
+        const today = new Date();
+        let currentYear = today.getFullYear();
+        let currentMonth = today.getMonth();
+
+        const gridEl = document.getElementById('calendar-grid');
+        const labelEl = document.getElementById('current-month');
+        const selectedDateEl = document.getElementById('selected-date');
+        const eventListEl = document.getElementById('event-list');
+
+        function generateCalendar(year, month) {
+            gridEl.innerHTML = '';
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            days.forEach(d => {
+                const div = document.createElement('div');
+                div.className = 'day-name'; div.style.color='rgba(255,255,255,0.6)'; div.style.fontSize='0.9rem'; div.style.paddingBottom='0.5rem'; div.textContent = d; gridEl.appendChild(div);
+            });
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            labelEl.textContent = `${year}年 ${month + 1}月`;
+
+            for (let i = 0; i < firstDay; i++) gridEl.appendChild(document.createElement('div'));
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day';
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                
+                const now = new Date();
+                if (year === now.getFullYear() && month === now.getMonth() && d === now.getDate()) {
+                    cell.classList.add('today');
+                }
+
+                const numSpan = document.createElement('div');
+                numSpan.className = 'day-number'; numSpan.style.fontSize='1.1rem'; numSpan.style.marginBottom='5px'; numSpan.textContent = d; cell.appendChild(numSpan);
+
+                if (eventsData[dateStr]) {
+                    eventsData[dateStr].forEach(evt => {
+                        const dot = document.createElement('span');
+                        dot.className = `event-dot dot-${evt.type}`; cell.appendChild(dot);
+                    });
+                }
+                cell.addEventListener('click', () => showDetails(dateStr));
+                gridEl.appendChild(cell);
+            }
+        }
+
+        function showDetails(dateStr) {
+            selectedDateEl.textContent = dateStr;
+            eventListEl.innerHTML = '';
+            const events = eventsData[dateStr];
+            if (events && events.length > 0) {
+                events.forEach(evt => {
+                    const card = document.createElement('div');
+                    card.className = 'log-card'; // Reuse log-card style
+                    card.style.marginBottom = '1rem';
+                    const typeLabel = evt.type === 'star' ? '天文現象' : 'ロケット';
+                    const typeColor = evt.type === 'star' ? '#a0d9ff' : '#ff9999';
+                    card.innerHTML = `
+                        <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; border-right:1px solid rgba(255,255,255,0.1); padding-right:1rem;">
+                            <span style="font-size:1.5rem;">📅</span>
+                        </div>
+                        <div>
+                            <span style="font-size:0.8rem; padding:2px 6px; border-radius:4px; border:1px solid ${typeColor}; color:${typeColor}; display:inline-block; margin-bottom:0.5rem;">${typeLabel}</span>
+                            <h3 style="margin:0 0 5px 0; color:var(--accent-gold);">${evt.title}</h3>
+                            <div style="font-size:0.9rem; margin-bottom:5px;">⏰ ${evt.time}</div>
+                            <p style="font-size:0.85rem; margin:0; opacity:0.8;">${evt.desc}</p>
+                        </div>
+                    `;
+                    eventListEl.appendChild(card);
+                });
+            } else {
+                eventListEl.innerHTML = '<p style="opacity:0.6;">この日のイベント情報はありません。</p>';
+            }
+        }
+
+        generateCalendar(currentYear, currentMonth);
+        document.getElementById('prev-month').addEventListener('click', () => {
+            currentMonth--; if(currentMonth<0){currentMonth=11;currentYear--;} generateCalendar(currentYear, currentMonth);
+        });
+        document.getElementById('next-month').addEventListener('click', () => {
+            currentMonth++; if(currentMonth>11){currentMonth=0;currentYear++;} generateCalendar(currentYear, currentMonth);
+        });
+    </script>
+</body>
+</html>

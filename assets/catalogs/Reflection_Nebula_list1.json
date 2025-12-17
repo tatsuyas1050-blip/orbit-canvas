@@ -1,0 +1,5 @@
+[
+{"name":"M78", "ra_deg":86.6909166666667, "dec_deg":0.0793055555555556, "vmag":8, "type":"Reflection Nebula", "size_arcmin":[8.0,6.0], "con":"Ori", "proper":"", "scope":"", "notes":""},
+{"name":"M43", "ra_deg":83.88075, "dec_deg":-5.26747222222222, "vmag":9, "type":"Reflection Nebula", "size_arcmin":[20.0,15.0], "con":"Ori", "proper":"", "scope":"", "notes":""},
+{"name":"NGC2261", "ra_deg":99.789625, "dec_deg":8.74433333333333, "vmag":9, "type":"Reflection Nebula", "size_arcmin":[2,1], "con":"Mon", "proper":"ハッブルの変光星雲", "scope":"", "notes":""}
+]

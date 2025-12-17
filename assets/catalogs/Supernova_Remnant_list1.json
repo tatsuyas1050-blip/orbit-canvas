@@ -1,0 +1,5 @@
+[
+{"name":"M1", "ra_deg":83.6332083333333, "dec_deg":22.0144722222222, "vmag":8, "type":"Supernova remnant", "size_arcmin":[6.0,4.0], "con":"Tau", "proper":"かに星雲", "scope":"", "notes":""},
+{"name":"NGC6992", "ra_deg":314.079458333333, "dec_deg":31.74275, "vmag":7, "type":"Supernova remnant", "size_arcmin":[230160], "con":"Cyg", "proper":"網状星雲", "scope":"", "notes":""},
+{"name":"NGC6960", "ra_deg":311.492416666667, "dec_deg":30.5951388888889, "vmag":7, "type":"Supernova remnant", "size_arcmin":[210160], "con":"Cyg", "proper":"網状星雲", "scope":"", "notes":""}
+]
