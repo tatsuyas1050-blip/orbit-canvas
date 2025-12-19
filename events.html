@@ -56,21 +56,23 @@
 
     <script src="assets/js/script.js"></script>
     
-    <script type="module">
-        import { Amplify } from 'aws-amplify';
-        import { generateClient } from 'aws-amplify/data';
-        import outputs from './amplify_outputs.json';
+    <script>
+        // ★ここを元の「手書きデータ」に戻しました
+        const eventsData = {
+            "2025-12-14": [
+                { title: "ふたご座流星群 極大", type: "star", time: "22:00頃", desc: "1時間に40個程度の出現が予想されます。" }
+            ],
+            "2025-12-25": [
+                { title: "クリスマス観望会", type: "star", time: "19:00 - 21:00", desc: "ルナ天文台にて特別観望会を実施。" }
+            ],
+            "2025-12-28": [
+                { title: "H3ロケット 打ち上げ予定", type: "rocket", time: "14:30 (JST)", desc: "種子島宇宙センターより打ち上げ予定。" }
+            ]
+        };
 
-        // Amplifyの設定
-        Amplify.configure(outputs);
-        const client = generateClient();
-
-        // データ格納用変数
-        let eventsData = {};
-
-        // 今日の日付を取得
         const today = new Date();
-        let currentYear = today.getFullYear();
+        // 必要に応じてここを 2025 などに変えてください
+        let currentYear = today.getFullYear(); 
         let currentMonth = today.getMonth();
 
         const gridEl = document.getElementById('calendar-grid');
@@ -78,94 +80,26 @@
         const selectedDateEl = document.getElementById('selected-date');
         const eventListEl = document.getElementById('event-list');
 
-        // 1. データ作成用関数 (不具合解消用)
-        async function createTestData() {
-            try {
-                // 正しい形式でデータを1件登録します
-                const { data, errors } = await client.models.Event.create({
-                    title: "ふたご座流星群(自動作成)",
-                    type: "star",
-                    date: "2025-12-14", 
-                    time: "22:00頃",
-                    description: "プログラムから作成された正常なデータです。"
-                });
-                
-                if (errors) {
-                    console.error("作成エラー:", errors);
-                } else {
-                    console.log("データ作成成功:", data);
-                    alert("テストデータを作成しました！\n確認できたらコード内の createTestData(); を削除してください。");
-                    // 作成後に再読み込みして表示
-                    fetchEvents();
-                }
-            } catch (e) {
-                console.error("作成例外:", e);
-            }
-        }
-
-        // 2. AWSからデータを取得する関数
-        async function fetchEvents() {
-            try {
-                const { data: items } = await client.models.Event.list();
-                console.log("取得したイベントデータ:", items);
-
-                eventsData = {}; 
-                
-                items.forEach(item => {
-                    // ガード処理: item自体がnull、または日付が無いデータは無視する
-                    if (!item || !item.date) {
-                        return; 
-                    }
-
-                    const dateKey = item.date; 
-                    if (!eventsData[dateKey]) {
-                        eventsData[dateKey] = [];
-                    }
-                    eventsData[dateKey].push({
-                        title: item.title,
-                        type: item.type,
-                        time: item.time,
-                        desc: item.description
-                    });
-                });
-
-                // データ取得完了後にカレンダーを描画
-                generateCalendar(currentYear, currentMonth);
-
-            } catch (error) {
-                console.error("データ取得エラー:", error);
-                eventListEl.innerHTML = '<p style="color:#ff9999;">データの読み込みに失敗しました。</p>';
-            }
-        }
-
-        // 3. カレンダー生成ロジック
         function generateCalendar(year, month) {
             gridEl.innerHTML = '';
-            
             const days = ['日', '月', '火', '水', '木', '金', '土'];
             days.forEach(d => {
                 const div = document.createElement('div');
                 div.className = 'day-name'; 
-                div.style.color='rgba(255,255,255,0.6)'; 
-                div.style.fontSize='0.9rem'; 
-                div.style.paddingBottom='0.5rem'; 
+                div.style.color='rgba(255,255,255,0.6)'; div.style.fontSize='0.9rem'; div.style.paddingBottom='0.5rem'; 
                 div.textContent = d; 
                 gridEl.appendChild(div);
             });
 
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
             labelEl.textContent = `${year}年 ${month + 1}月`;
 
-            for (let i = 0; i < firstDay; i++) {
-                gridEl.appendChild(document.createElement('div'));
-            }
+            for (let i = 0; i < firstDay; i++) gridEl.appendChild(document.createElement('div'));
 
             for (let d = 1; d <= daysInMonth; d++) {
                 const cell = document.createElement('div');
                 cell.className = 'calendar-day';
-                
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                 
                 const now = new Date();
@@ -174,13 +108,10 @@
                 }
 
                 const numSpan = document.createElement('div');
-                numSpan.className = 'day-number'; 
-                numSpan.style.fontSize='1.1rem'; 
-                numSpan.style.marginBottom='5px'; 
+                numSpan.className = 'day-number'; numSpan.style.fontSize='1.1rem'; numSpan.style.marginBottom='5px'; 
                 numSpan.textContent = d; 
                 cell.appendChild(numSpan);
 
-                // データがあればドットを表示
                 if (eventsData[dateStr]) {
                     eventsData[dateStr].forEach(evt => {
                         const dot = document.createElement('span');
@@ -194,11 +125,9 @@
             }
         }
 
-        // 4. 詳細表示ロジック
         function showDetails(dateStr) {
             selectedDateEl.textContent = dateStr;
             eventListEl.innerHTML = '';
-            
             const events = eventsData[dateStr];
             
             if (events && events.length > 0) {
@@ -206,7 +135,6 @@
                     const card = document.createElement('div');
                     card.className = 'log-card';
                     card.style.marginBottom = '1rem';
-                    
                     const typeLabel = evt.type === 'star' ? '天文現象' : 'ロケット';
                     const typeColor = evt.type === 'star' ? '#a0d9ff' : '#ff9999';
                     
@@ -228,19 +156,13 @@
             }
         }
 
-        // データを取得してカレンダーを表示
-        fetchEvents();
+        generateCalendar(currentYear, currentMonth);
 
         document.getElementById('prev-month').addEventListener('click', () => {
-            currentMonth--; 
-            if(currentMonth < 0){ currentMonth = 11; currentYear--; } 
-            generateCalendar(currentYear, currentMonth);
+            currentMonth--; if(currentMonth<0){currentMonth=11;currentYear--;} generateCalendar(currentYear, currentMonth);
         });
-        
         document.getElementById('next-month').addEventListener('click', () => {
-            currentMonth++; 
-            if(currentMonth > 11){ currentMonth = 0; currentYear++; } 
-            generateCalendar(currentYear, currentMonth);
+            currentMonth++; if(currentMonth>11){currentMonth=0;currentYear++;} generateCalendar(currentYear, currentMonth);
         });
     </script>
 </body>
