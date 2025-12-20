@@ -165,30 +165,54 @@
         }
 
         // 3. 詳細表示関数
+ // 3. 詳細表示関数（更新版）
         function showDetails(dateStr) {
             selectedDateEl.textContent = dateStr;
             eventListEl.innerHTML = '';
             const events = eventsData[dateStr];
             
+            // 日本語ラベルへの変換マップ
+            const typeLabels = {
+                meteor: "流星群", eclipse: "日食・月食", phenomenon: "天文現象",
+                rocket: "ロケット打上", other: "その他", star: "天文現象" // starは互換性のため残す
+            };
+
             if (events && events.length > 0) {
-                events.forEach(evt => {
+                events.forEach((evt, index) => {
                     const card = document.createElement('div');
-                    card.className = 'log-card'; // lifelog.htmlと同じスタイルを再利用
+                    card.className = 'log-card';
                     card.style.marginBottom = '1rem';
-                    const typeLabel = evt.type === 'star' ? '天文現象' : 'ロケット';
-                    const typeColor = evt.type === 'star' ? '#a0d9ff' : '#ff9999';
                     
+                    const typeClass = `type-${evt.type || 'other'}`;
+                    const label = typeLabels[evt.type] || "その他";
+                    
+                    // 画像があればHTMLを生成
+                    const imgHtml = evt.image ? `<img src="${evt.image}" class="event-image" alt="${evt.title}">` : '';
+
+                    // カードの中身
                     card.innerHTML = `
                         <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; border-right:1px solid rgba(255,255,255,0.1); padding-right:1rem;">
                             <span style="font-size:1.5rem;">📅</span>
+                            <span style="font-size:0.7rem; opacity:0.6; margin-top:5px;">Click</span>
                         </div>
-                        <div>
-                            <span style="font-size:0.8rem; padding:2px 6px; border-radius:4px; border:1px solid ${typeColor}; color:${typeColor}; display:inline-block; margin-bottom:0.5rem;">${typeLabel}</span>
+                        <div style="width:100%;">
+                            <span class="type-badge ${typeClass}">${label}</span>
                             <h3 style="margin:0 0 5px 0; color:var(--accent-gold);">${evt.title}</h3>
-                            <div style="font-size:0.9rem; margin-bottom:5px;">⏰ ${evt.time}</div>
-                            <p style="font-size:0.85rem; margin:0; opacity:0.8;">${evt.desc}</p>
+                            <div style="font-size:0.9rem;">⏰ ${evt.time}</div>
+                            
+                            <div class="event-details-content" id="detail-${index}">
+                                ${imgHtml}
+                                <p style="font-size:0.9rem; line-height:1.6; opacity:0.9; margin:0;">${evt.desc.replace(/\n/g, '<br>')}</p>
+                            </div>
                         </div>
                     `;
+                    
+                    // クリックイベント：詳細を開閉
+                    card.addEventListener('click', () => {
+                        const content = document.getElementById(`detail-${index}`);
+                        content.classList.toggle('open');
+                    });
+
                     eventListEl.appendChild(card);
                 });
             } else {

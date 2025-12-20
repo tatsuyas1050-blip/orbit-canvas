@@ -107,3 +107,36 @@ input:focus, textarea:focus, select:focus {
     transition: transform 0.2s;
 }
 .log-card:hover { transform: translateX(5px); background: rgba(255,255,255,0.06); }
+
+/* イベント詳細の開閉アニメーション */
+.event-details-content {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(255,255,255,0.2);
+    animation: fadeIn 0.3s ease;
+}
+.event-details-content.open { display: block; }
+.event-image {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    border: 1px solid var(--accent-gold);
+}
+.log-card { cursor: pointer; } /* クリックできることを示す */
+
+/* 新カテゴリの色定義 */
+.dot-meteor { background-color: #00d2ff; box-shadow: 0 0 5px #00d2ff; } /* 流星群: 水色 */
+.dot-eclipse { background-color: #bf00ff; box-shadow: 0 0 5px #bf00ff; } /* 日食月食: 紫 */
+.dot-phenomenon { background-color: #ffd700; box-shadow: 0 0 5px #ffd700; } /* 現象: 金 */
+.dot-rocket { background-color: #ff5e5e; box-shadow: 0 0 5px #ff5e5e; } /* ロケット: 赤 */
+.dot-other { background-color: #aaaaaa; } /* その他: グレー */
+
+.type-badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 10px; border: 1px solid; margin-bottom: 5px; display: inline-block; }
+.type-meteor { color: #00d2ff; border-color: #00d2ff; }
+.type-eclipse { color: #bf00ff; border-color: #bf00ff; }
+.type-phenomenon { color: #ffd700; border-color: #ffd700; }
+.type-rocket { color: #ff5e5e; border-color: #ff5e5e; }
+.type-other { color: #aaaaaa; border-color: #aaaaaa; }
