@@ -57,18 +57,12 @@
     <script src="assets/js/script.js"></script>
     
     <script>
-        // 手書きの静的データ
-        const eventsData = {
-            "2025-12-14": [
-                { title: "ふたご座流星群 極大", type: "star", time: "22:00頃", desc: "1時間に40個程度の出現が予想されます。" }
-            ],
-            "2025-12-25": [
-                { title: "クリスマス観望会", type: "star", time: "19:00 - 21:00", desc: "ルナ天文台にて特別観望会を実施。" }
-            ],
-            "2025-12-28": [
-                { title: "H3ロケット 打ち上げ予定", type: "rocket", time: "14:30 (JST)", desc: "種子島宇宙センターより打ち上げ予定。" }
-            ]
-        };
+        // ▼▼▼ ここにAWS Lambdaの関数URLを貼り付けてください ▼▼▼
+        const API_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+        // イベントデータ格納用（最初は空、サーバーから取得して埋める）
+        let eventsData = {};
 
         const today = new Date();
         let currentYear = today.getFullYear(); 
@@ -79,8 +73,47 @@
         const selectedDateEl = document.getElementById('selected-date');
         const eventListEl = document.getElementById('event-list');
 
+        // 1. サーバーからデータを取得する関数
+        async function fetchEvents() {
+            try {
+                // ロード中表示
+                eventListEl.innerHTML = '<p style="opacity:0.6;">イベント情報を取得中...</p>';
+                
+                // API呼び出し
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // データの受け取り
+                eventsData = await response.json();
+                console.log("Data loaded:", eventsData);
+
+                // データ取得完了後にカレンダーを描画
+                generateCalendar(currentYear, currentMonth);
+                
+                // ロード完了メッセージ（または初期メッセージ）に戻す
+                eventListEl.innerHTML = '<p style="opacity:0.6;">カレンダーの日付をクリックすると、<br>その日の詳細が表示されます。</p>';
+
+            } catch (error) {
+                console.error("データの取得に失敗しました:", error);
+                eventListEl.innerHTML = `
+                    <p style="opacity:0.6; color:#ff9999;">
+                        データの読み込みに失敗しました。<br>
+                        <small>${error.message}</small>
+                    </p>
+                `;
+                // エラー時もカレンダー枠だけは描画しておく
+                generateCalendar(currentYear, currentMonth);
+            }
+        }
+
+        // 2. カレンダー生成関数
         function generateCalendar(year, month) {
             gridEl.innerHTML = '';
+            
+            // 曜日のヘッダー作成
             const days = ['日', '月', '火', '水', '木', '金', '土'];
             days.forEach(d => {
                 const div = document.createElement('div');
@@ -94,13 +127,18 @@
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             labelEl.textContent = `${year}年 ${month + 1}月`;
 
+            // 空白セルの追加（月初めの曜日調整）
             for (let i = 0; i < firstDay; i++) gridEl.appendChild(document.createElement('div'));
 
+            // 日付セルの生成
             for (let d = 1; d <= daysInMonth; d++) {
                 const cell = document.createElement('div');
                 cell.className = 'calendar-day';
+                
+                // キーとして使う日付文字列 (YYYY-MM-DD)
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                 
+                // 今日の日付にマーク
                 const now = new Date();
                 if (year === now.getFullYear() && month === now.getMonth() && d === now.getDate()) {
                     cell.classList.add('today');
@@ -111,6 +149,7 @@
                 numSpan.textContent = d; 
                 cell.appendChild(numSpan);
 
+                // 取得したデータの中に、この日付のイベントがあるか確認してドットを表示
                 if (eventsData[dateStr]) {
                     eventsData[dateStr].forEach(evt => {
                         const dot = document.createElement('span');
@@ -119,11 +158,13 @@
                     });
                 }
                 
+                // クリックイベント
                 cell.addEventListener('click', () => showDetails(dateStr));
                 gridEl.appendChild(cell);
             }
         }
 
+        // 3. 詳細表示関数
         function showDetails(dateStr) {
             selectedDateEl.textContent = dateStr;
             eventListEl.innerHTML = '';
@@ -132,7 +173,7 @@
             if (events && events.length > 0) {
                 events.forEach(evt => {
                     const card = document.createElement('div');
-                    card.className = 'log-card';
+                    card.className = 'log-card'; // lifelog.htmlと同じスタイルを再利用
                     card.style.marginBottom = '1rem';
                     const typeLabel = evt.type === 'star' ? '天文現象' : 'ロケット';
                     const typeColor = evt.type === 'star' ? '#a0d9ff' : '#ff9999';
@@ -155,13 +196,19 @@
             }
         }
 
-        generateCalendar(currentYear, currentMonth);
+        // 4. 初期化処理：ページ読み込み時にデータを取得
+        fetchEvents();
 
+        // 月切り替えボタン
         document.getElementById('prev-month').addEventListener('click', () => {
-            currentMonth--; if(currentMonth<0){currentMonth=11;currentYear--;} generateCalendar(currentYear, currentMonth);
+            currentMonth--; 
+            if(currentMonth < 0){ currentMonth = 11; currentYear--; } 
+            generateCalendar(currentYear, currentMonth);
         });
         document.getElementById('next-month').addEventListener('click', () => {
-            currentMonth++; if(currentMonth>11){currentMonth=0;currentYear++;} generateCalendar(currentYear, currentMonth);
+            currentMonth++; 
+            if(currentMonth > 11){ currentMonth = 0; currentYear++; } 
+            generateCalendar(currentYear, currentMonth);
         });
     </script>
 </body>
