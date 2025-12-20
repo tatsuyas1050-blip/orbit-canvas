@@ -8,62 +8,21 @@
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
     <style>
-        /* 管理画面用レイアウト調整 */
-        .admin-wrapper {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* 左右2カラム */
-            gap: 2rem;
-            align-items: start;
-        }
-
-        /* 左側：カレンダーエリア */
-        .calendar-section {
-            background: rgba(5, 10, 20, 0.6);
-            border: 1px solid var(--accent-gold);
-            border-radius: 8px;
-            padding: 1.5rem;
-            backdrop-filter: blur(5px);
-        }
-        /* カレンダーの日付セルを少し小さめに調整 */
+        .admin-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+        .calendar-section { background: rgba(5, 10, 20, 0.6); border: 1px solid var(--accent-gold); border-radius: 8px; padding: 1.5rem; }
         .calendar-day { min-height: 60px; font-size: 0.9rem; }
-        .calendar-day.selected {
-            background: rgba(212, 175, 55, 0.3);
-            border: 2px solid var(--accent-gold);
-        }
-
-        /* 右側：管理パネル */
-        .manage-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-        
-        .panel-box {
-            background: var(--panel-bg);
-            padding: 1.5rem;
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        /* イベントリスト項目 */
-        .event-item {
-            background: rgba(255,255,255,0.05);
-            padding: 10px 15px;
-            margin-bottom: 8px;
-            border-radius: 4px;
-            border-left: 3px solid var(--accent-gold);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .event-item:hover { background: rgba(255,255,255,0.1); }
+        .calendar-day.selected { background: rgba(212, 175, 55, 0.3); border: 2px solid var(--accent-gold); }
+        .manage-panel { display: flex; flex-direction: column; gap: 1.5rem; }
+        .panel-box { background: var(--panel-bg); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .event-item { background: rgba(255,255,255,0.05); padding: 10px 15px; margin-bottom: 8px; border-radius: 4px; border-left: 3px solid var(--accent-gold); display: flex; justify-content: space-between; align-items: center; }
         .event-info { cursor: pointer; flex-grow: 1; }
         .btn-delete { background: #ff4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px;}
-
-        /* レスポンシブ対応 */
-        @media (max-width: 900px) {
-            .admin-wrapper { grid-template-columns: 1fr; }
-        }
+        
+        /* 画像プレビュー用 */
+        #preview-area { margin-top: 10px; text-align: center; display: none; }
+        #preview-img { max-width: 100%; max-height: 200px; border: 1px solid #444; border-radius: 4px; }
+        
+        @media (max-width: 900px) { .admin-wrapper { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -73,7 +32,6 @@
     </header>
 
     <div class="container admin-wrapper">
-        
         <div class="calendar-section">
             <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; border:none; margin-bottom:1rem;">
                 <button class="btn-submit" id="prev-month" style="width:auto; padding:5px 15px;">&lt;</button>
@@ -81,29 +39,28 @@
                 <button class="btn-submit" id="next-month" style="width:auto; padding:5px 15px;">&gt;</button>
             </div>
             <div class="calendar-grid" id="calendar-grid"></div>
-            <p style="text-align:center; font-size:0.8rem; opacity:0.6; margin-top:1rem;">日付をクリックして編集・登録を行います</p>
         </div>
 
         <div class="manage-panel">
-            
             <div class="panel-box">
-                <h2 class="section-header" id="selected-date-label" style="color:var(--text-white); border-bottom-color:var(--accent-gold);">
-                    日付を選択してください
-                </h2>
-                <div id="event-list-display">
-                    <p style="opacity:0.5;">カレンダーの日付をクリックすると、<br>ここに登録済みイベントが表示されます。</p>
-                </div>
+                <h2 class="section-header" id="selected-date-label">日付を選択してください</h2>
+                <div id="event-list-display"><p style="opacity:0.5;">カレンダーの日付をクリックしてください。</p></div>
             </div>
 
             <div class="panel-box">
-                <h3 class="section-header" style="font-size:1rem;">✏️ 編集 / 新規登録</h3>
+                <h3 class="section-header">✏️ 編集 / 新規登録</h3>
                 <form id="admin-form">
                     <div style="margin-bottom:1rem;">
-                        <label>🔑 合言葉</label>
-                        <input type="password" id="input-password" placeholder="合言葉" required>
+                        <label>🔑 合言葉 (Password)</label>
+                        <input type="password" id="input-password" placeholder="luna1234" required>
                     </div>
                     
-                    <input type="hidden" id="input-id"> <input type="hidden" id="input-date"> <div class="form-row">
+                    <input type="hidden" id="input-id">
+                    <input type="hidden" id="input-date">
+                    
+                    <input type="hidden" id="final-image-url"> 
+
+                    <div class="form-row">
                         <div>
                             <label>タイトル</label>
                             <input type="text" id="input-title" required>
@@ -126,8 +83,13 @@
                     </div>
                     
                     <div>
-                        <label>画像URL</label>
-                        <input type="text" id="input-image" placeholder="https://...">
+                        <label>画像 (ファイルを選択)</label>
+                        <input type="file" id="input-file" accept="image/*">
+                        <div id="preview-area">
+                            <p style="font-size:0.8rem; opacity:0.7;">現在の設定画像:</p>
+                            <img id="preview-img" src="">
+                            <button type="button" id="btn-clear-img" style="font-size:0.8rem; margin-top:5px;">画像を削除</button>
+                        </div>
                     </div>
 
                     <div>
@@ -146,19 +108,16 @@
     </div>
 
     <script>
-        // ▼▼▼ あなたの関数URLをここに貼り付けてください ▼▼▼
+        // ▼▼▼ あなたの関数URLを2つ貼ってください (重要！) ▼▼▼
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-        // データ保持用
         let eventsData = {};
-        
-        // カレンダー用変数
         const today = new Date();
         let currentYear = today.getFullYear();
         let currentMonth = today.getMonth();
-        let selectedDateStr = ""; // 現在選択中の日付 "YYYY-MM-DD"
+        let selectedDateStr = "";
 
         // DOM要素
         const gridEl = document.getElementById('calendar-grid');
@@ -168,70 +127,60 @@
         const form = document.getElementById('admin-form');
         const btnSave = document.getElementById('btn-save');
         const statusMsg = document.getElementById('msg-status');
+        
+        // 画像プレビュー関連要素
+        const inputFile = document.getElementById('input-file');
+        const previewArea = document.getElementById('preview-area');
+        const previewImg = document.getElementById('preview-img');
+        const finalImageUrl = document.getElementById('final-image-url');
+        const btnClearImg = document.getElementById('btn-clear-img');
 
-        // 初期化処理
         init();
 
         async function init() {
-            // 今日の日付文字列を作成
             const y = today.getFullYear();
             const m = String(today.getMonth() + 1).padStart(2, '0');
             const d = String(today.getDate()).padStart(2, '0');
             selectedDateStr = `${y}-${m}-${d}`;
             
-            await fetchAllEvents(); // 全データを取得
-            renderCalendar(currentYear, currentMonth); // カレンダー描画
-            selectDate(selectedDateStr); // 今日の日付を選択状態にする
+            await fetchAllEvents();
+            renderCalendar(currentYear, currentMonth);
+            selectDate(selectedDateStr);
         }
 
-        // 1. 全データ取得 (Get Lambda)
         async function fetchAllEvents() {
             try {
                 const res = await fetch(GET_URL);
                 if(!res.ok) throw new Error("Fetch failed");
                 eventsData = await res.json();
-                console.log("Loaded:", eventsData);
             } catch (e) {
                 console.error(e);
-                alert("データの読み込みに失敗しました");
+                alert("データの読み込みに失敗しました。GET_URLを確認してください。");
             }
         }
 
-        // 2. カレンダー描画
         function renderCalendar(year, month) {
             gridEl.innerHTML = '';
-            
-            // 曜日ヘッダー
             const days = ['日', '月', '火', '水', '木', '金', '土'];
             days.forEach(d => {
                 const div = document.createElement('div');
                 div.className = 'day-name';
-                div.style.textAlign = 'center'; div.style.fontSize = '0.8rem'; div.style.color='rgba(255,255,255,0.6)';
+                div.style.textAlign='center'; div.style.fontSize='0.8rem'; div.style.color='rgba(255,255,255,0.6)';
                 div.textContent = d;
                 gridEl.appendChild(div);
             });
-
             monthLabelEl.textContent = `${year}年 ${month + 1}月`;
-
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-
             for (let i = 0; i < firstDay; i++) gridEl.appendChild(document.createElement('div'));
-
             for (let d = 1; d <= daysInMonth; d++) {
                 const cell = document.createElement('div');
                 cell.className = 'calendar-day';
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                
-                // 選択状態のスタイル適用
                 if (dateStr === selectedDateStr) cell.classList.add('selected');
-
                 const numDiv = document.createElement('div');
-                numDiv.textContent = d;
-                numDiv.style.fontWeight = 'bold'; numDiv.style.marginBottom='4px';
+                numDiv.textContent = d; numDiv.style.fontWeight='bold';
                 cell.appendChild(numDiv);
-
-                // ドット表示
                 if (eventsData[dateStr]) {
                     eventsData[dateStr].forEach(evt => {
                         const dot = document.createElement('span');
@@ -239,45 +188,28 @@
                         cell.appendChild(dot);
                     });
                 }
-
-                cell.addEventListener('click', () => {
-                    // 選択日を更新して再描画（選択スタイル適用のため）
-                    selectDate(dateStr);
-                });
+                cell.addEventListener('click', () => selectDate(dateStr));
                 gridEl.appendChild(cell);
             }
         }
 
-        // 3. 日付選択時の処理
         function selectDate(dateStr) {
             selectedDateStr = dateStr;
-            
-            // ラベルと隠しフィールド更新
             selectedDateLabel.textContent = `${dateStr} のイベント`;
             document.getElementById('input-date').value = dateStr;
-            
-            // カレンダーの選択スタイル更新
             document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected'));
-            // (簡易的な再描画よりも、クラス付け替えの方が軽量だが、今回はシンプルに再描画する)
-            renderCalendar(currentYear, currentMonth); 
-
-            // 右側のリスト更新
+            renderCalendar(currentYear, currentMonth);
             renderEventList(dateStr);
-            
-            // フォームクリア
             clearForm();
         }
 
-        // 4. イベントリスト描画
         function renderEventList(dateStr) {
             listDisplay.innerHTML = '';
             const events = eventsData[dateStr] || [];
-
             if (events.length === 0) {
                 listDisplay.innerHTML = '<p style="opacity:0.6;">イベントは登録されていません。</p>';
                 return;
             }
-
             events.forEach(evt => {
                 const div = document.createElement('div');
                 div.className = 'event-item';
@@ -292,71 +224,119 @@
             });
         }
 
-        // 5. フォームへ読み込み（編集モード）
         window.loadToForm = (evt) => {
             document.getElementById('input-id').value = evt.id || "";
             document.getElementById('input-title').value = evt.title;
             document.getElementById('input-type').value = evt.type;
             document.getElementById('input-time').value = evt.time;
-            document.getElementById('input-image').value = evt.image || "";
             document.getElementById('input-desc').value = evt.desc;
             
+            // 画像情報のセット
+            finalImageUrl.value = evt.image || "";
+            if (evt.image) {
+                previewImg.src = evt.image;
+                previewArea.style.display = 'block';
+            } else {
+                previewArea.style.display = 'none';
+            }
+            
+            inputFile.value = ""; // ファイル入力はリセット
             btnSave.textContent = "更新する (上書き)";
-            btnSave.style.background = "#4CAF50"; // 緑色に変更
-            statusMsg.textContent = "📝 編集モード: 下のボタンで保存してください";
+            btnSave.style.background = "#4CAF50";
+            statusMsg.textContent = "📝 編集モード";
         };
 
         function clearForm() {
             document.getElementById('input-id').value = "";
             document.getElementById('input-title').value = "";
             document.getElementById('input-desc').value = "";
-            document.getElementById('input-image').value = "";
             document.getElementById('input-time').value = "";
+            
+            finalImageUrl.value = "";
+            inputFile.value = "";
+            previewArea.style.display = 'none';
+
             btnSave.textContent = "この内容で新規登録";
             btnSave.style.background = "var(--accent-gold)";
             statusMsg.textContent = "";
         }
         document.getElementById('btn-clear').addEventListener('click', clearForm);
 
-        // 6. 保存処理 (新規/編集)
+        // 画像削除ボタン
+        btnClearImg.addEventListener('click', () => {
+            finalImageUrl.value = "";
+            previewArea.style.display = 'none';
+            inputFile.value = "";
+        });
+
+        // ■ 画像アップロード関数
+        async function uploadImage(file) {
+            const password = document.getElementById('input-password').value;
+            
+            // 1. Lambdaから署名付きURLを取得
+            const res = await fetch(PUT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    password: password,
+                    action: 'getUploadUrl',
+                    fileName: file.name,
+                    fileType: file.type
+                })
+            });
+            
+            if (!res.ok) throw new Error("アップロード許可の取得に失敗 (合言葉は正しいですか？)");
+            const data = await res.json();
+            
+            // 2. S3へ直接アップロード
+            const uploadRes = await fetch(data.uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: { 'Content-Type': file.type }
+            });
+            
+            if (!uploadRes.ok) throw new Error("画像のアップロードに失敗");
+            
+            return data.publicUrl; // 公開用URLを返す
+        }
+
+        // 送信処理
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('input-id').value;
             const action = id ? "edit" : "add";
-
-            const eventData = {
-                id: id,
-                title: document.getElementById('input-title').value,
-                type: document.getElementById('input-type').value,
-                time: document.getElementById('input-time').value,
-                image: document.getElementById('input-image').value,
-                desc: document.getElementById('input-desc').value
-            };
-
-            await sendData(action, eventData);
-        });
-
-        // 7. 削除処理
-        window.deleteEvent = async (id) => {
-            if(!confirm("本当に削除しますか？")) return;
-            await sendData("delete", { id: id });
-        };
-
-        // 共通送信関数
-        async function sendData(action, eventData) {
             const password = document.getElementById('input-password').value;
-            if(!password) { alert("合言葉を入力してください"); return; }
 
+            if(!password) { alert("合言葉を入力してください"); return; }
             btnSave.disabled = true;
             statusMsg.textContent = "送信中...";
 
             try {
+                // 画像ファイルのアップロード処理
+                const file = inputFile.files[0];
+                if (file) {
+                    statusMsg.textContent = "画像をアップロード中...";
+                    const uploadedUrl = await uploadImage(file);
+                    finalImageUrl.value = uploadedUrl;
+                }
+
+                statusMsg.textContent = "データを保存中...";
+
+                const eventData = {
+                    id: id,
+                    title: document.getElementById('input-title').value,
+                    type: document.getElementById('input-type').value,
+                    time: document.getElementById('input-time').value,
+                    image: finalImageUrl.value, // アップロード済み or 既存のURL
+                    desc: document.getElementById('input-desc').value
+                };
+
                 const res = await fetch(PUT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         password: password,
-                        date: selectedDateStr, // 選択中の日付を使用
+                        date: selectedDateStr,
                         action: action,
                         eventData: eventData
                     })
@@ -366,22 +346,50 @@
                 
                 if(res.ok) {
                     statusMsg.textContent = "✅ 処理完了！";
-                    // データを再取得して画面を更新
                     await fetchAllEvents();
                     renderCalendar(currentYear, currentMonth);
                     renderEventList(selectedDateStr);
-                    
                     if(action !== 'edit') clearForm();
                 } else {
                     statusMsg.textContent = "⛔ エラー: " + result.message;
+                    if(result.message === "合言葉が違います") {
+                        alert("合言葉が違います。確認してください。");
+                    }
                 }
             } catch(e) {
                 console.error(e);
-                statusMsg.textContent = "通信エラーが発生しました";
+                statusMsg.textContent = "エラー: " + e.message;
             } finally {
                 btnSave.disabled = false;
             }
-        }
+        });
+
+        // 削除処理
+        window.deleteEvent = async (id) => {
+            if(!confirm("本当に削除しますか？")) return;
+            const password = document.getElementById('input-password').value;
+            if(!password) { alert("合言葉を入力してください"); return; }
+            
+            try {
+                const res = await fetch(PUT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        password: password,
+                        date: selectedDateStr,
+                        action: 'delete',
+                        eventData: { id: id }
+                    })
+                });
+                if(res.ok) {
+                    await fetchAllEvents();
+                    renderCalendar(currentYear, currentMonth);
+                    renderEventList(selectedDateStr);
+                } else {
+                    alert("削除失敗: 合言葉を確認してください");
+                }
+            } catch(e) { alert("通信エラー"); }
+        };
 
         // 月切り替え
         document.getElementById('prev-month').addEventListener('click', () => {
