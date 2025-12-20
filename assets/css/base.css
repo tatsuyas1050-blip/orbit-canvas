@@ -134,3 +134,32 @@ body {
     margin-top: 0.5rem; letter-spacing: 0.05em; opacity: 0.7;
 }
 .nav-link:hover { color: var(--accent-gold); }
+
+/* --- base.css の末尾に追加・修正 --- */
+
+/* ヘッダータイトルの英語併記スタイル */
+.page-title {
+    display: flex;
+    flex-direction: column; /* 上下に並べる */
+    align-items: center;    /* 中央揃え */
+    line-height: 1.2;
+    color: #fff;            /* 文字色を白に変更 */
+    font-family: 'Shippori Mincho', serif; /* 日本語は明朝体 */
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3); /* ほんのり光らせて視認性を高める */
+}
+
+.page-title span {
+    font-size: 0.85rem;
+    color: #fff;            /* 英語部分も白 */
+    font-family: 'Shippori Mincho', serif; /* 日本語は明朝体 */
+    letter-spacing: 0.1em;
+    opacity: 0.7;           /* 英語は少し薄くして階層をつける */
+    margin-top: 4px;
+    font-weight: 400;
+}
+
+/* スマホ表示時の微調整 */
+@media (max-width: 600px) {
+    .page-title { font-size: 1.3rem; }
+    .page-title span { font-size: 0.7rem; }
+}
