@@ -6,20 +6,248 @@
     <title>星空情報局 - Starry Sky Bureau</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&family=Jura:wght@400;600&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
+    
+    <script src="https://cdn.jsdelivr.net/gh/cosinekitty/astronomy@master/source/js/astronomy.browser.min.js"></script>
+
+    <style>
+        :root {
+            --bg-deep: #030508;
+            --card-bg: rgba(20, 25, 35, 0.4);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --glow-color: rgba(212, 175, 55, 0.15);
+            --font-tech: 'Jura', sans-serif;
+            
+            /* カテゴリカラー */
+            --col-meteor: #00d2ff;
+            --col-eclipse: #d65eff;
+            --col-phenom: #ffd700;
+            --col-rocket: #ff5e5e;
+            --col-other: #aaaaaa;
+
+            /* ヘッダーの高さ定義 */
+            --header-height: 80px;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            background-image: radial-gradient(circle at 50% 0%, #1a2035 0%, var(--bg-deep) 70%);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 共通ヘッダー */
+        .common-header {
+            height: var(--header-height);
+            box-sizing: border-box;
+            background: rgba(5, 10, 20, 0.8);
+            backdrop-filter: blur(5px);
+            position: absolute; top: 0; left: 0; width: 100%; z-index: 20;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* メインレイアウトコンテナ */
+        .dashboard-container {
+            max-width: 1300px; 
+            margin: 0 auto;
+            padding-top: calc(var(--header-height) + 30px);
+            padding-bottom: 2rem;
+            padding-left: 2rem;
+            padding-right: 2rem;
+            height: 100vh;
+            box-sizing: border-box;
+            display: grid; 
+            grid-template-columns: 360px 1fr; 
+            gap: 2rem; 
+            align-items: start;
+            overflow: hidden; 
+        }
+
+        /* --- 左カラム (完全固定) --- */
+        .left-column {
+            height: 100%;
+            overflow-y: auto;
+            scrollbar-width: none; -ms-overflow-style: none;
+            display: flex; flex-direction: column; gap: 1.5rem;
+            padding-bottom: 2rem;
+        }
+        .left-column::-webkit-scrollbar { display: none; }
+
+        /* --- 右カラム --- */
+        .event-feed { 
+            height: 100%;
+            overflow-y: auto; 
+            padding: 0 1rem 4rem 0; 
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
+            position: relative;
+        }
+        .event-feed::-webkit-scrollbar { width: 6px; }
+        .event-feed::-webkit-scrollbar-track { background: transparent; }
+        .event-feed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        /* ■■■ 修正: 日付見出し (透明背景＆強ぼかし) ■■■ */
+        .date-heading {
+            font-family: var(--font-tech); 
+            font-size: 2.5rem; 
+            line-height: 1;
+            color: rgba(255,255,255,0.1); 
+            
+            /* Sticky設定 */
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            
+            /* 背景透明＆ぼかし強化 */
+            background: transparent; 
+            backdrop-filter: blur(20px); /* ぼかしを強く */
+            -webkit-backdrop-filter: blur(20px); /* Safari対応 */
+            
+            /* 余白と境界線 */
+            margin: 0 0 1.5rem 0;
+            padding: 1rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1); /* 境界線は少し見せる */
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8); /* 文字が背景に埋もれないよう影追加 */
+        }
+        .date-heading span { color: var(--text-white); }
+        .date-heading small { font-size:1.2rem; opacity:0.9; color:#fff; margin-left:10px; font-weight: 300; }
+
+        /* --- カード共通 --- */
+        .smart-card {
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            border-radius: 16px; backdrop-filter: blur(12px);
+            position: relative; overflow: hidden;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            flex-shrink: 0; 
+        }
+        .smart-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 16px; padding: 1px;
+            background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.3), transparent 40%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+        .smart-card:hover::before { opacity: 1; }
+
+        /* カレンダー */
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem 0.5rem; }
+        .month-display { font-family: var(--font-tech); font-size: 1.4rem; letter-spacing: 0.1em; color: var(--text-white); }
+        .month-nav-btn { background: none; border: 1px solid var(--card-border); color: #888; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .month-nav-btn:hover { color: var(--accent-gold); border-color: var(--accent-gold); }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 0 1rem 1rem; }
+        .day-label { text-align: center; font-size: 0.7rem; color: #666; padding-bottom: 5px; }
+        
+        .cal-cell { 
+            aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; 
+            padding-top: 6px; border-radius: 6px; cursor: pointer; position: relative; 
+            transition: all 0.2s; font-family: var(--font-tech); color: #aaa; font-size: 0.9rem;
+        }
+        .cal-cell:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .cal-cell.today { color: var(--accent-gold); font-weight: bold; border: 1px solid rgba(212,175,55,0.3); }
+        .cal-cell.selected { background: var(--accent-gold); color: #000; box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
+
+        .cal-dots { display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; position: absolute; bottom: 6px; width: 100%; padding: 0 2px; }
+        .cal-dot { width: 4px; height: 4px; border-radius: 50%; display: block; }
+        
+        .dot-meteor { background: var(--col-meteor); box-shadow: 0 0 3px var(--col-meteor); }
+        .dot-eclipse { background: var(--col-eclipse); box-shadow: 0 0 3px var(--col-eclipse); }
+        .dot-phenomenon { background: var(--col-phenom); box-shadow: 0 0 3px var(--col-phenom); }
+        .dot-rocket { background: var(--col-rocket); box-shadow: 0 0 3px var(--col-rocket); }
+        .dot-other { background: var(--col-other); }
+
+        .legend-area { border-top: 1px solid rgba(255,255,255,0.1); padding: 0.8rem 1rem; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: center; }
+        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: #ccc; }
+        .legend-mark { width: 6px; height: 6px; border-radius: 50%; }
+
+        /* 天文パネル */
+        .astro-panel { padding: 1.2rem; }
+        .astro-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
+        .astro-title { font-size: 0.85rem; color: var(--accent-gold); letter-spacing: 0.1em; display:flex; flex-direction:column; line-height:1.2; }
+        .astro-date-sub { font-size: 0.7rem; color: #888; font-family: var(--font-tech); }
+        .location-control { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+        .btn-geo { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #ccc; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; transition: all 0.3s; }
+        .btn-geo:hover { background: rgba(212, 175, 55, 0.2); border-color: var(--accent-gold); color: #fff; }
+        .geo-info { font-family: var(--font-tech); font-size: 0.65rem; color: #888; }
+        
+        .moon-viz { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; }
+        #moon-canvas { width: 50px; height: 50px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2)); }
+        .moon-text { text-align: right; }
+        .moon-age-label { font-size: 0.75rem; color: #888; }
+        .moon-age-val { font-family: var(--font-tech); font-size: 1.2rem; color: #fff; }
+        .astro-row { display: flex; justify-content: space-between; margin-bottom: 0.6rem; font-size: 0.85rem; }
+        .astro-label { color: #888; }
+        .astro-val { font-family: var(--font-tech); color: #eee; }
+        .sun-icon { color: #ffbd5e; margin-right: 5px; }
+        .moon-icon { color: #cfd8dc; margin-right: 5px; }
+
+        /* フィードカード */
+        .feed-card {
+            margin-bottom: 2rem;
+            display: grid; grid-template-columns: 200px 1fr;
+            overflow: hidden; 
+            animation: slideIn 0.4s ease forwards; opacity: 0; transform: translateY(10px);
+            cursor: pointer;
+            border-left: 5px solid var(--col-other);
+        }
+        .feed-card.type-meteor { border-left-color: var(--col-meteor); }
+        .feed-card.type-eclipse { border-left-color: var(--col-eclipse); }
+        .feed-card.type-phenomenon { border-left-color: var(--col-phenom); }
+        .feed-card.type-rocket { border-left-color: var(--col-rocket); }
+        .feed-card.type-other { border-left-color: var(--col-other); }
+
+        .feed-card.no-image { grid-template-columns: 1fr; }
+        .feed-card.no-image .feed-img-col { display: none; }
+
+        .feed-img-col { background: #000; position: relative; min-height: 180px; }
+        .feed-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; transition: transform 0.5s; }
+        .feed-card:hover .feed-img { transform: scale(1.1); opacity: 1; }
+
+        .feed-content { padding: 1.5rem; display: flex; flex-direction: column; }
+        
+        .badge-row { display: flex; gap: 10px; margin-bottom: 0.5rem; }
+        .smart-badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); letter-spacing: 0.05em; }
+        
+        .feed-title { font-size: 1.4rem; margin: 0 0 0.5rem; color: var(--accent-gold); line-height: 1.3; }
+        .feed-time { font-family: var(--font-tech); font-size: 0.9rem; color: #aaa; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px; }
+
+        .feed-details {
+            max-height: 0; overflow: hidden; opacity: 0;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .feed-card.open .feed-details {
+            max-height: 500px; opacity: 1; margin-top: 1rem; padding-top: 1rem;
+            border-top: 1px dashed rgba(255,255,255,0.1);
+        }
+        .feed-desc { font-size: 0.95rem; line-height: 1.7; color: #ccc; }
+        
+        .toggle-btn { margin-top: 0.5rem; font-size: 0.8rem; color: var(--accent-gold); opacity: 0.7; text-align: center; width: 100%; padding-top: 5px; }
+        .toggle-btn::before { content: "▼ 詳細を見る"; }
+        .feed-card.open .toggle-btn::before { content: "▲ 閉じる"; }
+
+        .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; margin-bottom: 1rem; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 900px) {
+            body { overflow: auto; height: auto; }
+            .dashboard-container { display: block; height: auto; padding: 5rem 1rem 2rem; }
+            .left-column { position: relative; top: 0; height: auto; overflow: visible; margin-bottom: 2rem; padding: 0; }
+            .event-feed { height: auto; overflow: visible; padding: 0; }
+            .feed-card { grid-template-columns: 1fr; }
+            .feed-img-col { height: 180px; }
+            .date-heading { position: static; background: transparent; backdrop-filter: none; }
+        }
+    </style>
 </head>
 <body>
     
     <div class="menu-container">
         <button id="menu-toggle" class="menu-toggle" aria-label="メニューを開く">
-            <span class="line"></span>
-            <span class="line"></span>
-            <span class="line"></span>
+            <span class="line"></span><span class="line"></span><span class="line"></span>
         </button>
-        
         <nav id="nav-overlay" class="nav-overlay">
             <ul class="nav-list">
                 <li><a href="index.html" class="nav-link">トップページ<span>Home</span></a></li>
@@ -36,204 +264,334 @@
         <h1 class="page-title">星空情報局</h1>
     </header>
 
-    <div class="container">
-        <div class="calendar-wrapper">
-            <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; border:none;">
-                <button class="btn-submit" id="prev-month" style="width:auto; padding:5px 15px;">&lt;</button>
-                <div class="month-label" id="current-month" style="font-size:1.5rem; color:var(--accent-gold);">----年 --月</div>
-                <button class="btn-submit" id="next-month" style="width:auto; padding:5px 15px;">&gt;</button>
+    <div class="dashboard-container">
+        <aside class="left-column">
+            <div class="smart-card" id="calendar-card">
+                <div class="calendar-header">
+                    <button class="month-nav-btn" id="prev-month">&lt;</button>
+                    <div class="month-display" id="calendar-header-display">2025. --</div>
+                    <button class="month-nav-btn" id="next-month">&gt;</button>
+                </div>
+                <div class="calendar-grid" id="calendar-grid"></div>
+                
+                <div class="legend-area">
+                    <div class="legend-item"><span class="legend-mark dot-meteor"></span>流星群</div>
+                    <div class="legend-item"><span class="legend-mark dot-eclipse"></span>日食・月食</div>
+                    <div class="legend-item"><span class="legend-mark dot-phenomenon"></span>天文現象</div>
+                    <div class="legend-item"><span class="legend-mark dot-rocket"></span>ロケット</div>
+                    <div class="legend-item"><span class="legend-mark dot-other"></span>その他</div>
+                </div>
             </div>
-            <div class="calendar-grid" id="calendar-grid"></div>
-        </div>
 
-        <div class="panel-bg" style="height:fit-content;">
-            <div class="section-header" id="selected-date">日付を選択してください</div>
-            <div id="event-list">
-                <p style="opacity:0.6;">カレンダーの日付をクリックすると、<br>その日の詳細が表示されます。</p>
+            <div class="smart-card astro-panel" id="astro-card">
+                <div class="astro-header-row">
+                    <div class="astro-title">
+                        天文暦 (EPHEMERIS)
+                        <span class="astro-date-sub" id="astro-date-display">--/-- Data</span>
+                    </div>
+                    <div class="location-control">
+                        <span id="geo-display" class="geo-info">📍 東京 (初期値)</span>
+                        <button id="btn-geo" class="btn-geo">現在地を取得</button>
+                    </div>
+                </div>
+                
+                <div class="moon-viz">
+                    <canvas id="moon-canvas" width="50" height="50"></canvas>
+                    <div class="moon-text">
+                        <div class="moon-age-label">月齢</div>
+                        <div class="moon-age-val" id="moon-age-val">--</div>
+                    </div>
+                </div>
+
+                <div class="astro-row">
+                    <span class="astro-label"><span class="sun-icon">☀</span>日の出</span>
+                    <span class="astro-val" id="sun-rise">--:--</span>
+                </div>
+                <div class="astro-row">
+                    <span class="astro-label"><span class="sun-icon">☀</span>日の入</span>
+                    <span class="astro-val" id="sun-set">--:--</span>
+                </div>
+                <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.1); margin:10px 0;">
+                <div class="astro-row">
+                    <span class="astro-label"><span class="moon-icon">☾</span>月の出</span>
+                    <span class="astro-val" id="moon-rise">--:--</span>
+                </div>
+                <div class="astro-row">
+                    <span class="astro-label"><span class="moon-icon">☾</span>月の入</span>
+                    <span class="astro-val" id="moon-set">--:--</span>
+                </div>
             </div>
-        </div>
+        </aside>
+
+        <main class="event-feed">
+            <div class="date-heading">
+                <span id="display-date-main">--.--</span> <small id="display-weekday">---</small>
+            </div>
+            <div id="event-feed-list">
+                <div class="skeleton" style="height:200px;"></div>
+            </div>
+        </main>
     </div>
 
     <script src="assets/js/script.js"></script>
     
     <script>
-        // ▼▼▼ ここにAWS Lambdaの関数URLを貼り付けてください ▼▼▼
+        // ▼▼▼ GET用 URL (書き換えてください) ▼▼▼
         const API_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-        // イベントデータ格納用（最初は空、サーバーから取得して埋める）
+        let observerLat = 35.6895; 
+        let observerLon = 139.6917;
+
         let eventsData = {};
-
         const today = new Date();
-        let currentYear = today.getFullYear(); 
+        let currentYear = today.getFullYear();
         let currentMonth = today.getMonth();
+        let selectedDate = null;
 
         const gridEl = document.getElementById('calendar-grid');
-        const labelEl = document.getElementById('current-month');
-        const selectedDateEl = document.getElementById('selected-date');
-        const eventListEl = document.getElementById('event-list');
+        const calHeaderDisplay = document.getElementById('calendar-header-display');
+        const displayDateMain = document.getElementById('display-date-main');
+        const displayWeekday = document.getElementById('display-weekday');
+        const feedList = document.getElementById('event-feed-list');
+        
+        const elMoonAge = document.getElementById('moon-age-val');
+        const elSunRise = document.getElementById('sun-rise');
+        const elSunSet = document.getElementById('sun-set');
+        const elMoonRise = document.getElementById('moon-rise');
+        const elMoonSet = document.getElementById('moon-set');
+        const btnGeo = document.getElementById('btn-geo');
+        const elGeoDisplay = document.getElementById('geo-display');
+        const elAstroDate = document.getElementById('astro-date-display');
+        const canvasMoon = document.getElementById('moon-canvas');
 
-        // 1. サーバーからデータを取得する関数
+        const typeLabels = {
+            meteor: "流星群", eclipse: "日食・月食", phenomenon: "天文現象",
+            rocket: "ロケット打上", other: "その他", star: "天文現象"
+        };
+        const weekDaysEng = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        document.querySelector('.dashboard-container').addEventListener('mousemove', (e) => {
+            const cards = document.querySelectorAll('.smart-card, .feed-card');
+            cards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        async function init() {
+            feedList.innerHTML = `<div class="skeleton" style="height:200px;"></div>`;
+            await fetchEvents();
+            
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${y}-${m}-${d}`;
+            
+            renderCalendar(currentYear, currentMonth);
+            selectDate(todayStr);
+        }
+
+        btnGeo.addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                alert("お使いのブラウザでは位置情報が利用できません");
+                return;
+            }
+            btnGeo.textContent = "取得中...";
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    observerLat = pos.coords.latitude;
+                    observerLon = pos.coords.longitude;
+                    elGeoDisplay.textContent = `📍 N${observerLat.toFixed(1)} / E${observerLon.toFixed(1)}`;
+                    elGeoDisplay.style.color = "var(--accent-gold)";
+                    btnGeo.textContent = "更新";
+                    if (selectedDate) updateAstroData(new Date(selectedDate));
+                },
+                (err) => {
+                    console.error(err);
+                    btnGeo.textContent = "取得失敗";
+                    setTimeout(() => btnGeo.textContent = "現在地を取得", 2000);
+                }
+            );
+        });
+
         async function fetchEvents() {
             try {
-                // ロード中表示
-                eventListEl.innerHTML = '<p style="opacity:0.6;">イベント情報を取得中...</p>';
-                
-                // API呼び出し
-                const response = await fetch(API_URL);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                // データの受け取り
-                eventsData = await response.json();
-                console.log("Data loaded:", eventsData);
-
-                // データ取得完了後にカレンダーを描画
-                generateCalendar(currentYear, currentMonth);
-                
-                // ロード完了メッセージ（または初期メッセージ）に戻す
-                eventListEl.innerHTML = '<p style="opacity:0.6;">カレンダーの日付をクリックすると、<br>その日の詳細が表示されます。</p>';
-
-            } catch (error) {
-                console.error("データの取得に失敗しました:", error);
-                eventListEl.innerHTML = `
-                    <p style="opacity:0.6; color:#ff9999;">
-                        データの読み込みに失敗しました。<br>
-                        <small>${error.message}</small>
-                    </p>
-                `;
-                // エラー時もカレンダー枠だけは描画しておく
-                generateCalendar(currentYear, currentMonth);
+                const res = await fetch(API_URL);
+                if(!res.ok) throw new Error("API Error");
+                eventsData = await res.json();
+            } catch(e) {
+                feedList.innerHTML = `<p style="opacity:0.5;">データの読み込みに失敗しました</p>`;
             }
         }
 
-        // 2. カレンダー生成関数
-        function generateCalendar(year, month) {
+        function renderCalendar(year, month) {
             gridEl.innerHTML = '';
-            
-            // 曜日のヘッダー作成
-            const days = ['日', '月', '火', '水', '木', '金', '土'];
-            days.forEach(d => {
-                const div = document.createElement('div');
-                div.className = 'day-name'; 
-                div.style.color='rgba(255,255,255,0.6)'; div.style.fontSize='0.9rem'; div.style.paddingBottom='0.5rem'; 
-                div.textContent = d; 
-                gridEl.appendChild(div);
+            ['S','M','T','W','T','F','S'].forEach(d => {
+                const el = document.createElement('div');
+                el.className = 'day-label'; el.textContent = d;
+                gridEl.appendChild(el);
             });
-
+            
+            calHeaderDisplay.textContent = `${year}. ${String(month + 1).padStart(2, '0')}`;
+            
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            labelEl.textContent = `${year}年 ${month + 1}月`;
-
-            // 空白セルの追加（月初めの曜日調整）
-            for (let i = 0; i < firstDay; i++) gridEl.appendChild(document.createElement('div'));
-
-            // 日付セルの生成
-            for (let d = 1; d <= daysInMonth; d++) {
+            for(let i=0; i<firstDay; i++) gridEl.appendChild(document.createElement('div'));
+            for(let d=1; d<=daysInMonth; d++) {
                 const cell = document.createElement('div');
-                cell.className = 'calendar-day';
-                
-                // キーとして使う日付文字列 (YYYY-MM-DD)
+                cell.className = 'cal-cell';
+                cell.textContent = d;
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                 
-                // 今日の日付にマーク
-                const now = new Date();
-                if (year === now.getFullYear() && month === now.getMonth() && d === now.getDate()) {
-                    cell.classList.add('today');
-                }
-
-                const numSpan = document.createElement('div');
-                numSpan.className = 'day-number'; numSpan.style.fontSize='1.1rem'; numSpan.style.marginBottom='5px'; 
-                numSpan.textContent = d; 
-                cell.appendChild(numSpan);
-
-                // 取得したデータの中に、この日付のイベントがあるか確認してドットを表示
+                if (dateStr === selectedDate) cell.classList.add('selected');
+                if (year===today.getFullYear() && month===today.getMonth() && d===today.getDate()) cell.classList.add('today');
+                
                 if (eventsData[dateStr]) {
+                    const dotsContainer = document.createElement('div');
+                    dotsContainer.className = 'cal-dots';
                     eventsData[dateStr].forEach(evt => {
                         const dot = document.createElement('span');
-                        dot.className = `event-dot dot-${evt.type}`; 
-                        cell.appendChild(dot);
+                        const typeClass = `dot-${evt.type || 'other'}`;
+                        dot.className = `cal-dot ${typeClass}`;
+                        dotsContainer.appendChild(dot);
                     });
+                    cell.appendChild(dotsContainer);
                 }
-                
-                // クリックイベント
-                cell.addEventListener('click', () => showDetails(dateStr));
+
+                cell.addEventListener('click', () => {
+                    document.querySelectorAll('.cal-cell').forEach(c => c.classList.remove('selected'));
+                    cell.classList.add('selected');
+                    selectDate(dateStr);
+                });
                 gridEl.appendChild(cell);
             }
         }
 
-        // 3. 詳細表示関数
- // 3. 詳細表示関数（更新版）
-        function showDetails(dateStr) {
-            selectedDateEl.textContent = dateStr;
-            eventListEl.innerHTML = '';
-            const events = eventsData[dateStr];
+        function selectDate(dateStr) {
+            selectedDate = dateStr;
+            const dateObj = new Date(dateStr);
+            const mm = String(dateObj.getMonth()+1).padStart(2,'0');
+            const dd = String(dateObj.getDate()).padStart(2,'0');
+            displayDateMain.textContent = `${mm}.${dd}`;
+            displayWeekday.textContent = weekDaysEng[dateObj.getDay()];
+            elAstroDate.textContent = `(${mm}/${dd} Data)`;
+
+            renderFeed(dateStr);
+            updateAstroData(dateObj);
+        }
+
+        function updateAstroData(dateObj) {
+            if (typeof Astronomy === 'undefined') return;
+
+            const noonDate = new Date(dateObj);
+            noonDate.setHours(12, 0, 0, 0); 
             
-            // 日本語ラベルへの変換マップ
-            const typeLabels = {
-                meteor: "流星群", eclipse: "日食・月食", phenomenon: "天文現象",
-                rocket: "ロケット打上", other: "その他", star: "天文現象" // starは互換性のため残す
-            };
+            const phaseAngle = Astronomy.MoonPhase(noonDate); 
+            const moonAge = (phaseAngle / 360) * 29.530588;
+            elMoonAge.textContent = moonAge.toFixed(1);
+            drawMoon(phaseAngle);
 
+            const observer = new Astronomy.Observer(observerLat, observerLon, 0);
+            const startOfDay = new Date(dateObj);
+            startOfDay.setHours(0, 0, 0, 0);
+
+            const sunRise = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, +1, startOfDay, 1);
+            const sunSet  = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, -1, startOfDay, 1);
+            elSunRise.textContent = (sunRise && isSameDate(startOfDay, sunRise.date)) ? formatTime(sunRise.date) : "--:--";
+            elSunSet.textContent  = (sunSet && isSameDate(startOfDay, sunSet.date))  ? formatTime(sunSet.date)  : "--:--";
+
+            const moonRise = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, +1, startOfDay, 1);
+            const moonSet  = Astronomy.SearchRiseSet(Astronomy.Body.Moon, observer, -1, startOfDay, 1);
+            elMoonRise.textContent = (moonRise && isSameDate(startOfDay, moonRise.date)) ? formatTime(moonRise.date) : "--:--";
+            elMoonSet.textContent  = (moonSet && isSameDate(startOfDay, moonSet.date))  ? formatTime(moonSet.date)  : "--:--";
+        }
+
+        function isSameDate(d1, d2) {
+            return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+        }
+
+        function drawMoon(phaseAngle) {
+            const ctx = canvasMoon.getContext('2d');
+            const w = canvasMoon.width; const h = canvasMoon.height;
+            const cx = w / 2; const cy = h / 2; const r = (w / 2) - 2;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = "#222"; ctx.fill();
+            ctx.fillStyle = "#eee"; ctx.beginPath();
+            
+            if (phaseAngle <= 180) {
+                ctx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2);
+                const control = Math.cos(phaseAngle * Math.PI / 180); 
+                ctx.ellipse(cx, cy, Math.abs(control * r), r, 0, Math.PI / 2, -Math.PI / 2, control > 0);
+            } else {
+                ctx.arc(cx, cy, r, Math.PI / 2, -Math.PI / 2);
+                const control = Math.cos(phaseAngle * Math.PI / 180);
+                ctx.ellipse(cx, cy, Math.abs(control * r), r, 0, -Math.PI / 2, Math.PI / 2, control > 0);
+            }
+            ctx.fill();
+        }
+
+        function formatTime(dateObj) {
+            const h = String(dateObj.getHours()).padStart(2, '0');
+            const m = String(dateObj.getMinutes()).padStart(2, '0');
+            return `${h}:${m}`;
+        }
+
+        function renderFeed(dateStr) {
+            feedList.innerHTML = '';
+            const events = eventsData[dateStr];
             if (events && events.length > 0) {
-                events.forEach((evt, index) => {
-                    const card = document.createElement('div');
-                    card.className = 'log-card';
-                    card.style.marginBottom = '1rem';
-                    
+                events.forEach((evt, i) => {
                     const typeClass = `type-${evt.type || 'other'}`;
-                    const label = typeLabels[evt.type] || "その他";
-                    
-                    // 画像があればHTMLを生成
-                    const imgHtml = evt.image ? `<img src="${evt.image}" class="event-image" alt="${evt.title}">` : '';
+                    const hasImage = !!evt.image;
+                    const card = document.createElement('div');
+                    card.className = `smart-card feed-card ${typeClass} ${hasImage ? '' : 'no-image'}`;
+                    card.style.animationDelay = `${i * 0.1}s`;
 
-                    // カードの中身
+                    const label = typeLabels[evt.type] || "Others";
+                    const typeColorVar = getComputedStyle(document.documentElement).getPropertyValue(`--col-${evt.type || 'other'}`).trim();
+                    const badgeStyle = `color:${typeColorVar}; border-color:${typeColorVar};`;
+
+                    const imgSection = evt.image ? `<div class="feed-img-col"><img src="${evt.image}" class="feed-img"></div>` : '';
+
                     card.innerHTML = `
-                        <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; border-right:1px solid rgba(255,255,255,0.1); padding-right:1rem;">
-                            <span style="font-size:1.5rem;">📅</span>
-                            <span style="font-size:0.7rem; opacity:0.6; margin-top:5px;">Click</span>
-                        </div>
-                        <div style="width:100%;">
-                            <span class="type-badge ${typeClass}">${label}</span>
-                            <h3 style="margin:0 0 5px 0; color:var(--accent-gold);">${evt.title}</h3>
-                            <div style="font-size:0.9rem;">⏰ ${evt.time}</div>
+                        ${imgSection}
+                        <div class="feed-content">
+                            <div class="badge-row"><span class="smart-badge" style="${badgeStyle}">${label}</span></div>
+                            <h3 class="feed-title">${evt.title}</h3>
+                            <div class="feed-time"><span style="font-size:1.2rem;">⏱</span> ${evt.time}</div>
                             
-                            <div class="event-details-content" id="detail-${index}">
-                                ${imgHtml}
-                                <p style="font-size:0.9rem; line-height:1.6; opacity:0.9; margin:0;">${evt.desc.replace(/\n/g, '<br>')}</p>
+                            <div class="feed-details">
+                                <p class="feed-desc">${evt.desc.replace(/\n/g, '<br>')}</p>
                             </div>
+                            <div class="toggle-btn"></div>
                         </div>
                     `;
-                    
-                    // クリックイベント：詳細を開閉
+
                     card.addEventListener('click', () => {
-                        const content = document.getElementById(`detail-${index}`);
-                        content.classList.toggle('open');
+                        card.classList.toggle('open');
                     });
 
-                    eventListEl.appendChild(card);
+                    feedList.appendChild(card);
                 });
             } else {
-                eventListEl.innerHTML = '<p style="opacity:0.6;">この日のイベント情報はありません。</p>';
+                feedList.innerHTML = `
+                    <div style="padding:3rem; text-align:center; opacity:0.3; border:1px dashed #8a8d91; border-radius:16px;">
+                        NO EVENT<div style="font-size:0.8rem; margin-top:10px;">イベント記録はありません</div>
+                    </div>
+                `;
             }
         }
 
-        // 4. 初期化処理：ページ読み込み時にデータを取得
-        fetchEvents();
+        document.getElementById('prev-month').addEventListener('click', () => { currentMonth--; if(currentMonth<0){currentMonth=11;currentYear--;} renderCalendar(currentYear, currentMonth); });
+        document.getElementById('next-month').addEventListener('click', () => { currentMonth++; if(currentMonth>11){currentMonth=0;currentYear++;} renderCalendar(currentYear, currentMonth); });
 
-        // 月切り替えボタン
-        document.getElementById('prev-month').addEventListener('click', () => {
-            currentMonth--; 
-            if(currentMonth < 0){ currentMonth = 11; currentYear--; } 
-            generateCalendar(currentYear, currentMonth);
-        });
-        document.getElementById('next-month').addEventListener('click', () => {
-            currentMonth++; 
-            if(currentMonth > 11){ currentMonth = 0; currentYear++; } 
-            generateCalendar(currentYear, currentMonth);
-        });
+        init();
     </script>
 </body>
 </html>
