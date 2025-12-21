@@ -15,38 +15,47 @@
 
     <style>
         :root {
-            --bg-deep: #030508;
-            --card-bg: rgba(20, 25, 35, 0.4);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --glow-color: rgba(212, 175, 55, 0.15);
+            /* ベースカラーを少し明るめに調整 */
+            --bg-deep: #080c15; 
+            
+            /* カード背景: 少し青みを足して明るく */
+            --card-bg: rgba(30, 40, 60, 0.5);
+            
+            /* 枠線: 視認性を上げるため不透明度アップ */
+            --card-border: rgba(255, 255, 255, 0.2);
+            
+            --glow-color: rgba(212, 175, 55, 0.3);
             --font-tech: 'Jura', sans-serif;
             
-            /* カテゴリカラー */
-            --col-meteor: #00d2ff;
-            --col-eclipse: #d65eff;
-            --col-phenom: #ffd700;
-            --col-rocket: #ff5e5e;
-            --col-other: #aaaaaa;
+            /* カテゴリカラー (彩度を少し上げてポップに) */
+            --col-meteor: #33eaff;
+            --col-eclipse: #e080ff;
+            --col-phenom: #ffdd44;
+            --col-rocket: #ff7777;
+            --col-other: #cccccc;
 
-            /* ヘッダーの高さ定義 */
             --header-height: 80px;
+            --text-main: #ffffff;
+            --text-sub: #d0d0d0;
         }
 
         body {
             background-color: var(--bg-deep);
-            background-image: radial-gradient(circle at 50% 0%, #1a2035 0%, var(--bg-deep) 70%);
+            /* 上部の光を強くして全体のトーンを上げる */
+            background-image: radial-gradient(circle at 50% 0%, #2a3a55 0%, var(--bg-deep) 80%);
             height: 100vh;
             overflow: hidden;
+            color: var(--text-main);
         }
 
         /* 共通ヘッダー */
         .common-header {
             height: var(--header-height);
             box-sizing: border-box;
-            background: rgba(5, 10, 20, 0.8);
-            backdrop-filter: blur(5px);
+            background: rgba(10, 15, 25, 0.85); /* 少し明るく */
+            backdrop-filter: blur(10px);
             position: absolute; top: 0; left: 0; width: 100%; z-index: 20;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.15);
         }
 
         /* メインレイアウトコンテナ */
@@ -82,51 +91,56 @@
             overflow-y: auto; 
             padding: 0 1rem 4rem 0; 
             scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.2) transparent;
+            scrollbar-color: rgba(255,255,255,0.3) transparent;
             position: relative;
         }
         .event-feed::-webkit-scrollbar { width: 6px; }
         .event-feed::-webkit-scrollbar-track { background: transparent; }
-        .event-feed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .event-feed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
 
-        /* ■■■ 修正: 日付見出し (透明背景＆強ぼかし) ■■■ */
+        /* 日付見出し */
         .date-heading {
             font-family: var(--font-tech); 
             font-size: 2.5rem; 
             line-height: 1;
-            color: rgba(255,255,255,0.1); 
+            color: rgba(255,255,255,0.2); 
             
-            /* Sticky設定 */
             position: sticky;
             top: 0;
             z-index: 10;
             
-            /* 背景透明＆ぼかし強化 */
             background: transparent; 
-            backdrop-filter: blur(20px); /* ぼかしを強く */
-            -webkit-backdrop-filter: blur(20px); /* Safari対応 */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             
-            /* 余白と境界線 */
             margin: 0 0 1.5rem 0;
             padding: 1rem 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1); /* 境界線は少し見せる */
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8); /* 文字が背景に埋もれないよう影追加 */
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
         }
-        .date-heading span { color: var(--text-white); }
-        .date-heading small { font-size:1.2rem; opacity:0.9; color:#fff; margin-left:10px; font-weight: 300; }
+        .date-heading span { color: #fff; font-weight: 600; }
+        .date-heading small { font-size:1.2rem; opacity:1; color:#ddd; margin-left:10px; font-weight: 400; }
 
         /* --- カード共通 --- */
         .smart-card {
-            background: var(--card-bg); border: 1px solid var(--card-border);
-            border-radius: 16px; backdrop-filter: blur(12px);
+            background: var(--card-bg); 
+            border: 1px solid var(--card-border);
+            border-radius: 16px; 
+            backdrop-filter: blur(12px);
             position: relative; overflow: hidden;
-            transition: transform 0.3s ease, border-color 0.3s ease;
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
             flex-shrink: 0; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
+        .smart-card:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        /* 光沢エフェクト */
         .smart-card::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             border-radius: 16px; padding: 1px;
-            background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.3), transparent 40%);
+            background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.4), transparent 40%);
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; opacity: 0; transition: opacity 0.3s;
         }
@@ -134,54 +148,56 @@
 
         /* カレンダー */
         .calendar-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem 0.5rem; }
-        .month-display { font-family: var(--font-tech); font-size: 1.4rem; letter-spacing: 0.1em; color: var(--text-white); }
-        .month-nav-btn { background: none; border: 1px solid var(--card-border); color: #888; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
-        .month-nav-btn:hover { color: var(--accent-gold); border-color: var(--accent-gold); }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 0 1rem 1rem; }
-        .day-label { text-align: center; font-size: 0.7rem; color: #666; padding-bottom: 5px; }
+        .month-display { font-family: var(--font-tech); font-size: 1.4rem; letter-spacing: 0.1em; color: #fff; font-weight: bold; }
+        .month-nav-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: #ccc; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .month-nav-btn:hover { color: var(--accent-gold); border-color: var(--accent-gold); background: rgba(255,255,255,0.1); }
+        
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 0 1rem 1rem; }
+        .day-label { text-align: center; font-size: 0.75rem; color: #bbb; padding-bottom: 5px; font-weight: bold; }
         
         .cal-cell { 
             aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; 
             padding-top: 6px; border-radius: 6px; cursor: pointer; position: relative; 
-            transition: all 0.2s; font-family: var(--font-tech); color: #aaa; font-size: 0.9rem;
+            transition: all 0.2s; font-family: var(--font-tech); color: #ccc; font-size: 0.95rem;
+            background: rgba(255,255,255,0.02);
         }
-        .cal-cell:hover { background: rgba(255,255,255,0.05); color: #fff; }
-        .cal-cell.today { color: var(--accent-gold); font-weight: bold; border: 1px solid rgba(212,175,55,0.3); }
-        .cal-cell.selected { background: var(--accent-gold); color: #000; box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
+        .cal-cell:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .cal-cell.today { color: var(--accent-gold); font-weight: bold; border: 1px solid rgba(212,175,55,0.5); background: rgba(212,175,55,0.1); }
+        .cal-cell.selected { background: var(--accent-gold); color: #000; box-shadow: 0 0 15px rgba(212, 175, 55, 0.5); font-weight: bold; }
 
         .cal-dots { display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; position: absolute; bottom: 6px; width: 100%; padding: 0 2px; }
-        .cal-dot { width: 4px; height: 4px; border-radius: 50%; display: block; }
+        .cal-dot { width: 5px; height: 5px; border-radius: 50%; display: block; }
         
-        .dot-meteor { background: var(--col-meteor); box-shadow: 0 0 3px var(--col-meteor); }
-        .dot-eclipse { background: var(--col-eclipse); box-shadow: 0 0 3px var(--col-eclipse); }
-        .dot-phenomenon { background: var(--col-phenom); box-shadow: 0 0 3px var(--col-phenom); }
-        .dot-rocket { background: var(--col-rocket); box-shadow: 0 0 3px var(--col-rocket); }
+        .dot-meteor { background: var(--col-meteor); box-shadow: 0 0 4px var(--col-meteor); }
+        .dot-eclipse { background: var(--col-eclipse); box-shadow: 0 0 4px var(--col-eclipse); }
+        .dot-phenomenon { background: var(--col-phenom); box-shadow: 0 0 4px var(--col-phenom); }
+        .dot-rocket { background: var(--col-rocket); box-shadow: 0 0 4px var(--col-rocket); }
         .dot-other { background: var(--col-other); }
 
-        .legend-area { border-top: 1px solid rgba(255,255,255,0.1); padding: 0.8rem 1rem; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: center; }
-        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: #ccc; }
-        .legend-mark { width: 6px; height: 6px; border-radius: 50%; }
+        .legend-area { border-top: 1px solid rgba(255,255,255,0.15); padding: 0.8rem 1rem; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: center; }
+        .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: #ddd; }
+        .legend-mark { width: 8px; height: 8px; border-radius: 50%; }
 
         /* 天文パネル */
         .astro-panel { padding: 1.2rem; }
-        .astro-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
-        .astro-title { font-size: 0.85rem; color: var(--accent-gold); letter-spacing: 0.1em; display:flex; flex-direction:column; line-height:1.2; }
-        .astro-date-sub { font-size: 0.7rem; color: #888; font-family: var(--font-tech); }
-        .location-control { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-        .btn-geo { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #ccc; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; cursor: pointer; transition: all 0.3s; }
-        .btn-geo:hover { background: rgba(212, 175, 55, 0.2); border-color: var(--accent-gold); color: #fff; }
-        .geo-info { font-family: var(--font-tech); font-size: 0.65rem; color: #888; }
+        .astro-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
+        .astro-title { font-size: 0.9rem; color: var(--accent-gold); letter-spacing: 0.1em; display:flex; flex-direction:column; line-height:1.2; font-weight: bold; }
+        .astro-date-sub { font-size: 0.75rem; color: #aaa; font-family: var(--font-tech); font-weight: normal; }
+        .location-control { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        .btn-geo { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #ddd; font-size: 0.7rem; padding: 3px 8px; border-radius: 4px; cursor: pointer; transition: all 0.3s; }
+        .btn-geo:hover { background: rgba(212, 175, 55, 0.3); border-color: var(--accent-gold); color: #fff; }
+        .geo-info { font-family: var(--font-tech); font-size: 0.7rem; color: #aaa; }
         
-        .moon-viz { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; }
-        #moon-canvas { width: 50px; height: 50px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2)); }
+        .moon-viz { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        #moon-canvas { width: 50px; height: 50px; filter: drop-shadow(0 0 8px rgba(255,255,255,0.3)); }
         .moon-text { text-align: right; }
-        .moon-age-label { font-size: 0.75rem; color: #888; }
-        .moon-age-val { font-family: var(--font-tech); font-size: 1.2rem; color: #fff; }
-        .astro-row { display: flex; justify-content: space-between; margin-bottom: 0.6rem; font-size: 0.85rem; }
-        .astro-label { color: #888; }
-        .astro-val { font-family: var(--font-tech); color: #eee; }
-        .sun-icon { color: #ffbd5e; margin-right: 5px; }
-        .moon-icon { color: #cfd8dc; margin-right: 5px; }
+        .moon-age-label { font-size: 0.8rem; color: #bbb; }
+        .moon-age-val { font-family: var(--font-tech); font-size: 1.3rem; color: #fff; font-weight: bold; }
+        .astro-row { display: flex; justify-content: space-between; margin-bottom: 0.6rem; font-size: 0.9rem; }
+        .astro-label { color: #ccc; }
+        .astro-val { font-family: var(--font-tech); color: #fff; }
+        .sun-icon { color: #ffbd5e; margin-right: 5px; text-shadow: 0 0 5px #ffbd5e; }
+        .moon-icon { color: #e0e0e0; margin-right: 5px; text-shadow: 0 0 5px #e0e0e0; }
 
         /* フィードカード */
         .feed-card {
@@ -191,6 +207,7 @@
             animation: slideIn 0.4s ease forwards; opacity: 0; transform: translateY(10px);
             cursor: pointer;
             border-left: 5px solid var(--col-other);
+            background: rgba(35, 45, 65, 0.6); /* カード単体を少し明るく */
         }
         .feed-card.type-meteor { border-left-color: var(--col-meteor); }
         .feed-card.type-eclipse { border-left-color: var(--col-eclipse); }
@@ -202,16 +219,16 @@
         .feed-card.no-image .feed-img-col { display: none; }
 
         .feed-img-col { background: #000; position: relative; min-height: 180px; }
-        .feed-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; transition: transform 0.5s; }
+        .feed-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; transition: transform 0.5s; }
         .feed-card:hover .feed-img { transform: scale(1.1); opacity: 1; }
 
         .feed-content { padding: 1.5rem; display: flex; flex-direction: column; }
         
-        .badge-row { display: flex; gap: 10px; margin-bottom: 0.5rem; }
-        .smart-badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); letter-spacing: 0.05em; }
+        .badge-row { display: flex; gap: 10px; margin-bottom: 0.6rem; }
+        .smart-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.4); letter-spacing: 0.05em; font-weight: 500; }
         
-        .feed-title { font-size: 1.4rem; margin: 0 0 0.5rem; color: var(--accent-gold); line-height: 1.3; }
-        .feed-time { font-family: var(--font-tech); font-size: 0.9rem; color: #aaa; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px; }
+        .feed-title { font-size: 1.5rem; margin: 0 0 0.5rem; color: #fff; line-height: 1.3; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .feed-time { font-family: var(--font-tech); font-size: 0.95rem; color: #ccc; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 6px; }
 
         .feed-details {
             max-height: 0; overflow: hidden; opacity: 0;
@@ -219,15 +236,16 @@
         }
         .feed-card.open .feed-details {
             max-height: 500px; opacity: 1; margin-top: 1rem; padding-top: 1rem;
-            border-top: 1px dashed rgba(255,255,255,0.1);
+            border-top: 1px dashed rgba(255,255,255,0.2);
         }
-        .feed-desc { font-size: 0.95rem; line-height: 1.7; color: #ccc; }
+        .feed-desc { font-size: 1rem; line-height: 1.8; color: #e0e0e0; }
         
-        .toggle-btn { margin-top: 0.5rem; font-size: 0.8rem; color: var(--accent-gold); opacity: 0.7; text-align: center; width: 100%; padding-top: 5px; }
+        .toggle-btn { margin-top: 0.5rem; font-size: 0.85rem; color: var(--accent-gold); opacity: 0.9; text-align: center; width: 100%; padding-top: 5px; transition: 0.3s; }
+        .toggle-btn:hover { text-shadow: 0 0 5px var(--accent-gold); }
         .toggle-btn::before { content: "▼ 詳細を見る"; }
         .feed-card.open .toggle-btn::before { content: "▲ 閉じる"; }
 
-        .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; margin-bottom: 1rem; }
+        .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; margin-bottom: 1rem; }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
 
@@ -254,7 +272,7 @@
                 <li><a href="stars.html" class="nav-link">星を探す<span>Star Chart</span></a></li>
                 <li><a href="events.html" class="nav-link">星空情報局<span>Sky Events</span></a></li>
                 <li><a href="theater.html" class="nav-link">宇宙シアター<span>Space Theater</span></a></li>
-                <li><a href="lifelog.html" class="nav-link">星空ライフログ<span>My Logbook</span></a></li>
+                <li><a href="lifelog.html" class="nav-link">星空ライフログ<span>My Starry Sky Log</span></a></li>
             </ul>
         </nav>
     </div>
@@ -311,7 +329,7 @@
                     <span class="astro-label"><span class="sun-icon">☀</span>日の入</span>
                     <span class="astro-val" id="sun-set">--:--</span>
                 </div>
-                <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.1); margin:10px 0;">
+                <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:10px 0;">
                 <div class="astro-row">
                     <span class="astro-label"><span class="moon-icon">☾</span>月の出</span>
                     <span class="astro-val" id="moon-rise">--:--</span>
