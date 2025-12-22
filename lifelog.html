@@ -475,7 +475,7 @@
     <div id="user-list-modal" class="modal-overlay">
         <div class="modal-box">
             <button class="modal-close" onclick="document.getElementById('user-list-modal').style.display='none'">×</button>
-            <h3 class="modal-h">参考にしたユーザー</h3>
+            <h3 class="modal-h" id="user-list-title">参考にしたユーザー</h3>
             <div id="user-list-container" style="max-height:300px; overflow-y:auto;"></div>
         </div>
     </div>
@@ -737,12 +737,18 @@
                     cardClass += ' clickable';
                     if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
                     
+                    // ▼▼▼ 修正箇所：みんなの日誌とデザインを統一し、クリックでユーザーリスト表示 ▼▼▼
                     myReactionView = `
-                        <div class="reaction-display">
-                            <span class="reaction-stat ${likeCount>0?'has-val-like':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}')">❤ ${likeCount}</span>
-                            <span class="reaction-stat ${usefulCount>0?'has-val-useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}')">★ ${usefulCount}</span>
+                        <div class="reaction-group">
+                            <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}', 'like')">
+                                <span>❤</span> ${likeCount}
+                            </button>
+                            <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}', 'useful')">
+                                <span>★</span> ${usefulCount}
+                            </button>
                         </div>
                     `;
+                    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 }
 
                 if (type === 'log') {
@@ -794,7 +800,7 @@
                     
                     const refArea = `
                         <div style="display:flex; justify-content:flex-end; gap:5px; margin-top:10px;">
-                            ${refCount > 0 ? `<span class="ref-count" onclick="event.stopPropagation(); showRefUsers('${refListJson}')">${refCount}人が参考にしています</span>` : ''}
+                            ${refCount > 0 ? `<span class="ref-count" onclick="event.stopPropagation(); showRefUsers('${refListJson}', 'useful')">${refCount}人が参考にしています</span>` : ''}
                             <button class="btn-ref-plan" onclick="event.stopPropagation(); referencePlan('${item.userId}', '${item.logId}')">この予定を参考にする</button>
                         </div>
                     `;
@@ -856,9 +862,19 @@
             } catch(e) { console.error(e); }
         }
 
-        function showRefUsers(jsonStr) {
+        // ▼▼▼ 修正: 引数 type を追加し、タイトルを切り替え ▼▼▼
+        function showRefUsers(jsonStr, type) {
             const list = JSON.parse(decodeURIComponent(jsonStr));
             const c = document.getElementById('user-list-container');
+            const titleEl = document.getElementById('user-list-title');
+            
+            // タイトルの切り替え
+            if(type === 'like') {
+                titleEl.textContent = "いいねしたユーザー";
+            } else {
+                titleEl.textContent = "参考にしたユーザー";
+            }
+
             c.innerHTML = '';
             if(list.length === 0) {
                 c.innerHTML = '<div style="padding:1rem; opacity:0.5; text-align:center;">まだありません</div>';
@@ -881,6 +897,7 @@
             });
             document.getElementById('user-list-modal').style.display = 'flex';
         }
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         function editLog(logId) {
             const target = myDataCache.find(d => d.logId === logId);
