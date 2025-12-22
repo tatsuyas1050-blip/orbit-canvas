@@ -15,16 +15,12 @@
 
     <style>
         :root {
-            /* 星空情報局と同じ定義 */
             --bg-deep: #080c15; 
             --card-bg: rgba(30, 40, 60, 0.5);
             --card-border: rgba(255, 255, 255, 0.2);
-            --card-border-gold: rgba(212, 175, 55, 0.5);
-            --glow-color: rgba(212, 175, 55, 0.3);
             --font-tech: 'Jura', sans-serif;
             --accent-gold: #d4af37;
             --accent-blue: #00d2ff;
-            --accent-red: #ff5e5e; 
             --header-height: 80px;
             --text-main: #ffffff;
             --text-sub: #d0d0d0;
@@ -33,439 +29,307 @@
         body {
             background-color: var(--bg-deep);
             background-image: radial-gradient(circle at 50% 0%, #2a3a55 0%, var(--bg-deep) 80%);
-            height: 100vh;
-            overflow: hidden;
-            color: var(--text-main);
+            height: 100vh; overflow: hidden; color: var(--text-main);
         }
 
-        /* 共通ヘッダー */
         .common-header {
-            height: var(--header-height);
-            box-sizing: border-box;
-            background: rgba(10, 15, 25, 0.85);
-            backdrop-filter: blur(10px);
+            height: var(--header-height); box-sizing: border-box;
+            background: rgba(10, 15, 25, 0.85); backdrop-filter: blur(10px);
             position: absolute; top: 0; left: 0; width: 100%; z-index: 20;
             border-bottom: 1px solid rgba(255,255,255,0.15);
         }
 
-        /* ダッシュボードレイアウト */
         .dashboard-container {
-            max-width: 1300px; 
-            margin: 0 auto;
-            padding-top: calc(var(--header-height) + 30px);
-            padding-bottom: 2rem;
-            padding-left: 2rem;
-            padding-right: 2rem;
-            height: 100vh;
-            box-sizing: border-box;
-            display: grid; 
-            grid-template-columns: 320px 1fr; 
-            gap: 2rem; 
-            align-items: start;
-            overflow: hidden; 
+            max-width: 1300px; margin: 0 auto;
+            /* 上下のパディングを調整して画面内に収まりやすくする */
+            padding-top: calc(var(--header-height) + 20px);
+            padding-bottom: 1rem; padding-left: 2rem; padding-right: 2rem;
+            height: 100vh; box-sizing: border-box;
+            display: grid; grid-template-columns: 320px 1fr; gap: 2rem; 
+            align-items: start; overflow: hidden; 
         }
 
-        /* --- 左カラム (固定) --- */
+        /* ▼▼▼ 修正: 左カラムのレイアウト制御 ▼▼▼ */
         .left-column {
-            height: 100%;
-            overflow-y: auto;
-            scrollbar-width: none;
-            display: flex; flex-direction: column; gap: 1.5rem;
-            padding-bottom: 2rem;
+            height: 100%; 
+            /* スクロールバーは消し、Flexboxで内部要素を配置 */
+            overflow: hidden; 
+            display: flex; flex-direction: column; gap: 1rem; 
+            padding-bottom: 1rem; /* 下端に少し余裕を持たせる */
+            padding-right: 0;
         }
-        .left-column::-webkit-scrollbar { display: none; }
 
-        /* --- 右カラム (スクロール) --- */
+        /* プロフィールとアクションボタンは固定サイズ（縮めない） */
+        .profile-panel, .action-panel {
+            flex-shrink: 0;
+        }
+        
+        /* プランリストのカード（ID: plans-card）を残りの高さ一杯に広げる */
+        #plans-card {
+            flex: 1; /* 余った高さを占有 */
+            min-height: 0; /* 縮小可能にする */
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 0;
+        }
+        /* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */
+
         .right-column { 
-            height: 100%;
-            overflow-y: auto; 
-            padding: 0 1rem 4rem 0; 
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.3) transparent;
-            position: relative;
+            height: 100%; overflow-y: auto; padding: 0 1rem 4rem 0; 
+            scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.3) transparent;
         }
         .right-column::-webkit-scrollbar { width: 6px; }
         .right-column::-webkit-scrollbar-track { background: transparent; }
         .right-column::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
 
-        /* --- カード共通スタイル --- */
         .smart-card {
-            background: var(--card-bg); 
-            border: 1px solid var(--card-border);
-            border-radius: 16px; 
-            backdrop-filter: blur(12px);
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            border-radius: 16px; backdrop-filter: blur(12px);
             position: relative; overflow: hidden;
-            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-            flex-shrink: 0; 
+            transition: transform 0.3s ease, border-color 0.3s ease;
             box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
-        .smart-card:hover {
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-        }
-        .smart-card::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            border-radius: 16px; padding: 1px;
-            background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.4), transparent 40%);
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; opacity: 0; transition: opacity 0.3s;
-        }
-        .smart-card:hover::before { opacity: 1; }
+        .smart-card:hover { border-color: rgba(255, 255, 255, 0.3); }
 
-        /* --- 左: プロフィールパネル --- */
-        .profile-panel {
-            padding: 1.5rem; text-align: center;
-        }
+        .profile-panel { padding: 1.5rem; text-align: center; }
         .btn-edit-profile {
             position: absolute; top: 1rem; right: 1rem;
             background: rgba(255,255,255,0.1); border: none; color: #fff;
             width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center;
         }
         .btn-edit-profile:hover { background: var(--accent-gold); color: #000; }
-
         .avatar-circle {
-            width: 90px; height: 90px; 
-            background: rgba(0,0,0,0.3); border: 2px solid var(--accent-gold);
-            border-radius: 50%; margin: 0 auto 1rem;
-            overflow: hidden; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 20px rgba(212,175,55,0.2);
+            width: 90px; height: 90px; background: rgba(0,0,0,0.3); border: 2px solid var(--accent-gold);
+            border-radius: 50%; margin: 0 auto 1rem; overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
         .avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
         .avatar-default { font-size: 2.5rem; opacity: 0.8; }
+        .user-name { font-size: 1.3rem; margin-bottom: 0.2rem; font-weight: 500; font-family: var(--font-main); }
+        .user-email { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 1.5rem; font-family: var(--font-tech); }
 
-        .user-name { font-size: 1.3rem; margin-bottom: 0.2rem; font-weight: 500; font-family: var(--font-main); text-shadow: 0 0 10px rgba(255,255,255,0.2); }
-        .user-email { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 1.5rem; font-family: var(--font-tech); letter-spacing: 0.05em; }
-
-        /* 統計表示 (Log / Plan) */
         .stats-row { 
-            display: flex; justify-content: center; gap: 1rem; 
-            margin-top: 1.5rem;
+            display: flex; justify-content: space-between; gap: 12px; margin-top: 1.5rem; 
         }
         .stat-item { 
-            flex: 1; text-align: center; 
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px; padding: 0.8rem 0.5rem;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: 0.3s;
+            flex: 1; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.2); 
+            border-radius: 8px; 
+            padding: 12px 6px;
+            border: 1px solid rgba(255,255,255,0.1); 
+            min-width: 0;
         }
-        /* ログ用スタイル */
-        .stat-item.log-theme {
-            border-color: rgba(212, 175, 55, 0.3);
-            background: linear-gradient(to bottom, rgba(212,175,55,0.05), transparent);
+        .stat-item.log-theme { border-color: rgba(212, 175, 55, 0.3); background: linear-gradient(to bottom, rgba(212,175,55,0.05), transparent); }
+        .stat-item.plan-theme { border-color: rgba(0, 210, 255, 0.3); background: linear-gradient(to bottom, rgba(0,210,255,0.05), transparent); }
+        
+        /* ▼▼▼ 修正: 数字とラベルの色指定 ▼▼▼ */
+        .stat-val { 
+            font-family: var(--font-tech); font-size: 1.4rem; line-height: 1.1; margin-bottom: 6px; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .stat-item.plan-theme {
-            border-color: rgba(0, 210, 255, 0.3);
-            background: linear-gradient(to bottom, rgba(0,210,255,0.05), transparent);
+        .stat-label { 
+            font-size: 0.7rem; font-weight: bold; margin: 0; opacity: 0.9; line-height: 1.1; flex-shrink: 0; 
         }
 
-        .stat-val { font-family: var(--font-tech); font-size: 1.5rem; line-height: 1; text-shadow: 0 0 8px rgba(0,0,0,0.5); }
-        .log-theme .stat-val { color: var(--accent-gold); }
-        .plan-theme .stat-val { color: var(--accent-blue); }
+        /* ログ（ゴールド） */
+        .stat-item.log-theme .stat-val, 
+        .stat-item.log-theme .stat-label { color: var(--accent-gold); }
 
-        .stat-label { font-size: 0.7rem; color: var(--text-sub); margin-top: 6px; letter-spacing: 0.1em; font-weight: bold; }
+        /* プラン（シアン） */
+        .stat-item.plan-theme .stat-val, 
+        .stat-item.plan-theme .stat-label { color: #00d2ff; }
+        /* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */
 
-        /* --- 左: 予定ボタン --- */
         .btn-plan {
-            width: 100%;
-            background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(0, 100, 200, 0.4));
-            border: 1px solid rgba(0, 210, 255, 0.5);
-            color: #d0f0ff;
-            padding: 1.2rem; border-radius: 12px;
-            font-family: 'Shippori Mincho', serif; font-size: 1.1rem;
-            cursor: pointer; transition: all 0.3s;
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            box-shadow: 0 0 15px rgba(0, 210, 255, 0.1);
-            text-shadow: 0 0 5px rgba(0, 210, 255, 0.5);
+            width: 100%; background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(0, 100, 200, 0.4));
+            border: 1px solid rgba(0, 210, 255, 0.5); color: #d0f0ff; padding: 1.2rem; border-radius: 12px;
+            font-family: 'Shippori Mincho', serif; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
         }
-        .btn-plan:hover { 
-            background: linear-gradient(135deg, rgba(0, 210, 255, 0.4), rgba(0, 100, 200, 0.6));
-            box-shadow: 0 0 25px rgba(0, 210, 255, 0.4); 
-            text-shadow: 0 0 8px #fff; border-color: #fff;
-            transform: translateY(-2px);
-        }
+        .btn-plan:hover { background: linear-gradient(135deg, rgba(0, 210, 255, 0.4), rgba(0, 100, 200, 0.6)); border-color: #fff; }
 
-        /* --- 左: 予定リスト --- */
-        .panel-header {
-            padding: 1.2rem 1.2rem 0.5rem; display: flex; justify-content: space-between; align-items: flex-end;
-            border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 0.5rem;
+        .panel-header { padding: 1.2rem 1.2rem 0.5rem; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 0.5rem; flex-shrink: 0; }
+        .panel-title { font-size: 1rem; color: #70d6ff; font-weight: bold; margin: 0; font-family: 'Shippori Mincho', serif; }
+        
+        /* ▼▼▼ 修正: プランリストのコンテナ設定 ▼▼▼ */
+        .wishlist-container { 
+            /* 固定高さを廃止し、flexで親要素に合わせて伸縮させる */
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 0.5rem 0.5rem 1rem 1rem; 
+            scrollbar-width: thin; 
+            scrollbar-color: rgba(255,255,255,0.3) transparent;
+            min-height: 0; /* Firefox等でのバグ防止 */
         }
-        /* 修正: フォントを明朝体に変更 */
-        .panel-title { font-size: 1rem; color: #70d6ff; font-weight: bold; margin: 0; font-family: 'Shippori Mincho', serif; letter-spacing: 0.1em; }
-        .wishlist-container { max-height: 400px; overflow-y: auto; padding: 0.5rem 1rem 1rem; }
+        /* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */
 
-        /* 予定アイテム */
+        .wishlist-container::-webkit-scrollbar { width: 6px; }
+        .wishlist-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 3px; margin: 5px 0; }
+        .wishlist-container::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+        .wishlist-container::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+
         .plan-item {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-left: 3px solid #00d2ff;
-            padding: 0.8rem; margin-bottom: 0.8rem; border-radius: 4px;
-            cursor: pointer; transition: all 0.2s;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+            border-left: 3px solid #00d2ff; padding: 0.8rem; margin-bottom: 0.8rem; border-radius: 4px;
+            cursor: pointer; transition: all 0.2s; position: relative;
         }
-        .plan-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.3); }
+        .plan-item:hover { background: rgba(255,255,255,0.08); }
         .plan-item.active { background: rgba(0, 210, 255, 0.1); border-color: #00d2ff; }
-
         .plan-head { display: flex; justify-content: space-between; align-items: center; }
         .plan-date { font-family: var(--font-tech); font-size: 0.8rem; color: #00d2ff; }
+        .plan-title { font-weight: bold; margin: 4px 0 0; font-size: 0.95rem; }
+        .plan-lock { position: absolute; top:4px; right:4px; font-size:0.7rem; color:rgba(255,255,255,0.3); }
         .plan-arrow { font-size: 0.7rem; opacity: 0.5; transition: 0.3s; }
         .plan-item.active .plan-arrow { transform: rotate(180deg); color: #00d2ff; opacity: 1; }
-        .plan-title { font-weight: bold; margin: 4px 0 0; font-size: 0.95rem; }
-
-        .plan-body { 
-            display: none; padding-top: 0.8rem; margin-top: 0.5rem; 
-            border-top: 1px dashed rgba(255,255,255,0.2); animation: fadeIn 0.3s;
-        }
+        
+        .plan-body { display: none; padding-top: 0.8rem; margin-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.2); }
         .plan-item.active .plan-body { display: block; }
-        .plan-note { 
-            font-size: 0.85rem; color: var(--text-sub); margin-bottom: 0.8rem; line-height: 1.5; white-space: pre-wrap; 
-            word-break: break-word; overflow-wrap: anywhere; 
-        }
         .plan-btns { display: flex; gap: 8px; justify-content: flex-end; }
-        
-        .p-btn { border: none; font-size: 0.75rem; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition:0.2s; font-family:sans-serif; display: inline-flex; align-items: center; gap: 4px; }
+        .p-btn { border: none; font-size: 0.75rem; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .p-btn-edit { background: rgba(255, 255, 255, 0.1); color: #ddd; border: 1px solid rgba(255, 255, 255, 0.3); }
         .p-btn-rec { background: rgba(0, 210, 255, 0.15); color: #b3f0ff; border: 1px solid rgba(0, 210, 255, 0.4); }
-        .p-btn-rec:hover { background: rgba(0, 210, 255, 0.3); color: #fff; box-shadow: 0 0 10px rgba(0,210,255,0.2); }
-        
-        /* 削除ボタン (プラン用) - 目立つように */
-        .p-btn-del { 
-            background: rgba(255, 94, 94, 0.15); 
-            color: #ff8888; 
-            border: 1px solid rgba(255, 94, 94, 0.4); 
-        }
-        .p-btn-del:hover { 
-            background: rgba(255, 94, 94, 0.3); 
-            color: #fff; 
-            border-color: #ff5e5e; 
-            box-shadow: 0 0 10px rgba(255, 94, 94, 0.2); 
-        }
+        .p-btn-del { background: rgba(255, 94, 94, 0.15); color: #ff8888; border: 1px solid rgba(255, 94, 94, 0.4); }
 
-        /* --- 右: ログフィード --- */
         .page-heading {
-            font-family: 'Shippori Mincho', serif; 
-            font-size: 1.8rem; 
-            color: rgba(255,255,255,0.95);
             position: sticky; top: 0; z-index: 10;
-            background: transparent; 
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            background: transparent; backdrop-filter: blur(20px);
             margin: 0 0 1.5rem 0; padding: 1rem 10px;
             border-bottom: 1px solid rgba(255,255,255,0.15);
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
             display: flex; justify-content: space-between; align-items: center;
         }
         
-        /* ログ追加ボタン */
+        .tab-group { display: flex; gap: 1rem; }
+        .tab-btn {
+            background: transparent; border: none; color: rgba(255,255,255,0.5);
+            font-family: 'Shippori Mincho', serif; font-size: 1.1rem; font-weight: bold;
+            cursor: pointer; padding-bottom: 5px; border-bottom: 2px solid transparent; transition: 0.3s;
+        }
+        .tab-btn:hover { color: rgba(255,255,255,0.8); }
+        .tab-btn.active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); text-shadow: 0 0 10px rgba(212,175,55,0.3); }
+        .tab-btn.tab-blue.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); text-shadow: 0 0 10px rgba(0,210,255,0.3); }
+        .tab-btn.tab-blue:hover { color: #88eeff; }
+
         .btn-add-log {
             background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(180, 140, 30, 0.4));
-            border: 1px solid var(--accent-gold);
-            color: #ffe; 
-            padding: 0.7rem 1.5rem; border-radius: 30px;
-            font-size: 0.95rem; font-weight: bold; 
-            cursor: pointer; transition: all 0.3s;
-            font-family: var(--font-main); display: flex; align-items: center; gap: 8px;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
-            text-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
+            border: 1px solid var(--accent-gold); color: #ffe; 
+            padding: 0.7rem 1.5rem; border-radius: 30px; font-size: 0.95rem; font-weight: bold; 
+            cursor: pointer; font-family: var(--font-main);
         }
-        .btn-add-log:hover { 
-            background: linear-gradient(135deg, rgba(212, 175, 55, 0.4), rgba(180, 140, 30, 0.6));
-            box-shadow: 0 0 25px rgba(212, 175, 55, 0.5); 
-            color: #fff;
-            transform: translateY(-2px);
-        }
+        .btn-add-log:hover { background: linear-gradient(135deg, rgba(212, 175, 55, 0.4), rgba(180, 140, 30, 0.6)); }
 
-        /* フィードカード */
         .feed-card {
-            margin-bottom: 2rem;
-            display: grid; grid-template-columns: 200px 1fr;
-            overflow: hidden; 
-            animation: slideIn 0.4s ease forwards;
-            cursor: default;
-            /* デフォルト枠線 */
-            border-left: 4px solid rgba(212, 175, 55, 0.3);
-            border-color: rgba(255, 255, 255, 0.1);
-            transition: all 0.3s;
+            margin-bottom: 2rem; display: grid; grid-template-columns: 200px 1fr;
+            overflow: hidden; animation: slideIn 0.4s ease forwards;
+            border-left: 4px solid rgba(212, 175, 55, 0.3); border-color: rgba(255, 255, 255, 0.1);
         }
-        .feed-card:hover { 
-            transform: translateY(-3px);
-            /* ホバー時：鮮やかな金色の枠線と発光 */
-            border-left-color: var(--accent-gold);
-            border-color: rgba(212, 175, 55, 0.4);
-            box-shadow: 0 5px 25px rgba(212, 175, 55, 0.15);
-        }
-
+        .feed-card:hover { transform: translateY(-3px); border-left-color: var(--accent-gold); border-color: rgba(212, 175, 55, 0.4); }
         .feed-img-col { background: #000; position: relative; min-height: 180px; border-right: 1px solid rgba(255,255,255,0.1); }
         .feed-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; transition: transform 0.5s; }
         .feed-card:hover .feed-img { transform: scale(1.05); opacity: 1; }
         .feed-no-img { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 3rem; color: rgba(255,255,255,0.1); }
-
-        .feed-date-badge {
-            position: absolute; top: 0; left: 0;
-            background: rgba(212, 175, 55, 0.9); color: #000;
-            padding: 4px 10px; font-family: var(--font-tech); font-weight: bold; font-size: 0.85rem;
-        }
-
+        .feed-date-badge { position: absolute; top: 0; left: 0; background: rgba(212, 175, 55, 0.9); color: #000; padding: 4px 10px; font-family: var(--font-tech); font-weight: bold; font-size: 0.85rem; }
+        
         .feed-content { padding: 1.5rem; display: flex; flex-direction: column; }
+        .feed-user-info { display: flex; align-items: center; gap: 8px; margin-bottom: 0.5rem; opacity: 0.8; font-size: 0.85rem; color: #aaa; }
+        .feed-user-icon { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-gold); }
         
         .feed-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
-        .feed-title { 
-            font-size: 1.5rem; margin: 0; font-weight: 500; font-family: 'Shippori Mincho';
-            color: #fff; text-shadow: 0 2px 5px rgba(0,0,0,0.5);
-        }
-        .feed-stars { color: var(--accent-gold); letter-spacing: 2px; font-size: 1.1rem; }
-
+        .feed-title { font-size: 1.5rem; margin: 0; font-weight: 500; font-family: 'Shippori Mincho'; color: #fff; }
+        .feed-stars { color: var(--accent-gold); letter-spacing: 2px; }
         .feed-meta { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 1rem; display: flex; gap: 10px; align-items: center; }
-        .meta-tag { 
-            color: var(--accent-gold); border: 1px solid rgba(212,175,55,0.3); 
-            padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; background: rgba(212,175,55,0.05);
-        }
-
-        /* 感想テキスト */
-        .feed-text { 
-            font-size: 1rem; line-height: 1.7; color: #e0e0e0; flex-grow: 1; 
-            border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem; margin-top: 0.5rem;
-            word-break: break-word; overflow-wrap: anywhere; 
-        }
-        .text-short { display: block; }
-        .text-full { display: none; }
-        .read-more-btn { 
-            color: var(--accent-gold); font-size: 0.8rem; cursor: pointer; margin-top: 0.5rem; 
-            display: inline-block; opacity: 0.8;
-        }
-        .read-more-btn:hover { text-decoration: underline; opacity: 1; }
-
-        .feed-foot { text-align: right; margin-top: 1rem; }
+        .meta-tag { color: var(--accent-gold); border: 1px solid rgba(212,175,55,0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; background: rgba(212,175,55,0.05); }
+        .feed-text { font-size: 1rem; line-height: 1.7; color: #e0e0e0; flex-grow: 1; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem; margin-top: 0.5rem; white-space: pre-wrap; word-break: break-word; }
+        .feed-foot { text-align: right; margin-top: 1rem; display: flex; justify-content: flex-end; gap: 10px; align-items: center; }
         
-        /* 削除ボタン (ログ用) - 赤色を強調 */
-        .btn-del-log { 
-            background: rgba(255, 94, 94, 0.15); 
-            border: 1px solid rgba(255, 94, 94, 0.4); 
-            color: #ff8888; 
-            font-size: 0.85rem; padding: 8px 16px; border-radius: 4px;
-            cursor: pointer; transition: 0.2s;
-            display: inline-flex; align-items: center; gap: 6px;
-            font-weight: 500;
+        .btn-del-log { background: rgba(255, 94, 94, 0.15); border: 1px solid rgba(255, 94, 94, 0.4); color: #ff8888; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        
+        /* リアクションボタン */
+        .reaction-group { display: flex; gap: 8px; margin-right: auto; }
+        .btn-reaction {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #ccc;
+            padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 5px;
         }
-        .btn-del-log:hover { 
-            background: rgba(255, 94, 94, 0.3); 
-            color: #fff; 
-            border-color: #ff5e5e; 
-            box-shadow: 0 0 10px rgba(255, 94, 94, 0.3); 
-        }
+        .btn-reaction:hover { background: rgba(255,255,255,0.1); }
+        .btn-reaction.liked { border-color: #ff5577; color: #ff5577; background: rgba(255, 85, 119, 0.1); }
+        .btn-reaction.useful { border-color: #ffd700; color: #ffd700; background: rgba(255, 215, 0, 0.1); }
 
-        /* レスポンシブ */
+        .reaction-display { display: flex; gap: 10px; margin-right: auto; color: #aaa; font-size: 0.85rem; }
+        .reaction-stat { cursor: pointer; display: flex; align-items: center; gap: 4px; transition: color 0.3s; }
+        .reaction-stat:hover { color: #fff; text-decoration: underline; }
+        .reaction-stat.has-val-like { color: #ff88aa; }
+        .reaction-stat.has-val-useful { color: #ffea80; }
+
+        .btn-ref-plan {
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(0, 100, 200, 0.3));
+            border: 1px solid rgba(0, 210, 255, 0.5); color: #d0f0ff;
+            padding: 6px 15px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; transition: 0.3s;
+        }
+        .btn-ref-plan:hover { background: rgba(0, 210, 255, 0.4); text-shadow: 0 0 8px #fff; }
+        .ref-count { font-size: 0.75rem; color: #aaa; cursor: pointer; text-decoration: underline; margin-right: 10px; align-self: center; }
+
+        .feed-card.plan-type {
+            border-left: 4px solid rgba(0, 210, 255, 0.5); 
+            background: linear-gradient(90deg, rgba(0, 40, 60, 0.6), rgba(30, 40, 60, 0.5));
+        }
+        .feed-card.plan-type:hover { border-left-color: #00d2ff; border-color: rgba(0, 210, 255, 0.4); }
+        .feed-card.plan-type .feed-date-badge { background: rgba(0, 210, 255, 0.9); }
+        .feed-card.plan-type .feed-user-icon { border-color: #00d2ff; }
+        .private-mark { color: #aaa; border: 1px solid #555; font-size: 0.6rem; padding: 1px 4px; border-radius: 3px; margin-left: 5px; vertical-align: middle; }
+
+        .feed-card.clickable { cursor: pointer; transition: transform 0.3s, box-shadow 0.3s; }
+        .feed-card.clickable:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+
         @media (max-width: 900px) {
             body { overflow: auto; height: auto; }
             .dashboard-container { display: block; height: auto; padding: 6rem 1rem 2rem; }
-            .left-column { height: auto; overflow: visible; margin-bottom: 3rem; padding: 0; }
-            .right-column { height: auto; overflow: visible; padding: 0; }
+            .left-column { height: auto; margin-bottom: 3rem; }
+            .right-column { height: auto; padding: 0; }
             .feed-card { grid-template-columns: 1fr; }
             .feed-img-col { height: 200px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
             .page-heading { position: static; background: transparent; backdrop-filter: none; }
         }
 
-        /* --- モーダル (デザイン統一) --- */
+        /* モーダル */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(5, 8, 15, 0.85); backdrop-filter: blur(10px);
             z-index: 999; display: none; align-items: center; justify-content: center;
         }
         .modal-box {
-            background: rgba(20, 25, 35, 0.95);
-            border: 1px solid var(--accent-gold);
-            width: 90%; max-width: 500px; padding: 2.5rem; border-radius: 12px;
-            position: relative; 
+            background: rgba(20, 25, 35, 0.95); border: 1px solid var(--accent-gold);
+            width: 90%; max-width: 500px; padding: 2.5rem; border-radius: 12px; position: relative; 
             box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 15px rgba(212, 175, 55, 0.2);
-            transition: border-color 0.3s, box-shadow 0.3s;
+            max-height: 80vh; overflow-y: auto; 
         }
-        .modal-close { 
-            position: absolute; top: 1rem; right: 1rem; background:none; border:none; 
-            color: #fff; font-size: 1.8rem; cursor: pointer; opacity: 0.6; transition: 0.3s;
-        }
-        .modal-close:hover { color: var(--accent-gold); opacity: 1; transform: scale(1.1); }
+        .modal-close { position: absolute; top: 1rem; right: 1rem; background:none; border:none; color: #fff; font-size: 1.8rem; cursor: pointer; }
+        .modal-h { text-align: center; color: var(--accent-gold); margin-bottom: 2rem; font-size: 1.5rem; border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 1rem; font-family: 'Shippori Mincho'; }
         
-        .modal-h { 
-            text-align: center; color: var(--accent-gold); margin-bottom: 2rem; 
-            font-size: 1.5rem; border-bottom: 1px solid rgba(212, 175, 55, 0.3); 
-            padding-bottom: 1rem; font-family: 'Shippori Mincho'; letter-spacing: 0.1em;
-            text-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
-        }
-        
-        /* プラン用テーマ（青） */
-        .modal-box.plan-theme {
-            border-color: #00d2ff;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 15px rgba(0, 210, 255, 0.2);
-        }
-        .modal-box.plan-theme .modal-h {
-            color: #00d2ff;
-            border-bottom-color: rgba(0, 210, 255, 0.3);
-            text-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
-        }
-        .modal-box.plan-theme .modal-close:hover { color: #00d2ff; }
-        
+        .modal-box.plan-theme { border-color: #00d2ff; box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 15px rgba(0, 210, 255, 0.2); }
+        .modal-box.plan-theme .modal-h { color: #00d2ff; border-bottom-color: rgba(0, 210, 255, 0.3); }
+
         .form-grp { margin-bottom: 1.5rem; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        label { display: block; font-size: 0.85rem; color: #ccc; margin-bottom: 0.5rem; letter-spacing: 0.05em; font-family: var(--font-tech); }
-        
-        /* フォーム入力要素の統一 */
+        label { display: block; font-size: 0.85rem; color: #ccc; margin-bottom: 0.5rem; font-family: var(--font-tech); }
         input[type="text"], input[type="date"], input[type="password"], input[type="email"], select, textarea {
-            width: 100%; box-sizing: border-box;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff; padding: 0.8rem; border-radius: 6px;
-            font-size: 1rem; font-family: sans-serif;
-            transition: all 0.3s;
+            width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 0.8rem; border-radius: 6px;
         }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
-            background: rgba(0, 0, 0, 0.6);
-        }
-        /* プラン用フォーカス色 */
-        .modal-box.plan-theme input:focus, 
-        .modal-box.plan-theme textarea:focus {
-            border-color: #00d2ff;
-            box-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
-        }
-
-        ::placeholder { color: rgba(255, 255, 255, 0.3); }
-
-        /* 画像アップロードエリア */
-        #upload-box {
-            border: 1px dashed rgba(255, 255, 255, 0.3);
-            border-radius: 6px; padding: 2rem; text-align: center;
-            background: rgba(255, 255, 255, 0.03);
-            cursor: pointer; transition: 0.3s;
-        }
-        #upload-box:hover {
-            border-color: var(--accent-gold);
-            background: rgba(212, 175, 55, 0.05);
-        }
-
-        /* モーダル用ボタン */
+        #upload-box { border: 1px dashed rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 2rem; text-align: center; background: rgba(255, 255, 255, 0.03); cursor: pointer; }
         .btn-modal-action {
             width: 100%; padding: 12px; border-radius: 30px; border: none;
             background: linear-gradient(135deg, var(--accent-gold), #b8860b);
-            color: #000; font-weight: bold; font-size: 1rem; cursor: pointer;
-            transition: 0.3s; font-family: var(--font-tech);
-            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+            color: #000; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
         }
-        .btn-modal-action:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
-        }
-        /* 青色ボタン (プラン用) */
-        .btn-modal-action.plan-mode {
-            background: linear-gradient(135deg, #00d2ff, #0077ff);
-            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);
-            color: #fff;
-        }
-        .btn-modal-action.plan-mode:hover {
-            box-shadow: 0 6px 20px rgba(0, 210, 255, 0.5);
-        }
+        .btn-modal-action.plan-mode { background: linear-gradient(135deg, #00d2ff, #0077ff); box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3); color: #fff; }
+        
+        .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-top: 10px; cursor: pointer; }
+        .checkbox-wrapper input { width: auto; margin: 0; }
+        
+        .user-list-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .user-list-icon { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #555; }
 
-        .loading { text-align: center; padding: 3rem; opacity: 0.6; font-family: var(--font-tech); font-size: 1.2rem; }
+        .loading { text-align: center; padding: 3rem; opacity: 0.6; font-family: var(--font-tech); }
         @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
     </style>
 </head>
 <body>
@@ -495,14 +359,12 @@
         <aside class="left-column">
             <div class="smart-card profile-panel">
                 <button class="btn-edit-profile" onclick="openProfileModal()">⚙️</button>
-                
                 <div class="avatar-circle">
                     <img id="avatar-img" src="" style="display:none;">
                     <span id="avatar-default" class="avatar-default">🔭</span>
                 </div>
                 <h2 id="display-name" class="user-name">Guest User</h2>
                 <div id="display-email-sub" class="user-email">guest@example.com</div>
-                
                 <div class="stats-row">
                     <div class="stat-item log-theme">
                         <div class="stat-val" id="stat-total">0</div>
@@ -516,15 +378,11 @@
             </div>
 
             <div class="action-panel">
-                <button class="btn-plan" onclick="openModal('plan')">
-                    📅 プランを立てる
-                </button>
+                <button class="btn-plan" onclick="openModal('plan')">📅 観測計画を立てる</button>
             </div>
 
-            <div class="smart-card">
-                <div class="panel-header">
-                    <div class="panel-title">観測予定 -PLANS-</div>
-                </div>
+            <div class="smart-card" id="plans-card">
+                <div class="panel-header"><div class="panel-title" id="plans-header">観測予定 -PLANS-</div></div>
                 <div id="plans-list" class="wishlist-container">
                     <p style="opacity:0.4; font-size:0.8rem; text-align:center; padding:1rem;">予定はありません</p>
                 </div>
@@ -533,7 +391,11 @@
 
         <main class="right-column">
             <div class="page-heading">
-                <span>星空日誌  -LOGS -</span>
+                <div class="tab-group">
+                    <button class="tab-btn active" id="tab-my" onclick="switchMode('my')">自分の日誌</button>
+                    <button class="tab-btn" id="tab-global" onclick="switchMode('global')">みんなの日誌</button>
+                    <button class="tab-btn tab-blue" id="tab-plans" onclick="switchMode('plans')">みんなの観測予定</button>
+                </div>
                 <button class="btn-add-log" onclick="openModal('log')">＋ 星空日誌を書く</button>
             </div>
             <div id="logs-list">
@@ -572,37 +434,17 @@
         <div class="modal-box">
             <button class="modal-close" onclick="closeModal()">×</button>
             <h3 class="modal-h" id="modal-heading">記録を作成</h3>
-
             <form id="unified-form">
                 <input type="hidden" id="input-type" value="log">
-                
                 <div class="form-row form-grp">
-                    <div>
-                        <label>日付</label>
-                        <input type="date" id="input-date" required>
-                    </div>
-                    <div>
-                        <label>対象 / タイトル</label>
-                        <input type="text" id="input-target" placeholder="例: オリオン座" required>
-                    </div>
+                    <div><label>日付</label><input type="date" id="input-date" required></div>
+                    <div><label>対象 / タイトル</label><input type="text" id="input-target" placeholder="例: オリオン座" required></div>
                 </div>
-
                 <div id="log-fields">
                     <div class="form-row form-grp">
-                        <div>
-                            <label>機材</label>
-                            <select id="input-tool">
-                                <option>肉眼</option><option>双眼鏡</option><option>天体望遠鏡</option><option>カメラ</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label>評価</label>
-                            <select id="input-rating">
-                                <option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option>
-                            </select>
-                        </div>
+                        <div><label>機材</label><select id="input-tool"><option>肉眼</option><option>双眼鏡</option><option>天体望遠鏡</option><option>カメラ</option></select></div>
+                        <div><label>評価</label><select id="input-rating"><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option></select></div>
                     </div>
-                    
                     <div class="form-grp">
                         <label>写真 (1枚のみ)</label>
                         <div id="upload-box" onclick="document.getElementById('input-file').click()">
@@ -615,14 +457,26 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="form-grp">
                     <label id="label-comment">メモ・感想</label>
                     <textarea id="input-comment" rows="4"></textarea>
                 </div>
-
+                <div class="form-grp">
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" id="input-public" checked>
+                        <span>みんなに公開する</span>
+                    </label>
+                </div>
                 <button type="submit" class="btn-modal-action" id="btn-save">保存する</button>
             </form>
+        </div>
+    </div>
+
+    <div id="user-list-modal" class="modal-overlay">
+        <div class="modal-box">
+            <button class="modal-close" onclick="document.getElementById('user-list-modal').style.display='none'">×</button>
+            <h3 class="modal-h">参考にしたユーザー</h3>
+            <div id="user-list-container" style="max-height:300px; overflow-y:auto;"></div>
         </div>
     </div>
 
@@ -630,7 +484,6 @@
         <div class="modal-box">
             <button class="modal-close" onclick="closeProfileModal()">×</button>
             <h3 class="modal-h">プロフィール編集</h3>
-            
             <form id="profile-form">
                 <div style="text-align:center; margin-bottom:2rem;">
                     <div style="width:100px; height:100px; border-radius:50%; border:2px solid var(--accent-gold); margin:0 auto; overflow:hidden; position:relative; cursor:pointer; background:#000;" onclick="document.getElementById('input-avatar-file').click()">
@@ -640,12 +493,10 @@
                     <p style="font-size:0.7rem; margin-top:0.5rem; opacity:0.6;">タップして画像を変更</p>
                     <input type="file" id="input-avatar-file" accept="image/*" style="display:none" onchange="previewProfileImage(this)">
                 </div>
-
                 <div class="form-grp">
                     <label>表示名</label>
                     <input type="text" id="input-display-name" required>
                 </div>
-
                 <button type="submit" class="btn-modal-action">変更を保存</button>
             </form>
         </div>
@@ -653,23 +504,28 @@
 
     <script src="assets/js/script.js"></script>
     <script>
-        // ▼▼▼ 設定エリア ▼▼▼
+        // ▼▼▼ 設定エリア (元の値を使用してください) ▼▼▼
         const API_URL = "https://ef7yxsmrds7qxjopbqyg5x6omm0uaomt.lambda-url.ap-northeast-1.on.aws/";
         const COGNITO_REGION = 'ap-northeast-1';
         const USER_POOL_ID = 'ap-northeast-1_kXEnG6ST0'; 
         const CLIENT_ID = '1fsbv088bo29u6ob8gaavn4jll'; 
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         const { Auth } = aws_amplify;
         aws_amplify.Amplify.configure({
             Auth: { region: COGNITO_REGION, userPoolId: USER_POOL_ID, userPoolWebClientId: CLIENT_ID }
         });
 
+        // 共通変数
         let currentSession = null;
         let selectedImageBase64 = null; 
         let profileImageBase64 = null;  
-        let allData = []; 
+        let myProfile = { name: 'Guest', icon: '' }; 
+        let currentMode = 'my'; 
         let convertingPlanId = null;
+        let myDataCache = []; 
+        let editingLog = null; 
+        let myUserId = null; 
 
         document.querySelector('.dashboard-container').addEventListener('mousemove', (e) => {
             const cards = document.querySelectorAll('.smart-card, .feed-card');
@@ -682,12 +538,43 @@
             });
         });
 
+        // --- ユーティリティ関数 ---
+        function escapeHtml(s) { 
+            return s ? s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','':'&quot;','\'':'&#039;'}[m])) : ""; 
+        }
+
+        function makeCommentHtml(comment) {
+            const MAX_LEN = 80;
+            if (comment && comment.length > MAX_LEN) {
+                const shortText = escapeHtml(comment.substr(0, MAX_LEN)) + '...';
+                const fullText = escapeHtml(comment).replace(/\n/g, '<br>');
+                return `<span class="text-short">${shortText}</span><span class="text-full" style="display:none;">${fullText}</span><span class="read-more-btn" onclick="event.stopPropagation(); toggleComment(this)" style="color:var(--accent-gold); cursor:pointer; font-size:0.8rem; margin-left:5px;">さらに表示 ≫</span>`;
+            } else {
+                return escapeHtml(comment || '').replace(/\n/g, '<br>');
+            }
+        }
+
+        function toggleComment(btn) {
+            const parent = btn.parentElement;
+            const short = parent.querySelector('.text-short');
+            const full = parent.querySelector('.text-full');
+            if (short.style.display !== 'none') {
+                short.style.display = 'none'; full.style.display = 'block'; btn.textContent = '≪ 閉じる';
+            } else {
+                short.style.display = 'inline'; full.style.display = 'none'; btn.textContent = 'さらに表示 ≫';
+            }
+        }
+
+        function togglePlan(el) { el.classList.toggle('active'); }
+
+        // --- 認証・初期化ロジック ---
         checkUser();
 
         async function checkUser() {
             try {
                 const user = await Auth.currentAuthenticatedUser();
                 currentSession = await Auth.currentSession();
+                myUserId = user.attributes.sub;
                 showDashboard(user);
             } catch (err) {
                 document.getElementById('auth-overlay').style.display = 'flex';
@@ -700,10 +587,18 @@
             const email = user.attributes.email;
             document.getElementById('display-email-sub').textContent = email;
             document.getElementById('display-name').textContent = email.split('@')[0];
-            fetchData();
+            fetchMyDataAndInit();
         }
 
-        async function fetchData() {
+        function switchMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${mode}`).classList.add('active');
+            updateMainContent(mode);
+        }
+
+        // --- データ取得・描画ロジック ---
+        async function fetchMyDataAndInit() {
             try {
                 const token = currentSession.getAccessToken().getJwtToken();
                 const res = await fetch(API_URL, {
@@ -712,138 +607,347 @@
                     body: JSON.stringify({ action: 'load', token: token })
                 });
                 const data = await res.json();
-                allData = data.logs || [];
-                renderAll();
+                myDataCache = data.logs || [];
+                
+                extractProfileFromLogs(myDataCache);
+                
+                // 統計情報の更新
+                const logsCount = myDataCache.filter(d => d.type === 'log').length;
+                const plansCount = myDataCache.filter(d => d.type === 'plan').length;
+                document.getElementById('stat-total').textContent = logsCount;
+                document.getElementById('stat-plans').textContent = plansCount;
+
+                renderMyPlans(myDataCache); 
+                updateMainContent(currentMode);
             } catch(e) { console.error(e); }
         }
 
-        function renderAll() {
-            // プロフィール
-            const profile = allData.find(d => d.logId === 'profile' || d.type === 'profile');
+        // ▼▼▼ 修正: クリックで展開、中のボタンで編集 ▼▼▼
+        function renderMyPlans(data) {
+            const plans = data.filter(d => d.type === 'plan');
+            const container = document.getElementById('plans-list');
+            container.innerHTML = '';
+
+            if(plans.length === 0) {
+                container.innerHTML = '<p style="opacity:0.4; font-size:0.8rem; text-align:center; padding:1rem;">予定はありません</p>';
+                return;
+            }
+            plans.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+            plans.forEach(plan => {
+                const d = new Date(plan.date);
+                const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+                const lockIcon = (plan.isPublic === false) ? '<span class="plan-lock">🔒</span>' : '';
+                
+                const html = `
+                    <div class="plan-item" onclick="togglePlan(this)">
+                        ${lockIcon}
+                        <div class="plan-head">
+                            <div><span class="plan-date">${dateStr}</span> <span style="margin:0 8px; opacity:0.3;">|</span> <span class="plan-title">${escapeHtml(plan.target)}</span></div>
+                            <div class="plan-arrow">▼</div>
+                        </div>
+                        <div class="plan-body" onclick="event.stopPropagation()">
+                            <div style="font-size:0.85rem; color:#d0d0d0; margin-bottom:0.8rem;">${escapeHtml(plan.comment || 'メモなし')}</div>
+                            <div class="plan-btns">
+                                <button class="p-btn p-btn-edit" onclick="editLog('${plan.logId}')">編集</button>
+                                <button class="p-btn p-btn-rec" onclick="initiateConvert('${plan.logId}')">ログに記録</button>
+                                <button class="p-btn p-btn-del" onclick="deleteItem('${plan.logId}', null)">削除</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+        async function updateMainContent(mode) {
+            const listEl = document.getElementById('logs-list');
+            listEl.innerHTML = '<div class="loading">Loading...</div>';
+
+            let itemsToShow = [];
+
+            if (mode === 'my') {
+                itemsToShow = myDataCache.filter(d => d.type === 'log');
+                renderMainList(itemsToShow, 'log');
+            } else {
+                try {
+                    const token = currentSession.getAccessToken().getJwtToken();
+                    const res = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'load_public', token: token })
+                    });
+                    const data = await res.json();
+                    const publicData = data.logs || [];
+
+                    if (mode === 'global') {
+                        itemsToShow = publicData.filter(d => d.type === 'log');
+                        renderMainList(itemsToShow, 'log');
+                    } else if (mode === 'plans') {
+                        itemsToShow = publicData.filter(d => d.type === 'plan');
+                        renderMainList(itemsToShow, 'plan'); 
+                    }
+                } catch(e) {
+                    listEl.innerHTML = '<div style="padding:2rem; text-align:center;">読み込みエラー</div>';
+                }
+            }
+        }
+
+        function renderMainList(items, type) {
+            const container = document.getElementById('logs-list');
+            container.innerHTML = '';
+            
+            if(items.length === 0) {
+                container.innerHTML = '<div style="text-align:center; opacity:0.3; padding:3rem;">データがありません</div>';
+                return;
+            }
+
+            items.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            items.forEach((item, i) => {
+                const d = new Date(item.date);
+                const dateStr = `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
+                
+                let userInfoHtml = '';
+                if (item.authorName) {
+                    const iconSrc = item.authorIcon || ''; 
+                    const iconImg = iconSrc ? `<img src="${iconSrc}" class="feed-user-icon">` : `<span class="feed-user-icon" style="background:#333; display:inline-block;"></span>`;
+                    userInfoHtml = `<div class="feed-user-info">${iconImg} <span>${escapeHtml(item.authorName)}</span></div>`;
+                } else {
+                    userInfoHtml = `<div class="feed-user-info" style="opacity:0.5;"><span>Guest User</span></div>`;
+                }
+                
+                let deleteBtn = '';
+                let clickAttr = '';
+                let cardClass = 'smart-card feed-card';
+                let privateMark = '';
+
+                const likedList = item.likedBy || [];
+                const usefulList = item.usefulBy || [];
+                const likeCount = likedList.length;
+                const usefulCount = usefulList.length;
+                const likedJson = encodeURIComponent(JSON.stringify(likedList));
+                const usefulJson = encodeURIComponent(JSON.stringify(usefulList));
+
+                let myReactionView = '';
+                if (currentMode === 'my') {
+                    deleteBtn = `<button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>`;
+                    clickAttr = `onclick="editLog('${item.logId}')"`;
+                    cardClass += ' clickable';
+                    if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
+                    
+                    myReactionView = `
+                        <div class="reaction-display">
+                            <span class="reaction-stat ${likeCount>0?'has-val-like':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}')">❤ ${likeCount}</span>
+                            <span class="reaction-stat ${usefulCount>0?'has-val-useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}')">★ ${usefulCount}</span>
+                        </div>
+                    `;
+                }
+
+                if (type === 'log') {
+                    const stars = "★".repeat(parseInt(item.rating||0));
+                    let thumbHtml = `<div class="feed-no-img">🔭</div>`;
+                    if(item.imageUrl) thumbHtml = `<img src="${item.imageUrl}" class="feed-img">`;
+                    const commentHtml = makeCommentHtml(item.comment || '');
+
+                    let reactionHtml = '';
+                    if (currentMode === 'global') {
+                        const liked = likedList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
+                        const useful = usefulList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
+
+                        reactionHtml = `
+                            <div class="reaction-group">
+                                <button class="btn-reaction ${liked?'liked':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'like', this)">
+                                    <span>❤</span> ${likeCount>0 ? likeCount : 'いいね'}
+                                </button>
+                                <button class="btn-reaction ${useful?'useful':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'useful', this)">
+                                    <span>★</span> ${usefulCount>0 ? usefulCount : '参考'}
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    const html = `
+                        <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
+                            <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
+                            <div class="feed-content">
+                                ${userInfoHtml}
+                                <div class="feed-head"><h3 class="feed-title">${escapeHtml(item.target)}${privateMark}</h3><span class="feed-stars">${stars}</span></div>
+                                <div class="feed-meta"><span class="meta-tag">機材: ${escapeHtml(item.tool)}</span></div>
+                                <div class="feed-text">${commentHtml}</div>
+                                <div class="feed-foot">
+                                    ${reactionHtml}
+                                    ${myReactionView}
+                                    ${deleteBtn}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', html);
+
+                } else {
+                    const commentHtml = makeCommentHtml(item.comment || '');
+                    const refList = item.referencedBy || [];
+                    const refCount = refList.length;
+                    const refListJson = encodeURIComponent(JSON.stringify(refList));
+                    
+                    const refArea = `
+                        <div style="display:flex; justify-content:flex-end; gap:5px; margin-top:10px;">
+                            ${refCount > 0 ? `<span class="ref-count" onclick="event.stopPropagation(); showRefUsers('${refListJson}')">${refCount}人が参考にしています</span>` : ''}
+                            <button class="btn-ref-plan" onclick="event.stopPropagation(); referencePlan('${item.userId}', '${item.logId}')">この予定を参考にする</button>
+                        </div>
+                    `;
+
+                    const html = `
+                        <div class="smart-card feed-card plan-type" style="animation-delay:${i*0.05}s">
+                            <div class="feed-img-col" style="display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.3);">
+                                <div style="font-size:3rem; color:#00d2ff;">📅</div>
+                                <div class="feed-date-badge">${dateStr}</div>
+                            </div>
+                            <div class="feed-content">
+                                ${userInfoHtml}
+                                <div class="feed-head"><h3 class="feed-title" style="color:#e0f7ff;">${escapeHtml(item.target)}</h3></div>
+                                <div class="feed-meta"><span class="meta-tag" style="border-color:#00d2ff; color:#00d2ff; background:rgba(0,210,255,0.1);">Plan</span></div>
+                                <div class="feed-text" style="border-top-color:rgba(0,210,255,0.2);">${commentHtml}</div>
+                                ${refArea}
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', html);
+                }
+            });
+        }
+
+        async function toggleReaction(targetUserId, targetLogId, type, btnEl) {
+            try {
+                const isLiked = btnEl.classList.contains('liked') || btnEl.classList.contains('useful');
+                if(type==='like') btnEl.classList.toggle('liked');
+                if(type==='useful') btnEl.classList.toggle('useful');
+
+                const token = currentSession.getAccessToken().getJwtToken();
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        action: 'toggle_reaction', 
+                        token: token,
+                        targetUserId: targetUserId,
+                        targetLogId: targetLogId,
+                        reactionType: type,
+                        myName: myProfile.name,
+                        myIcon: myProfile.icon
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.likedBy || data.usefulBy) {
+                    const arr = (type==='like') ? data.likedBy : data.usefulBy;
+                    const count = arr.length;
+                    const hasMe = arr.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
+                    
+                    if(hasMe) btnEl.classList.add(type==='like'?'liked':'useful');
+                    else btnEl.classList.remove(type==='like'?'liked':'useful');
+                    
+                    let icon = (type==='like') ? '❤' : '★';
+                    let label = (count > 0) ? count : (type==='like' ? 'いいね' : '参考');
+                    btnEl.innerHTML = `<span>${icon}</span> ${label}`;
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        function showRefUsers(jsonStr) {
+            const list = JSON.parse(decodeURIComponent(jsonStr));
+            const c = document.getElementById('user-list-container');
+            c.innerHTML = '';
+            if(list.length === 0) {
+                c.innerHTML = '<div style="padding:1rem; opacity:0.5; text-align:center;">まだありません</div>';
+            }
+            list.forEach(u => {
+                let name = 'Unknown User';
+                let iconHtml = `<div class="user-list-icon" style="background:#333;</div>`;
+                
+                if (typeof u === 'string') {
+                    name = 'Guest User';
+                } else {
+                    name = u.name || 'Guest User';
+                    if(u.icon) iconHtml = `<img src="${u.icon}" class="user-list-icon">`;
+                }
+
+                const div = document.createElement('div');
+                div.className = 'user-list-item';
+                div.innerHTML = `${iconHtml}<span>${escapeHtml(name)}</span>`;
+                c.appendChild(div);
+            });
+            document.getElementById('user-list-modal').style.display = 'flex';
+        }
+
+        function editLog(logId) {
+            const target = myDataCache.find(d => d.logId === logId);
+            if (!target) return;
+            editingLog = target; 
+            
+            const type = (target.type === 'plan') ? 'plan' : 'log';
+            openModal(type);
+            document.getElementById('modal-heading').textContent = (type==='plan')?"プランを編集":"記録を編集";
+            document.getElementById('btn-save').textContent = "更新";
+
+            document.getElementById('input-date').value = target.date;
+            document.getElementById('input-target').value = target.target;
+            document.getElementById('input-comment').value = target.comment || '';
+            document.getElementById('input-public').checked = (target.isPublic !== false);
+
+            if(type === 'log') {
+                document.getElementById('input-tool').value = target.tool || '肉眼';
+                document.getElementById('input-rating').value = target.rating || '5';
+                if(target.imageUrl) {
+                    document.getElementById('upload-box').style.display='none';
+                    document.getElementById('preview-area').style.display='block';
+                    document.getElementById('preview-img-tag').src = target.imageUrl;
+                    selectedImageBase64 = null; 
+                }
+            }
+        }
+
+        async function referencePlan(targetUserId, targetLogId) {
+            if(!confirm("この予定を参考に、あなたの予定を作成しますか？")) return;
+            try {
+                const token = currentSession.getAccessToken().getJwtToken();
+                const body = {
+                    action: 'reference_plan',
+                    token: token,
+                    targetUserId: targetUserId,
+                    targetLogId: targetLogId,
+                    myName: myProfile.name,
+                    myIcon: myProfile.icon
+                };
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if(!res.ok) throw new Error("Failed");
+                alert("自分の予定に追加しました！");
+                fetchMyDataAndInit(); 
+            } catch(e) { alert("エラー: " + e.message); }
+        }
+
+        function extractProfileFromLogs(data) {
+            const profile = data.find(d => d.logId === 'profile' || d.type === 'profile');
             if (profile) {
-                if(profile.target) document.getElementById('display-name').textContent = profile.target;
+                if(profile.target) {
+                    document.getElementById('display-name').textContent = profile.target;
+                    myProfile.name = profile.target;
+                }
                 if(profile.imageUrl) {
                     document.getElementById('avatar-img').src = profile.imageUrl;
                     document.getElementById('avatar-img').style.display = 'block';
                     document.getElementById('avatar-default').style.display = 'none';
+                    myProfile.icon = profile.imageUrl;
                 }
-            }
-
-            const logs = allData.filter(d => d.type !== 'plan' && d.type !== 'profile' && d.logId !== 'profile');
-            const plans = allData.filter(d => d.type === 'plan');
-
-            document.getElementById('stat-total').textContent = logs.length;
-            document.getElementById('stat-plans').textContent = plans.length;
-
-            // ログリスト
-            const logsContainer = document.getElementById('logs-list');
-            logsContainer.innerHTML = '';
-            if(logs.length === 0) {
-                logsContainer.innerHTML = '<div style="text-align:center; opacity:0.3; padding:3rem;">記録がありません</div>';
-            } else {
-                logs.forEach((log, i) => {
-                    const d = new Date(log.date);
-                    const dateStr = `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
-                    const stars = "★".repeat(parseInt(log.rating||0));
-                    
-                    let thumbHtml = `<div class="log-no-img">🔭</div>`;
-                    if(log.imageUrl) thumbHtml = `<img src="${log.imageUrl}" class="feed-img">`;
-
-                    // 感想の長さ判定 (80文字以上なら省略)
-                    const comment = log.comment || '';
-                    const MAX_LEN = 80;
-                    let commentHtml = '';
-                    
-                    if (comment.length > MAX_LEN) {
-                        const shortText = escapeHtml(comment.substr(0, MAX_LEN)) + '...';
-                        const fullText = escapeHtml(comment).replace(/\n/g, '<br>');
-                        commentHtml = `
-                            <span class="text-short">${shortText}</span>
-                            <span class="text-full" style="display:none;">${fullText}</span>
-                            <span class="read-more-btn" onclick="toggleComment(this)">さらに表示 ≫</span>
-                        `;
-                    } else {
-                        commentHtml = escapeHtml(comment).replace(/\n/g, '<br>');
-                    }
-
-                    const html = `
-                        <div class="smart-card feed-card" style="animation-delay:${i*0.1}s">
-                            <div class="feed-img-col">
-                                ${thumbHtml}
-                                <div class="feed-date-badge">${dateStr}</div>
-                            </div>
-                            <div class="feed-content">
-                                <div class="feed-head">
-                                    <h3 class="feed-title">${escapeHtml(log.target)}</h3>
-                                    <span class="feed-stars">${stars}</span>
-                                </div>
-                                <div class="feed-meta">
-                                    <span class="meta-tag">機材: ${escapeHtml(log.tool)}</span>
-                                </div>
-                                <div class="feed-text">${commentHtml}</div>
-                                <div class="feed-foot">
-                                    <button class="btn-del-log" onclick="deleteItem('${log.logId}', '${log.imageUrl||''}')">🗑 削除</button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    logsContainer.insertAdjacentHTML('beforeend', html);
-                });
-            }
-
-            // 予定リスト (アコーディオン)
-            const plansContainer = document.getElementById('plans-list');
-            plansContainer.innerHTML = '';
-            if(plans.length === 0) {
-                plansContainer.innerHTML = '<p style="opacity:0.4; font-size:0.8rem; text-align:center; padding:1rem;">予定はありません</p>';
-            } else {
-                plans.forEach(plan => {
-                    const d = new Date(plan.date);
-                    const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
-                    
-                    const html = `
-                        <div class="plan-item" onclick="togglePlan(this)">
-                            <div class="plan-head">
-                                <div>
-                                    <span class="plan-date">${dateStr}</span>
-                                    <span style="margin:0 8px; opacity:0.3;">|</span>
-                                    <span class="plan-title">${escapeHtml(plan.target)}</span>
-                                </div>
-                                <div class="plan-arrow">▼</div>
-                            </div>
-                            <div class="plan-body" onclick="event.stopPropagation()">
-                                <div class="plan-note">${escapeHtml(plan.comment || 'メモなし')}</div>
-                                <div class="plan-btns">
-                                    <button class="p-btn p-btn-rec" onclick="initiateConvert('${plan.logId}')">📝 記録して完了</button>
-                                    <button class="p-btn p-btn-del" onclick="deleteItem('${plan.logId}', null)">🗑 削除</button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    plansContainer.insertAdjacentHTML('beforeend', html);
-                });
             }
         }
         
-        function togglePlan(el) { el.classList.toggle('active'); }
-
-        // 感想の展開/折り畳み
-        function toggleComment(btn) {
-            const parent = btn.parentElement;
-            const short = parent.querySelector('.text-short');
-            const full = parent.querySelector('.text-full');
-            
-            if (short.style.display !== 'none') {
-                short.style.display = 'none';
-                full.style.display = 'block';
-                btn.textContent = '≪ 閉じる';
-            } else {
-                short.style.display = 'inline';
-                full.style.display = 'none';
-                btn.textContent = 'さらに表示 ≫';
-            }
-        }
-
         async function saveItem(dataObj, customId) {
             const token = currentSession.getAccessToken().getJwtToken();
             const body = { action: 'save', token: token, logData: dataObj };
@@ -860,21 +964,21 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'delete', token: token, logId: logId, logData: { imageUrl: imageUrl } })
                 });
-                fetchData();
+                fetchMyDataAndInit();
             } catch(e) { alert("Error: "+e.message); }
         }
 
         function initiateConvert(planId) {
-            const plan = allData.find(d => d.logId === planId);
+            const plan = myDataCache.find(d => d.logId === planId);
             if(!plan) return;
             convertingPlanId = planId; 
+            editingLog = null; 
             openModal('log');
             document.getElementById('input-date').value = plan.date;
             document.getElementById('input-target').value = plan.target;
-            document.getElementById('modal-heading').textContent = "日誌を書く";
+            document.getElementById('modal-heading').textContent = "星空日誌を書く";
         }
 
-        // --- Profile ---
         function openProfileModal() {
             document.getElementById('profile-modal').style.display = 'flex';
             document.getElementById('input-display-name').value = document.getElementById('display-name').textContent;
@@ -886,37 +990,27 @@
             }
         }
         function closeProfileModal() { document.getElementById('profile-modal').style.display = 'none'; profileImageBase64 = null; }
-
-        function previewProfileImage(input) {
-            processImage(input, (b64) => {
-                profileImageBase64 = b64;
-                document.getElementById('profile-preview').src = b64;
-                document.getElementById('profile-preview').style.display = 'block';
-                document.getElementById('profile-preview-default').style.display = 'none';
-            });
-        }
+        function previewProfileImage(input) { processImage(input, (b64) => { profileImageBase64 = b64; document.getElementById('profile-preview').src = b64; document.getElementById('profile-preview').style.display = 'block'; document.getElementById('profile-preview-default').style.display = 'none'; }); }
 
         document.getElementById('profile-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button'); btn.disabled=true; btn.textContent="保存中...";
             const name = document.getElementById('input-display-name').value;
             const dataObj = { type: 'profile', target: name, imageBase64: profileImageBase64 };
-            const curr = allData.find(d => d.logId === 'profile');
+            const curr = myDataCache.find(d => d.logId === 'profile');
             if(curr && !profileImageBase64) dataObj.imageUrl = curr.imageUrl;
 
             try {
                 await saveItem(dataObj, 'profile');
-                closeProfileModal(); fetchData();
+                location.reload(); 
             } catch(e){ alert(e.message); }
             finally { btn.disabled=false; btn.textContent="変更を保存"; }
         });
 
-        // --- Main Modal ---
         function openModal(type) {
             const modalBox = document.querySelector('#modal-overlay .modal-box');
             document.getElementById('modal-overlay').style.display = 'flex';
             document.getElementById('input-date').valueAsDate = new Date();
-            
             document.getElementById('input-type').value = type;
             const lf = document.getElementById('log-fields');
             const btn = document.getElementById('btn-save');
@@ -927,7 +1021,7 @@
 
             if(type === 'plan') {
                 modalBox.classList.add('plan-theme');
-                h.textContent = "プランを追加"; lf.style.display = 'none'; lbl.textContent = "メモ"; btn.textContent = "追加";
+                h.textContent = "観測計画を作成"; lf.style.display = 'none'; lbl.textContent = "メモ"; btn.textContent = "追加";
                 btn.className = "btn-modal-action plan-mode"; 
                 document.getElementById('input-date').required = false; 
             } else {
@@ -937,12 +1031,14 @@
                 document.getElementById('input-date').required = true;
             }
         }
-        function closeModal() {
-            document.getElementById('modal-overlay').style.display = 'none';
-            document.getElementById('unified-form').reset();
-            convertingPlanId = null; clearImage();
+        function closeModal() { 
+            document.getElementById('modal-overlay').style.display = 'none'; 
+            document.getElementById('unified-form').reset(); 
+            convertingPlanId = null; 
+            editingLog = null; 
+            clearImage(); 
+            document.getElementById('input-public').checked = true; 
         }
-
         function processImage(input, cb) {
             if(!input.files[0]) return;
             const r = new FileReader();
@@ -951,18 +1047,14 @@
                 i.onload = () => {
                     const c = document.createElement('canvas');
                     const x = c.getContext('2d');
-                    const M = 800;
-                    let w=i.width, h=i.height;
-                    if(w>M){ h*=M/w; w=M; }
-                    c.width=w; c.height=h;
-                    x.drawImage(i,0,0,w,h);
+                    const M = 800; let w=i.width, h=i.height;
+                    if(w>M){ h*=M/w; w=M; } c.width=w; c.height=h; x.drawImage(i,0,0,w,h);
                     cb(c.toDataURL('image/jpeg',0.7));
                 };
                 i.src = e.target.result;
             };
             r.readAsDataURL(input.files[0]);
         }
-
         function previewImage(inp) { processImage(inp, (b64) => { selectedImageBase64 = b64; document.getElementById('upload-box').style.display='none'; document.getElementById('preview-area').style.display='block'; document.getElementById('preview-img-tag').src=b64; }); }
         function clearImage() { document.getElementById('input-file').value=""; selectedImageBase64=null; document.getElementById('upload-box').style.display='block'; document.getElementById('preview-area').style.display='none'; }
 
@@ -970,21 +1062,45 @@
             e.preventDefault();
             const btn = document.getElementById('btn-save'); btn.disabled=true; btn.textContent="送信中...";
             const type = document.getElementById('input-type').value;
-            const data = { type, date: document.getElementById('input-date').value, target: document.getElementById('input-target').value, comment: document.getElementById('input-comment').value };
+            const data = { 
+                type, 
+                date: document.getElementById('input-date').value, 
+                target: document.getElementById('input-target').value, 
+                comment: document.getElementById('input-comment').value,
+                authorName: myProfile.name,
+                authorIcon: myProfile.icon,
+                isPublic: document.getElementById('input-public').checked
+            };
             if(type === 'log') {
                 data.tool = document.getElementById('input-tool').value;
                 data.rating = document.getElementById('input-rating').value;
-                data.imageBase64 = selectedImageBase64;
+                
+                if(selectedImageBase64) {
+                    data.imageBase64 = selectedImageBase64; 
+                } else if(editingLog && editingLog.imageUrl && document.getElementById('preview-area').style.display !== 'none') {
+                    data.imageUrl = editingLog.imageUrl;
+                }
             }
+            
+            let targetId = null;
+            if (editingLog) {
+                targetId = editingLog.logId;
+                data.referencedBy = editingLog.referencedBy || [];
+                data.likedBy = editingLog.likedBy || [];
+                data.usefulBy = editingLog.usefulBy || [];
+                data.createdAt = editingLog.createdAt; 
+            }
+
             try {
-                await saveItem(data);
+                await saveItem(data, targetId);
                 if(convertingPlanId) await deleteItem(convertingPlanId, null, true);
-                closeModal(); fetchData();
+                closeModal(); 
+                fetchMyDataAndInit();
             } catch(e) { alert(e.message); }
-            finally { btn.disabled=false; btn.textContent="保存"; }
+            finally { btn.disabled=false; btn.textContent=(type==='plan')?"追加":"保存"; }
         });
 
-        function escapeHtml(s) { return s ? s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','':'&quot;','\'':'&#039;'}[m])) : ""; }
+        // 認証関数
         function switchView(n){document.querySelectorAll('#auth-overlay > div').forEach(e=>e.style.display='none'),document.getElementById(`view-${n}`).style.display='block'}
         async function signIn(){try{await Auth.signIn(document.getElementById('login-email').value,document.getElementById('login-pass').value),checkUser()}catch(e){document.getElementById('login-error').textContent=e.message}}
         async function signUp(){try{let e=document.getElementById('signup-email').value;await Auth.signUp({username:e,password:document.getElementById('signup-pass').value,attributes:{email:e}}),switchView('verify')}catch(e){document.getElementById('signup-error').textContent=e.message}}
