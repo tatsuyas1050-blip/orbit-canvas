@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>星空ライフログ - My Observation Log</title>
+    <title>星空ライフログ - My Starry Sky Log</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&family=Jura:wght@400;600&display=swap" rel="stylesheet">
@@ -190,7 +190,8 @@
             padding: 1.2rem 1.2rem 0.5rem; display: flex; justify-content: space-between; align-items: flex-end;
             border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 0.5rem;
         }
-        .panel-title { font-size: 1rem; color: #70d6ff; font-weight: bold; margin: 0; font-family: var(--font-tech); letter-spacing: 0.1em; }
+        /* 修正: フォントを明朝体に変更 */
+        .panel-title { font-size: 1rem; color: #70d6ff; font-weight: bold; margin: 0; font-family: 'Shippori Mincho', serif; letter-spacing: 0.1em; }
         .wishlist-container { max-height: 400px; overflow-y: auto; padding: 0.5rem 1rem 1rem; }
 
         /* 予定アイテム */
@@ -246,7 +247,7 @@
             position: sticky; top: 0; z-index: 10;
             background: transparent; 
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            margin: 0 0 1.5rem 0; padding: 1rem 0;
+            margin: 0 0 1.5rem 0; padding: 1rem 10px;
             border-bottom: 1px solid rgba(255,255,255,0.15);
             text-shadow: 0 2px 10px rgba(0,0,0,0.8);
             display: flex; justify-content: space-between; align-items: center;
@@ -532,7 +533,7 @@
 
         <main class="right-column">
             <div class="page-heading">
-                <span>星空日誌 - LOGS -</span>
+                <span>星空日誌  -LOGS -</span>
                 <button class="btn-add-log" onclick="openModal('log')">＋ 星空日誌を書く</button>
             </div>
             <div id="logs-list">
