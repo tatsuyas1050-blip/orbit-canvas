@@ -760,7 +760,7 @@
                         commentHtml = `
                             <span class="text-short">${shortText}</span>
                             <span class="text-full" style="display:none;">${fullText}</span>
-                            <span class="read-more-btn" onclick="toggleComment(this)">続き ≫</span>
+                            <span class="read-more-btn" onclick="toggleComment(this)">さらに表示 ≫</span>
                         `;
                     } else {
                         commentHtml = escapeHtml(comment).replace(/\n/g, '<br>');
@@ -840,7 +840,7 @@
             } else {
                 short.style.display = 'inline';
                 full.style.display = 'none';
-                btn.textContent = '続き ≫';
+                btn.textContent = 'さらに表示 ≫';
             }
         }
 
