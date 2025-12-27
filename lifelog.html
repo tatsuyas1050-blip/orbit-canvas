@@ -595,7 +595,7 @@
         </div>
 
         <div id="view-signup" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="margin-bottom:1.5rem;">SIGN UP</h2>
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">アカウント登録</h2>
             <p class="auth-desc">アカウントを作成して<br>あなただけの星空記録を始めましょう。</p>
             
             <p id="signup-error" class="error-msg"></p>
@@ -616,7 +616,7 @@
         </div>
 
         <div id="view-verify" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="margin-bottom:1.5rem;">VERIFY</h2>
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">メールアドレスは登録済みです</h2>
             <p class="auth-desc">メールに届いた認証コードを入力してください</p>
             <p id="verify-error" class="error-msg"></p>
             
@@ -632,7 +632,7 @@
         </div>
 
         <div id="view-forgot" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="margin-bottom:1.5rem;">RESET PASSWORD</h2>
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">パスワードリセット</h2>
             <p class="auth-desc">登録したメールアドレスを入力してください。<br>リセット用のコードを送信します。</p>
             <p id="forgot-error" class="error-msg"></p>
             
@@ -648,7 +648,7 @@
         </div>
 
         <div id="view-reset-submit" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="margin-bottom:1.5rem;">NEW PASSWORD</h2>
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">新しいパスワード</h2>
             <p class="auth-desc">メールに届いたコードと、<br>新しいパスワードを入力してください。</p>
             <p id="reset-error" class="error-msg"></p>
             
@@ -1391,16 +1391,42 @@
             }
         }
 
-        async function signUp(){
+        async function signUp() {
             const email = document.getElementById('signup-email').value;
             const pass = document.getElementById('signup-pass').value;
 
-            if(!pass) { showError('signup-error', 'パスワードを入力してください。'); return; }
+            if (!email || !pass) {
+                showError('signup-error', 'メールアドレスとパスワードを入力してください。');
+                return;
+            }
 
-            try{
-                await Auth.signUp({username:email, password:pass, attributes:{email:email}});
+            try {
+                // 新規登録を試みる
+                await Auth.signUp({
+                    username: email,
+                    password: pass,
+                    attributes: { email: email }
+                });
+                // 成功したら検証画面へ
                 switchView('verify');
-            }catch(e){
+                
+            } catch (e) {
+                // ▼▼▼ 追加ロジック: すでにユーザーが存在する場合の処理 ▼▼▼
+                if (e.code === 'UsernameExistsException') {
+                    try {
+                        // 「未認証のまま残っている」可能性があるため、コード再送を試みる
+                        await Auth.resendSignUp(email);
+                        alert("このメールアドレスは仮登録済みです。認証コードを再送しましたので、入力して登録を完了させてください。");
+                        switchView('verify');
+                        return; // ここで終了
+                    } catch (resendError) {
+                        // コード再送も失敗した場合（＝既に本登録済みのユーザーなど）
+                        // 通常のエラー表示へ流す
+                        console.log("Resend failed:", resendError);
+                    }
+                }
+                // ▲▲▲ 追加ロジックここまで ▲▲▲
+
                 showError('signup-error', translateError(e));
             }
         }
