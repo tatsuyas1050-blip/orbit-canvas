@@ -198,7 +198,6 @@
             display: flex; justify-content: space-between; align-items: center;
         }
         
-        /* ▼▼▼ 修正: タブデザイン（オーバーレイ・くすみ完全解消・疑似要素キル） ▼▼▼ */
         .tab-group { 
             display: flex; gap: 5px; 
             background: rgba(0, 0, 0, 0.4); 
@@ -207,61 +206,62 @@
             border-radius: 30px;
             isolation: isolate; 
         }
+
         .tab-btn {
-            background: transparent; border: none; 
+            background: transparent; 
+            border: none; 
             color: #ffffff;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); 
             
-            font-family: 'Shippori Mincho', serif; font-size: 0.95rem; font-weight: 700;
+            font-family: 'Shippori Mincho', serif; 
+            font-size: 0.95rem; 
+            font-weight: 700;
             cursor: pointer; 
             padding: 10px 20px;
             border-radius: 25px;
             transition: all 0.3s ease;
-            border-bottom: none;
+            
+            border-bottom: none !important;
+            opacity: 1 !important; 
+            filter: none !important;
+            
             flex: 1; 
             white-space: nowrap;
-            
-            /* オーバーレイ問題を解決する設定 */
-            opacity: 1 !important;
             position: relative;
             z-index: 5;
-            filter: none !important; /* グレースケール等のフィルタを解除 */
         }
+
         .tab-btn:hover { 
-            background: rgba(255,255,255,0.15);
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
         }
         
-        /* ★重要: 疑似要素による暗幕オーバーレイを強制削除 */
         .tab-btn.active::before,
-        .tab-btn.active::after {
+        .tab-btn.active::after,
+        .tab-btn::before,
+        .tab-btn::after {
             display: none !important;
             content: none !important;
-            opacity: 0 !important;
         }
 
-        /* アクティブ（通常・ゴールド） - インセットシャドウを消し、発色を強化 */
+        /* アクティブ（自分・みんなの日誌：ゴールド） */
         .tab-btn.active { 
-            background: linear-gradient(135deg, #ffed4b, #ffc107) !important; /* より鮮やかなアンバーゴールド */
-            color: #000000 !important; 
-            text-shadow: none !important; 
-            
-            box-shadow: 0 2px 10px rgba(255, 193, 7, 0.4) !important; /* インセットを排除し、金色の光彩を追加 */
+            background: linear-gradient(135deg, #d4af37, #b8860b) !important; 
+            color: #ffffff !important; 
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4) !important;
             border: 1px solid #ffd700 !important; 
-            border-bottom-color: transparent; 
-            font-weight: 700;
+            font-weight: 800;
         }
 
-        /* アクティブ（青・プラン） - 同様に鮮やかに */
+        /* アクティブ（みんなの観測予定：ブルー） */
         .tab-btn.tab-blue.active { 
-            background: linear-gradient(135deg, #00e5ff, #0077ff) !important; /* より明るいシアンブルー */
+            background: linear-gradient(135deg, #00ffff, #0088ff) !important; 
             color: #ffffff !important;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
-            
-            box-shadow: 0 2px 10px rgba(0, 210, 255, 0.4) !important; /* 青い光彩 */
-            border: 1px solid #88eeff !important;
-            border-bottom-color: transparent; 
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4) !important;
+            border: 1px solid #88ffff !important;
         }
-        .tab-btn.tab-blue:hover { color: #88eeff; }
 
         @media (max-width: 600px) {
             .tab-btn {
@@ -269,7 +269,6 @@
                 padding: 8px 10px;
             }
         }
-        /* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */
 
         .btn-add-log {
             background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(180, 140, 30, 0.4));
@@ -351,7 +350,7 @@
         }
 
         .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            position: fixed; top: 0; left: 100%; width: 100%; height: 100%;
             background: rgba(5, 8, 15, 0.85); backdrop-filter: blur(10px);
             z-index: 999; display: none; align-items: center; justify-content: center;
         }
@@ -390,6 +389,90 @@
 
         .loading { text-align: center; padding: 3rem; opacity: 0.6; font-family: var(--font-tech); }
         @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
+
+        /* ▼▼▼ 追加・修正: ログイン画面のデザイン強化（1つの枠に3つ統合） ▼▼▼ */
+        .auth-container {
+            background: rgba(15, 20, 30, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+        }
+        
+        /* 1つの枠にまとめるスタイル */
+        .auth-features-unified {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(212, 175, 55, 0.3); /* ゴールドの枠 */
+            border-radius: 8px;
+            padding: 1.2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .feat-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #ddd;
+            font-size: 0.9rem;
+        }
+        
+        .feat-icon-small {
+            color: var(--accent-gold);
+            font-size: 1.1rem;
+            width: 24px; 
+            text-align: center;
+        }
+
+        .auth-desc {
+            font-size: 0.85rem; color: #aaa; line-height: 1.4; margin-bottom: 1rem; text-align: center;
+            font-family: 'Shippori Mincho', serif;
+        }
+
+        .input-group { position: relative; margin-bottom: 1rem; }
+        .input-group input {
+            padding-left: 2.5rem;
+            background: rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.15);
+            transition: 0.3s;
+            padding-top: 0.7rem; padding-bottom: 0.7rem; 
+        }
+        .input-group input:focus {
+            background: rgba(0, 0, 0, 0.8);
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+        .input-icon {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.4); font-size: 1rem; pointer-events: none;
+        }
+
+        /* ログインボックス自体の装飾強化 */
+        .login-box-deco {
+            border: 1px solid rgba(212, 175, 55, 0.5) !important;
+            box-shadow: 0 0 60px rgba(0,0,0,0.9), 0 0 20px rgba(212, 175, 55, 0.15) !important;
+            background: linear-gradient(160deg, rgba(20, 25, 35, 0.98), rgba(10, 15, 25, 0.95)) !important;
+        }
+
+        .error-msg {
+            color: #ff6b6b; font-size: 0.8rem; min-height: 1.2em; 
+            margin-bottom: 0.8rem; text-align: center; 
+            background: rgba(255, 80, 80, 0.1);
+            padding: 6px; border-radius: 4px; border: 1px solid rgba(255, 80, 80, 0.2);
+            display: none; /* エラーがないときは非表示 */
+        }
+        .error-msg.show { display: block; animation: fadeIn 0.3s; }
+
+        .auth-links {
+            margin-top: 1.2rem; font-size: 0.8rem; text-align: center; color: #aaa;
+        }
+        .auth-links span {
+            cursor: pointer; text-decoration: underline; transition: color 0.3s;
+        }
+        .auth-links span:hover { color: #fff; text-shadow: 0 0 5px #fff; }
     </style>
 </head>
 <body>
@@ -465,29 +548,120 @@
         </main>
     </div>
 
-    <div id="auth-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,10,20,0.95); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(10px);">
-        <div id="view-login" class="modal-box">
-            <h2 class="modal-h" style="margin-bottom:1.5rem;">LOGIN</h2>
-            <p id="login-error" style="color:#ff5555; font-size:0.8rem; min-height:1em;"></p>
-            <input type="email" id="login-email" placeholder="メールアドレス" style="margin-bottom:1rem;">
-            <input type="password" id="login-pass" placeholder="パスワード" style="margin-bottom:1rem;">
-            <button onclick="signIn()" class="btn-modal-action">ログイン</button>
-            <div style="margin-top:1rem; font-size:0.9rem; cursor:pointer; color:#d4af37; text-decoration:underline; text-align:center;" onclick="switchView('signup')">新規登録はこちら</div>
+    <div id="auth-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(2,5,10,0.95); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); overflow-y:auto;">
+        
+        <div id="view-login" class="modal-box login-box-deco">
+            <div style="text-align:center; margin-bottom:1.5rem;">
+                <div style="font-size:3rem; margin-bottom:0.5rem;">🔭</div>
+                <h2 class="modal-h" style="border:none; padding:0; margin:0; text-shadow:0 0 10px rgba(212,175,55,0.5);">ログイン</h2>
+                <p style="font-size:0.8rem; color:#888; letter-spacing:0.1em;">Starry Sky Log</p>
+            </div>
+            
+            <p class="auth-desc">ログインすると以下の機能が使えます</p>
+
+            <div class="auth-features-unified">
+                <div class="feat-row">
+                    <span class="feat-icon-small">📖</span>
+                    <span>星を見た記録を付ける</span>
+                </div>
+                <div class="feat-row">
+                    <span class="feat-icon-small">🌏</span>
+                    <span>誰かの記録を見る</span>
+                </div>
+                <div class="feat-row">
+                    <span class="feat-icon-small">📅</span>
+                    <span>観測予定を立てる</span>
+                </div>
+            </div>
+
+            <p id="login-error" class="error-msg"></p>
+            
+            <div class="input-group">
+                <span class="input-icon">✉️</span>
+                <input type="email" id="login-email" placeholder="メールアドレス">
+            </div>
+            <div class="input-group">
+                <span class="input-icon">🔑</span>
+                <input type="password" id="login-pass" placeholder="パスワード">
+            </div>
+            
+            <button onclick="signIn()" class="btn-modal-action">ログインして始める</button>
+            
+            <div class="auth-links">
+                <span onclick="switchView('forgot')">パスワードを忘れた場合</span>
+                <span style="border-left:1px solid #555; margin:0 15px; height:12px; display:inline-block;"></span>
+                <span onclick="switchView('signup')" style="color:#d4af37;">新規登録はこちら</span>
+            </div>
         </div>
-        <div id="view-signup" style="display:none;" class="modal-box">
+
+        <div id="view-signup" style="display:none;" class="modal-box login-box-deco">
             <h2 class="modal-h" style="margin-bottom:1.5rem;">SIGN UP</h2>
-            <p id="signup-error" style="color:#ff5555; font-size:0.8rem;"></p>
-            <input type="email" id="signup-email" placeholder="メールアドレス" style="margin-bottom:1rem;">
-            <input type="password" id="signup-pass" placeholder="パスワード" style="margin-bottom:1rem;">
+            <p class="auth-desc">アカウントを作成して<br>あなただけの星空記録を始めましょう。</p>
+            
+            <p id="signup-error" class="error-msg"></p>
+            
+            <div class="input-group">
+                <span class="input-icon">✉️</span>
+                <input type="email" id="signup-email" placeholder="メールアドレス">
+            </div>
+            <div class="input-group">
+                <span class="input-icon">🔑</span>
+                <input type="password" id="signup-pass" placeholder="パスワード (8文字以上)">
+            </div>
+            
             <button onclick="signUp()" class="btn-modal-action">認証コードを送信</button>
-            <div style="margin-top:1rem; font-size:0.9rem; cursor:pointer; color:#d4af37; text-decoration:underline; text-align:center;" onclick="switchView('login')">戻る</div>
+            <div class="auth-links">
+                <span onclick="switchView('login')">ログイン画面へ戻る</span>
+            </div>
         </div>
-        <div id="view-verify" style="display:none;" class="modal-box">
+
+        <div id="view-verify" style="display:none;" class="modal-box login-box-deco">
             <h2 class="modal-h" style="margin-bottom:1.5rem;">VERIFY</h2>
-            <p style="color:#ccc; font-size:0.8rem; margin-bottom:1rem;">メールに届いた認証コードを入力してください</p>
-            <p id="verify-error" style="color:#ff5555; font-size:0.8rem;"></p>
-            <input type="text" id="verify-code" placeholder="認証コード" style="margin-bottom:1rem;">
-            <button onclick="verifyCode()" class="btn-modal-action">認証する</button>
+            <p class="auth-desc">メールに届いた認証コードを入力してください</p>
+            <p id="verify-error" class="error-msg"></p>
+            
+            <div class="input-group">
+                <span class="input-icon">🔢</span>
+                <input type="text" id="verify-code" placeholder="認証コード (例: 123456)">
+            </div>
+            
+            <button onclick="verifyCode()" class="btn-modal-action">認証して完了</button>
+            <div class="auth-links">
+                <span onclick="switchView('signup')">戻る</span>
+            </div>
+        </div>
+
+        <div id="view-forgot" style="display:none;" class="modal-box login-box-deco">
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">RESET PASSWORD</h2>
+            <p class="auth-desc">登録したメールアドレスを入力してください。<br>リセット用のコードを送信します。</p>
+            <p id="forgot-error" class="error-msg"></p>
+            
+            <div class="input-group">
+                <span class="input-icon">✉️</span>
+                <input type="email" id="forgot-email" placeholder="メールアドレス">
+            </div>
+            
+            <button onclick="sendResetCode()" class="btn-modal-action">コードを送信</button>
+            <div class="auth-links">
+                <span onclick="switchView('login')">キャンセル</span>
+            </div>
+        </div>
+
+        <div id="view-reset-submit" style="display:none;" class="modal-box login-box-deco">
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">NEW PASSWORD</h2>
+            <p class="auth-desc">メールに届いたコードと、<br>新しいパスワードを入力してください。</p>
+            <p id="reset-error" class="error-msg"></p>
+            
+            <div class="input-group">
+                <span class="input-icon">🔢</span>
+                <input type="text" id="reset-code" placeholder="認証コード">
+            </div>
+            <div class="input-group">
+                <span class="input-icon">🔑</span>
+                <input type="password" id="reset-new-pass" placeholder="新しいパスワード">
+            </div>
+            
+            <button onclick="submitResetPassword()" class="btn-modal-action">パスワード変更</button>
         </div>
     </div>
 
@@ -1171,12 +1345,113 @@
             finally { btn.disabled=false; btn.textContent=(type==='plan')?"追加":"保存"; }
         });
 
-        // 認証関数
-        function switchView(n){document.querySelectorAll('#auth-overlay > div').forEach(e=>e.style.display='none'),document.getElementById(`view-${n}`).style.display='block'}
-        async function signIn(){try{await Auth.signIn(document.getElementById('login-email').value,document.getElementById('login-pass').value),checkUser()}catch(e){document.getElementById('login-error').textContent=e.message}}
-        async function signUp(){try{let e=document.getElementById('signup-email').value;await Auth.signUp({username:e,password:document.getElementById('signup-pass').value,attributes:{email:e}}),switchView('verify')}catch(e){document.getElementById('signup-error').textContent=e.message}}
-        async function verifyCode(){try{await Auth.confirmSignUp(document.getElementById('signup-email').value,document.getElementById('verify-code').value),alert("OK"),switchView('login')}catch(e){document.getElementById('verify-error').textContent="Error"}}
+        // ----------------------------------------------------
+        // ▼▼▼ 認証ロジック & エラーメッセージ日本語化 ▼▼▼
+        // ----------------------------------------------------
+        
+        // AWSのエラーを日本語に変換するヘルパー関数
+        function translateError(err) {
+            const msg = (typeof err === 'string') ? err : (err.message || '');
+            if (msg.includes('Incorrect username or password')) return 'メールアドレスまたはパスワードが違います。';
+            if (msg.includes('User does not exist')) return 'ユーザーが見つかりません。';
+            if (msg.includes('User is not confirmed')) return '登録が完了していません。認証コードを入力してください。';
+            if (msg.includes('Invalid parameter')) return '入力内容に誤りがあります（パスワードは8文字以上など）。';
+            if (msg.includes('CodeMismatchException')) return '認証コードが違います。';
+            if (msg.includes('LimitExceededException')) return '試行回数が上限を超えました。しばらく待ってから再度お試しください。';
+            if (msg.includes('Username exists')) return 'このメールアドレスは既に登録されています。';
+            if (msg.includes('empty')) return 'パスワードを入力してください。';
+            return 'エラーが発生しました: ' + msg;
+        }
+
+        // 共通エラー表示関数
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.add('show');
+        }
+
+        function switchView(n){
+            document.querySelectorAll('#auth-overlay > div').forEach(e=>e.style.display='none');
+            document.getElementById(`view-${n}`).style.display='block';
+            // エラー表示をリセット
+            document.querySelectorAll('.error-msg').forEach(e => {e.textContent=''; e.classList.remove('show');});
+        }
+
+        async function signIn(){
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            
+            if(!pass) { showError('login-error', 'パスワードを入力してください。'); return; }
+            
+            try{
+                await Auth.signIn(email, pass);
+                checkUser();
+            }catch(e){
+                showError('login-error', translateError(e));
+            }
+        }
+
+        async function signUp(){
+            const email = document.getElementById('signup-email').value;
+            const pass = document.getElementById('signup-pass').value;
+
+            if(!pass) { showError('signup-error', 'パスワードを入力してください。'); return; }
+
+            try{
+                await Auth.signUp({username:email, password:pass, attributes:{email:email}});
+                switchView('verify');
+            }catch(e){
+                showError('signup-error', translateError(e));
+            }
+        }
+
+        async function verifyCode(){
+            const email = document.getElementById('signup-email').value;
+            const code = document.getElementById('verify-code').value;
+            try{
+                await Auth.confirmSignUp(email, code);
+                alert("登録が完了しました！ログインしてください。");
+                switchView('login');
+            }catch(e){
+                showError('verify-error', translateError(e));
+            }
+        }
         async function signOut(){try{await Auth.signOut(),location.reload()}catch(e){}}
+
+        // パスワードリセット：コード送信要求
+        async function sendResetCode() {
+            const email = document.getElementById('forgot-email').value;
+            if (!email) {
+                showError('forgot-error', "メールアドレスを入力してください");
+                return;
+            }
+            try {
+                await Auth.forgotPassword(email);
+                switchView('reset-submit');
+            } catch (e) {
+                showError('forgot-error', translateError(e));
+            }
+        }
+
+        // パスワードリセット：新しいパスワード設定
+        async function submitResetPassword() {
+            const email = document.getElementById('forgot-email').value;
+            const code = document.getElementById('reset-code').value;
+            const newPass = document.getElementById('reset-new-pass').value;
+
+            if (!code || !newPass) {
+                showError('reset-error', "すべての項目を入力してください");
+                return;
+            }
+
+            try {
+                await Auth.forgotPasswordSubmit(email, code, newPass);
+                alert("パスワードを変更しました。新しいパスワードでログインしてください。");
+                switchView('login');
+            } catch (e) {
+                showError('reset-error', translateError(e));
+            }
+        }
     </script>
 </body>
 </html>
