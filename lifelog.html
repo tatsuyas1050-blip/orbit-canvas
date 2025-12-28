@@ -473,6 +473,16 @@
             cursor: pointer; text-decoration: underline; transition: color 0.3s;
         }
         .auth-links span:hover { color: #fff; text-shadow: 0 0 5px #fff; }
+
+        /* ▼▼▼ 追加: 認証画面内のトップへ戻るボタン配置用 ▼▼▼ */
+        /* ヘッダーのクラス(header-back-btn)を使いつつ、位置だけ調整 */
+        .auth-back-pos {
+            position: absolute !important;
+            top: 30px;
+            left: 30px;
+            z-index: 2010;
+            margin: 0; /* ヘッダー用の余白をリセット */
+        }
     </style>
 </head>
 <body>
@@ -550,6 +560,8 @@
 
     <div id="auth-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(2,5,10,0.95); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); overflow-y:auto;">
         
+        <a href="index.html" class="header-back-btn auth-back-pos">トップへ戻る</a>
+
         <div id="view-login" class="modal-box login-box-deco">
             <div style="text-align:center; margin-bottom:1.5rem;">
                 <div style="font-size:3rem; margin-bottom:0.5rem;">🔭</div>
@@ -595,7 +607,7 @@
         </div>
 
         <div id="view-signup" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="margin-bottom:1.5rem;">アカウント登録</h2>
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">SIGN UP</h2>
             <p class="auth-desc">アカウントを作成して<br>あなただけの星空記録を始めましょう。</p>
             
             <p id="signup-error" class="error-msg"></p>
@@ -616,7 +628,7 @@
         </div>
 
         <div id="view-verify" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="margin-bottom:1.5rem;">メールアドレスは登録済みです</h2>
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">VERIFY</h2>
             <p class="auth-desc">メールに届いた認証コードを入力してください</p>
             <p id="verify-error" class="error-msg"></p>
             
@@ -632,7 +644,7 @@
         </div>
 
         <div id="view-forgot" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="margin-bottom:1.5rem;">パスワードリセット</h2>
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">RESET PASSWORD</h2>
             <p class="auth-desc">登録したメールアドレスを入力してください。<br>リセット用のコードを送信します。</p>
             <p id="forgot-error" class="error-msg"></p>
             
@@ -648,7 +660,7 @@
         </div>
 
         <div id="view-reset-submit" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="margin-bottom:1.5rem;">新しいパスワード</h2>
+            <h2 class="modal-h" style="margin-bottom:1.5rem;">NEW PASSWORD</h2>
             <p class="auth-desc">メールに届いたコードと、<br>新しいパスワードを入力してください。</p>
             <p id="reset-error" class="error-msg"></p>
             
@@ -1401,7 +1413,7 @@
             }
 
             try {
-                // 新規登録を試みる
+                // 1. まず普通に新規登録を試みる
                 await Auth.signUp({
                     username: email,
                     password: pass,
@@ -1411,22 +1423,28 @@
                 switchView('verify');
                 
             } catch (e) {
-                // ▼▼▼ 追加ロジック: すでにユーザーが存在する場合の処理 ▼▼▼
+                // ▼▼▼ ここがポイント！ ▼▼▼
+                // 「すでにアカウントが存在する」というエラーだった場合
                 if (e.code === 'UsernameExistsException') {
                     try {
-                        // 「未認証のまま残っている」可能性があるため、コード再送を試みる
+                        // 「仮登録のまま止まっている」可能性が高いので、認証コードを再送してあげる
                         await Auth.resendSignUp(email);
+                        
+                        // エラーではなく「案内」を表示して、検証画面へ進める
                         alert("このメールアドレスは仮登録済みです。認証コードを再送しましたので、入力して登録を完了させてください。");
                         switchView('verify');
-                        return; // ここで終了
+                        return; // ここで正常終了とする
+                        
                     } catch (resendError) {
-                        // コード再送も失敗した場合（＝既に本登録済みのユーザーなど）
-                        // 通常のエラー表示へ流す
+                        // もし「すでに本登録完了している」場合などは再送もできないので、ここで初めてエラーを出す
                         console.log("Resend failed:", resendError);
+                        showError('signup-error', 'このメールアドレスは既に登録が完了しているか、利用できません。ログインをお試しください。');
+                        return;
                     }
                 }
-                // ▲▲▲ 追加ロジックここまで ▲▲▲
+                // ▲▲▲ ポイントここまで ▲▲▲
 
+                // その他のエラー（パスワードが短いなど）は通常通り表示
                 showError('signup-error', translateError(e));
             }
         }

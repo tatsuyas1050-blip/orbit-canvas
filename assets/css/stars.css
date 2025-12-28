@@ -201,3 +201,4 @@ input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-g
     .star-info-grid { grid-template-columns: 1fr 1fr; }
     #screen-clock { right: 50px; font-size: 0.9rem; }
 }
+
