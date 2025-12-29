@@ -28,7 +28,7 @@
             --col-other: #cccccc;
 
             --header-height: 80px;
-            --mobile-tab-height: 60px; /* カプセル型用に高さを少し拡張 */
+            --mobile-tab-height: 50px;
             --text-main: #ffffff;
             --text-sub: #d0d0d0;
         }
@@ -85,7 +85,8 @@
         }
         .date-heading-text span { color: #fff; font-weight: 600; }
         .date-heading-text small { font-size:1.2rem; opacity:1; color:#ddd; margin-left:10px; font-weight: 400; }
-        .accordion-arrow { display: none; font-size: 1.2rem; color: var(--accent-gold); transition: transform 0.3s; }
+        
+        /* ▼▼▼ 削除: .accordion-arrow 関連スタイル ▼▼▼ */
 
         .smart-card {
             background: var(--card-bg); border: 1px solid var(--card-border);
@@ -190,7 +191,46 @@
 
         /* ▼▼▼ スマートフォン最適化 (900px以下) ▼▼▼ */
         @media (max-width: 900px) {
+            
+            :root {
+                --header-height: 60px;
+            }
+
             body { overflow: auto; height: auto; }
+
+            .common-header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                z-index: 20;
+                height: 60px; 
+                padding: 0 1rem; 
+            }
+            .header-back-btn {
+                font-size: 0;
+                padding: 0;
+                width: 40px; height: 40px;
+                border-radius: 50%;
+                justify-content: center;
+                background: rgba(255, 255, 255, 0.1);
+            }
+            .header-back-btn::before {
+                font-size: 1.2rem;
+                margin-right: 0;
+                transform: translateX(-1px);
+            }
+            .page-title {
+                font-size: 1.1rem;
+                width: auto;
+                left: 50%; transform: translateX(-50%);
+            }
+            .page-title span {
+                font-size: 0.65rem; margin-top: 2px;
+            }
+            .menu-toggle {
+                top: 5px; right: 10px; transform: scale(0.8);
+            }
             
             .dashboard-container { 
                 display: flex; flex-direction: column;
@@ -199,7 +239,7 @@
                 overflow: visible; gap: 1.5rem;
             }
 
-            /* --- カプセル型タブナビゲーション --- */
+            /* --- タブナビゲーション --- */
             .mobile-tab-nav {
                 display: flex; 
                 justify-content: center;
@@ -208,7 +248,7 @@
                 top: var(--header-height); 
                 left: 0;
                 width: 100%; 
-                height: auto; /* 高さは中身で調整 */
+                height: auto;
                 padding: 10px 0;
                 background: rgba(10, 15, 25, 0.95); 
                 backdrop-filter: blur(10px);
@@ -216,42 +256,55 @@
                 border-bottom: 1px solid rgba(255,255,255,0.15);
             }
 
-            /* カプセルのラッパー */
             .tab-capsule {
-                display: flex;
-                background: rgba(255, 255, 255, 0.05); /* 薄いグレーの背景 */
+                display: flex; 
+                gap: 5px;
+                background: rgba(0, 0, 0, 0.4); 
                 border: 1px solid rgba(255, 255, 255, 0.2);
+                padding: 4px; 
                 border-radius: 30px;
-                padding: 4px;
                 width: 90%;
-                max-width: 360px; /* あまり広がりすぎないように制限 */
-                position: relative;
+                max-width: 300px; 
             }
 
             .m-tab-btn {
                 flex: 1; 
                 background: transparent; 
                 border: none; 
-                color: #888;
+                color: #ccc;
                 font-family: 'Shippori Mincho', serif; 
-                font-weight: bold; 
-                font-size: 0.9rem;
-                padding: 8px 0;
-                border-radius: 25px; /* ボタン自体も丸く */
+                font-weight: 500; 
+                font-size: 0.85rem; 
+                padding: 6px 10px; 
+                border-radius: 25px;
                 cursor: pointer; 
                 transition: all 0.3s ease;
-                position: relative;
-                z-index: 1;
+                white-space: nowrap;
             }
 
-            /* アクティブ状態：カプセルハイライト */
+            .m-tab-btn:hover { 
+                background: rgba(255, 255, 255, 0.1);
+                color: #fff;
+            }
+
+            /* アクティブ (ゴールド: 日めくり) */
             .m-tab-btn.active { 
-                color: var(--bg-deep); /* 文字色を濃く（視認性） */
-                background: var(--accent-gold);
+                background: linear-gradient(135deg, #d4af37, #b8860b);
+                color: #fff;
                 box-shadow: 0 2px 10px rgba(212, 175, 55, 0.4);
+                font-weight: bold;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            }
+
+            /* アクティブ (ブルー: 月間一覧) */
+            .m-tab-btn.tab-blue.active {
+                background: linear-gradient(135deg, #00d2ff, #0077ff);
+                color: #fff;
+                box-shadow: 0 2px 10px rgba(0, 210, 255, 0.4);
+                font-weight: bold;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.3);
             }
             
-            /* 以前の下線スタイルを打ち消し */
             .m-tab-btn.active::after { display: none; }
 
             .left-column.daily-view, 
@@ -263,21 +316,22 @@
             .cal-cell { font-size: 0.85rem; padding-top: 4px; }
             .legend-area { padding: 0.5rem; gap: 6px 10px; }
 
-            /* 2. 日付見出し */
+            /* 2. 日付見出し (修正: 常に表示、クリック不可) */
             .date-heading { 
                 order: 2; width: 100%; position: relative; top: 0; 
                 background: transparent; backdrop-filter: none; 
-                margin-bottom: 0.5rem; padding: 0.5rem 0; cursor: pointer;
+                margin-bottom: 0.5rem; padding: 0.5rem 0; 
+                cursor: default; /* クリック指マークを削除 */
             }
-            .accordion-arrow { display: inline-block; } 
-            .date-heading.closed .accordion-arrow { transform: rotate(-90deg); }
-
-            /* 3. イベントリスト (超コンパクト・背景画像レイアウト) */
+            
+            /* 3. イベントリスト (修正: 常に表示) */
             #event-feed-list { 
                 order: 3; width: 100%; margin-bottom: 1.5rem; 
-                transition: max-height 0.4s ease, opacity 0.4s ease; overflow: hidden;
+                overflow: visible; /* 隠さない */
+                opacity: 1; /* 常に不透明 */
+                max-height: none; /* 高さ制限なし */
             }
-            #event-feed-list.closed { max-height: 0; opacity: 0; margin-bottom: 0; }
+            /* .closed クラスは廃止 */
             
             /* --- カードのレイアウト変更 (Overlayスタイル) --- */
             .feed-card {
@@ -389,8 +443,8 @@
 
     <div class="mobile-tab-nav">
         <div class="tab-capsule">
-            <button class="m-tab-btn active" onclick="switchTab('daily')">日めくり (Daily)</button>
-            <button class="m-tab-btn" onclick="switchTab('monthly')">月間一覧 (Monthly)</button>
+            <button class="m-tab-btn active" onclick="switchTab('daily')">日めくり</button>
+            <button class="m-tab-btn tab-blue" onclick="switchTab('monthly')">月間一覧</button>
         </div>
     </div>
 
@@ -458,8 +512,7 @@
                 <div class="date-heading-text">
                     <span id="display-date-main">--.--</span> <small id="display-weekday">---</small>
                 </div>
-                <div class="accordion-arrow">▼</div>
-            </div>
+                </div>
             <div id="event-feed-list">
                 <div class="skeleton" style="height:200px;"></div>
             </div>
@@ -532,13 +585,7 @@
             }
         }
 
-        document.getElementById('daily-heading').addEventListener('click', () => {
-            if(window.innerWidth > 900) return;
-            const list = document.getElementById('event-feed-list');
-            const header = document.getElementById('daily-heading');
-            list.classList.toggle('closed');
-            header.classList.toggle('closed');
-        });
+        // ▼▼▼ 削除: daily-heading のクリックイベントリスナー ▼▼▼
 
         async function init() {
             feedList.innerHTML = `<div class="skeleton" style="height:200px;"></div>`;
@@ -614,8 +661,7 @@
                     cell.classList.add('selected');
                     selectDate(dateStr);
                     if(window.innerWidth <= 900) {
-                        document.getElementById('event-feed-list').classList.remove('closed');
-                        document.getElementById('daily-heading').classList.remove('closed');
+                        // ▼▼▼ 変更: closed クラス操作は不要になったので単純にスクロールだけ ▼▼▼
                         setTimeout(() => {
                             const heading = document.getElementById('daily-heading');
                             heading.scrollIntoView({behavior: "smooth", block: "start"});

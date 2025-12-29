@@ -163,3 +163,51 @@ body {
     .page-title { font-size: 1.3rem; }
     .page-title span { font-size: 0.7rem; }
 }
+
+/* --- base.css の末尾に追加 --- */
+
+/* ▼▼▼ スマートフォン用ヘッダー調整 (900px以下) ▼▼▼ */
+@media (max-width: 900px) {
+    
+    /* ヘッダー全体を少しスリムに */
+    .common-header {
+        height: 60px; /* PCの80pxから縮小 */
+        padding: 0 1rem; /* 横の余白を詰める */
+    }
+
+    /* 戻るボタン：文字を消してアイコン(≪)だけにする */
+    .header-back-btn {
+        font-size: 0; /* "トップへ戻る"の文字を不可視化 */
+        padding: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%; /* 正円にする */
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.1); /* 背景を少し濃くして押しやすく */
+    }
+
+    /* アイコン部分のサイズを復帰させる */
+    .header-back-btn::before {
+        font-size: 1.2rem;
+        margin-right: 0; /* アイコン右の余白を削除 */
+        transform: translateX(-1px); /* 微調整で中央寄せ */
+    }
+
+    /* ページタイトル：サイズダウン */
+    .page-title {
+        font-size: 1.1rem;
+        width: auto; /* 幅制限を解除 */
+    }
+    .page-title span {
+        font-size: 0.65rem;
+        margin-top: 2px;
+    }
+
+    /* ハンバーガーメニューの位置調整 */
+    /* ヘッダーが低くなった分、ボタンも上に移動させる */
+    .menu-toggle {
+        top: 5px; /* 60pxの高さに対して中央寄りに */
+        right: 10px;
+        transform: scale(0.8); /* 少し小さくして圧迫感を減らす */
+    }
+}
