@@ -85,8 +85,18 @@
         }
         .date-heading-text span { color: #fff; font-weight: 600; }
         .date-heading-text small { font-size:1.2rem; opacity:1; color:#ddd; margin-left:10px; font-weight: 400; }
-        
-        /* ▼▼▼ 削除: .accordion-arrow 関連スタイル ▼▼▼ */
+
+        /* アニメーション用クラス */
+        .fade-anim {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .fade-out {
+            opacity: 0;
+            transform: translateY(10px);
+            pointer-events: none; 
+        }
 
         .smart-card {
             background: var(--card-bg); border: 1px solid var(--card-border);
@@ -239,7 +249,7 @@
                 overflow: visible; gap: 1.5rem;
             }
 
-            /* --- タブナビゲーション --- */
+            /* --- タブナビゲーション (スライド式) --- */
             .mobile-tab-nav {
                 display: flex; 
                 justify-content: center;
@@ -265,46 +275,67 @@
                 border-radius: 30px;
                 width: 90%;
                 max-width: 300px; 
+                position: relative; /* スライド要素の基準 */
             }
+
+            /* ▼ スライディング背景 */
+            .tab-highlight {
+                position: absolute;
+                top: 4px; left: 4px; bottom: 4px;
+                width: calc((100% - 13px) / 2); /* (100% - padding*2 - gap) / 2 */
+                border-radius: 25px;
+                z-index: 0;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                overflow: hidden;
+            }
+
+            /* ゴールド層 (デフォルト) */
+            .tab-highlight::before {
+                content: ''; position: absolute; inset: 0;
+                background: linear-gradient(135deg, #d4af37, #b8860b);
+                opacity: 1; transition: opacity 0.3s ease;
+            }
+
+            /* ブルー層 (切り替え用) */
+            .tab-highlight::after {
+                content: ''; position: absolute; inset: 0;
+                background: linear-gradient(135deg, #00d2ff, #0077ff);
+                opacity: 0; transition: opacity 0.3s ease;
+            }
+
+            /* 右へ移動 & 色変化 */
+            .tab-highlight.move-right {
+                transform: translateX(calc(100% + 5px)); /* width + gap(5px) */
+            }
+            .tab-highlight.move-right::before { opacity: 0; }
+            .tab-highlight.move-right::after { opacity: 1; }
+            /* ▲ ここまで */
 
             .m-tab-btn {
                 flex: 1; 
                 background: transparent; 
                 border: none; 
-                color: #ccc;
+                color: #888;
                 font-family: 'Shippori Mincho', serif; 
                 font-weight: 500; 
                 font-size: 0.85rem; 
                 padding: 6px 10px; 
                 border-radius: 25px;
                 cursor: pointer; 
-                transition: all 0.3s ease;
+                transition: color 0.3s ease;
                 white-space: nowrap;
+                position: relative; 
+                z-index: 1; /* 背景より上に */
             }
 
-            .m-tab-btn:hover { 
-                background: rgba(255, 255, 255, 0.1);
-                color: #fff;
-            }
-
-            /* アクティブ (ゴールド: 日めくり) */
+            /* アクティブ時の文字色 */
             .m-tab-btn.active { 
-                background: linear-gradient(135deg, #d4af37, #b8860b);
                 color: #fff;
-                box-shadow: 0 2px 10px rgba(212, 175, 55, 0.4);
-                font-weight: bold;
-                text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-            }
-
-            /* アクティブ (ブルー: 月間一覧) */
-            .m-tab-btn.tab-blue.active {
-                background: linear-gradient(135deg, #00d2ff, #0077ff);
-                color: #fff;
-                box-shadow: 0 2px 10px rgba(0, 210, 255, 0.4);
                 font-weight: bold;
                 text-shadow: 0 1px 2px rgba(0,0,0,0.3);
             }
             
+            /* 古いスタイル打消し */
             .m-tab-btn.active::after { display: none; }
 
             .left-column.daily-view, 
@@ -316,22 +347,21 @@
             .cal-cell { font-size: 0.85rem; padding-top: 4px; }
             .legend-area { padding: 0.5rem; gap: 6px 10px; }
 
-            /* 2. 日付見出し (修正: 常に表示、クリック不可) */
+            /* 2. 日付見出し (常に表示、クリック不可) */
             .date-heading { 
                 order: 2; width: 100%; position: relative; top: 0; 
                 background: transparent; backdrop-filter: none; 
                 margin-bottom: 0.5rem; padding: 0.5rem 0; 
-                cursor: default; /* クリック指マークを削除 */
+                cursor: default; 
             }
             
-            /* 3. イベントリスト (修正: 常に表示) */
+            /* 3. イベントリスト (常に表示) */
             #event-feed-list { 
                 order: 3; width: 100%; margin-bottom: 1.5rem; 
-                overflow: visible; /* 隠さない */
-                opacity: 1; /* 常に不透明 */
-                max-height: none; /* 高さ制限なし */
+                overflow: visible; 
+                opacity: 1; 
+                max-height: none; 
             }
-            /* .closed クラスは廃止 */
             
             /* --- カードのレイアウト変更 (Overlayスタイル) --- */
             .feed-card {
@@ -346,7 +376,7 @@
                 top: 0; left: 0; width: 100%; height: 100%;
                 z-index: 0; border: none;
             }
-            /* 黒フィルターを重ねて文字を見やすくする (ぼかし無し) */
+            /* 黒フィルター */
             .feed-card:not(.no-image) .feed-img-col::after {
                 content: '';
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -363,7 +393,7 @@
             }
             .feed-card.no-image .feed-content { background: rgba(35, 45, 65, 0.8); }
 
-            /* テキスト調整: 影を強める */
+            /* テキスト調整 */
             .feed-title {
                 font-size: 1.3rem; margin-bottom: 0.3rem;
                 text-shadow: 0 2px 8px rgba(0,0,0,1);
@@ -377,7 +407,7 @@
             }
             .feed-details { text-shadow: 0 1px 2px rgba(0,0,0,0.9); }
 
-            /* 4. 天文暦 (2列レイアウト) */
+            /* 4. 天文暦 */
             #astro-card { order: 4; width: 100%; margin-bottom: 4rem; padding: 1rem; }
             
             .moon-viz { justify-content: center; gap: 20px; padding: 6px; margin-bottom: 0.5rem; }
@@ -398,10 +428,10 @@
 
             /* Monthly View */
             .monthly-feed-area { display: none; width: 100%; }
-            .monthly-feed-area.active-view { display: block; animation: fadeIn 0.3s ease; }
+            .monthly-feed-area.active-view { display: block; }
             .left-column:not(.daily-view), .event-feed:not(.daily-view) { display: none; }
 
-            /* --- Monthly Navigation Bar (スマホのみ) --- */
+            /* --- Monthly Navigation Bar --- */
             .monthly-nav-bar {
                 display: flex; justify-content: space-between; align-items: center;
                 background: rgba(30, 40, 60, 0.8);
@@ -443,15 +473,15 @@
 
     <div class="mobile-tab-nav">
         <div class="tab-capsule">
-            <button class="m-tab-btn active" onclick="switchTab('daily')">日めくり</button>
-            <button class="m-tab-btn tab-blue" onclick="switchTab('monthly')">月間一覧</button>
+            <div class="tab-highlight" id="tab-highlight"></div> <button class="m-tab-btn active" onclick="switchTab('daily')">日めくり</button>
+            <button class="m-tab-btn" onclick="switchTab('monthly')">月間一覧</button>
         </div>
     </div>
 
     <div class="dashboard-container">
         
         <aside class="left-column daily-view" id="col-left">
-            <div class="smart-card" id="calendar-card">
+            <div class="smart-card fade-anim" id="calendar-card">
                 <div class="calendar-header">
                     <button class="month-nav-btn" id="prev-month">&lt;</button>
                     <div class="month-display" id="calendar-header-display">2025. --</div>
@@ -466,7 +496,7 @@
                 </div>
             </div>
 
-            <div class="smart-card astro-panel" id="astro-card">
+            <div class="smart-card astro-panel fade-anim" id="astro-card">
                 <div class="astro-header-row">
                     <div class="astro-title">天文暦<span class="astro-date-sub" id="astro-date-display">--/--</span></div>
                     <div class="location-control">
@@ -508,17 +538,17 @@
         </aside>
 
         <main class="event-feed daily-view" id="col-feed">
-            <div class="date-heading" id="daily-heading">
+            <div class="date-heading fade-anim" id="daily-heading">
                 <div class="date-heading-text">
                     <span id="display-date-main">--.--</span> <small id="display-weekday">---</small>
                 </div>
-                </div>
-            <div id="event-feed-list">
+            </div>
+            <div id="event-feed-list" class="fade-anim">
                 <div class="skeleton" style="height:200px;"></div>
             </div>
         </main>
 
-        <div id="monthly-list-view" class="monthly-feed-area">
+        <div id="monthly-list-view" class="monthly-feed-area fade-anim">
             <div class="monthly-nav-bar">
                 <button class="m-nav-btn" id="m-prev-month">&lt;</button>
                 <div class="m-nav-label" id="m-month-label">2025. --</div>
@@ -540,6 +570,7 @@
         let currentMonth = today.getMonth();
         let selectedDate = null;
         let currentTab = 'daily';
+        let isAnimating = false; // アニメーション中の連打防止
 
         // Elements
         const gridEl = document.getElementById('calendar-grid');
@@ -564,28 +595,73 @@
         const weekDaysEng = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
         function switchTab(mode) {
-            currentTab = mode;
-            const btns = document.querySelectorAll('.m-tab-btn');
-            btns.forEach(b => b.classList.remove('active'));
-            const activeIndex = mode === 'daily' ? 0 : 1;
-            btns[activeIndex].classList.add('active');
+            if (isAnimating || mode === currentTab) return;
+            isAnimating = true;
 
-            const colLeft = document.getElementById('col-left');
-            const colFeed = document.getElementById('col-feed');
-
-            if (mode === 'daily') {
-                colLeft.classList.add('daily-view');
-                colFeed.classList.add('daily-view');
-                monthlyView.classList.remove('active-view');
+            // ハイライトのスライド移動
+            const highlight = document.getElementById('tab-highlight');
+            if (mode === 'monthly') {
+                highlight.classList.add('move-right');
             } else {
-                colLeft.classList.remove('daily-view');
-                colFeed.classList.remove('daily-view');
-                monthlyView.classList.add('active-view');
-                renderMonthlyList();
+                highlight.classList.remove('move-right');
             }
-        }
 
-        // ▼▼▼ 削除: daily-heading のクリックイベントリスナー ▼▼▼
+            // 文字色の切り替え（activeクラスの付け替え）
+            document.querySelectorAll('.m-tab-btn').forEach(b => b.classList.remove('active'));
+            const activeIndex = mode === 'daily' ? 0 : 1;
+            document.querySelectorAll('.m-tab-btn')[activeIndex].classList.add('active');
+
+            // --- コンテンツのフェード切り替え ---
+            // Dailyの構成要素
+            const dailyEls = [
+                document.getElementById('calendar-card'),
+                document.getElementById('astro-card'),
+                document.getElementById('daily-heading'),
+                document.getElementById('event-feed-list')
+            ];
+            // Monthlyの構成要素
+            const monthlyEl = document.getElementById('monthly-list-view');
+
+            // 現在表示されている要素をフェードアウト
+            const visibleEls = currentTab === 'daily' ? dailyEls : [monthlyEl];
+            visibleEls.forEach(el => el.classList.add('fade-out'));
+
+            // アニメーション時間待機後に表示切り替え
+            setTimeout(() => {
+                const colLeft = document.getElementById('col-left');
+                const colFeed = document.getElementById('col-feed');
+                
+                // 画面トップへスクロールリセット
+                if(window.innerWidth <= 900) {
+                     window.scrollTo({ top: 0 });
+                }
+
+                if (mode === 'daily') {
+                    colLeft.classList.add('daily-view');
+                    colFeed.classList.add('daily-view');
+                    monthlyEl.classList.remove('active-view');
+                    dailyEls.forEach(el => el.classList.add('fade-out')); // 初期状態は透明
+                } else {
+                    colLeft.classList.remove('daily-view');
+                    colFeed.classList.remove('daily-view');
+                    monthlyEl.classList.add('active-view');
+                    renderMonthlyList();
+                    monthlyEl.classList.add('fade-out'); // 初期状態は透明
+                }
+
+                // 少し待ってからフェードイン
+                requestAnimationFrame(() => {
+                    const newVisibleEls = mode === 'daily' ? dailyEls : [monthlyEl];
+                    newVisibleEls.forEach(el => {
+                        el.classList.remove('fade-out');
+                    });
+                    
+                    currentTab = mode;
+                    isAnimating = false;
+                });
+                
+            }, 300);
+        }
 
         async function init() {
             feedList.innerHTML = `<div class="skeleton" style="height:200px;"></div>`;
@@ -661,7 +737,6 @@
                     cell.classList.add('selected');
                     selectDate(dateStr);
                     if(window.innerWidth <= 900) {
-                        // ▼▼▼ 変更: closed クラス操作は不要になったので単純にスクロールだけ ▼▼▼
                         setTimeout(() => {
                             const heading = document.getElementById('daily-heading');
                             heading.scrollIntoView({behavior: "smooth", block: "start"});
