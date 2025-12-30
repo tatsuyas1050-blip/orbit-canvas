@@ -211,3 +211,13 @@ body {
         transform: scale(0.8); /* 少し小さくして圧迫感を減らす */
     }
 }
+
+/* --- Mobile Utility Classes (base.css 末尾に追加) --- */
+.mobile-only { display: none !important; }
+.pc-only { display: block; }
+
+@media (max-width: 900px) {
+    .mobile-only { display: block !important; }
+    .mobile-only.flex { display: flex !important; } /* flex指定が必要な場合用 */
+    .pc-only { display: none !important; }
+}
