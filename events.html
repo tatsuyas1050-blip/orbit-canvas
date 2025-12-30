@@ -739,7 +739,21 @@
                     if(window.innerWidth <= 900) {
                         setTimeout(() => {
                             const heading = document.getElementById('daily-heading');
-                            heading.scrollIntoView({behavior: "smooth", block: "start"});
+                            
+                            // ▼▼▼ 修正箇所: ヘッダー+タブ分のオフセットを考慮したスクロール ▼▼▼
+                            const rect = heading.getBoundingClientRect();
+                            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                            
+                            // ヘッダー60px + タブナビの高さ(padding込みで約60〜70px)
+                            // offsetHeight で動的に取得
+                            const tabNav = document.querySelector('.mobile-tab-nav');
+                            const offset = 60 + (tabNav ? tabNav.offsetHeight : 60); 
+                            
+                            window.scrollTo({
+                                top: rect.top + scrollTop - offset,
+                                behavior: 'smooth'
+                            });
+                            // ▲▲▲ 修正終わり ▲▲▲
                         }, 100);
                     }
                 });
