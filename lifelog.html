@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -142,10 +141,18 @@
             background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff;
             cursor: pointer; transition: 0.3s;
         }
+        .btn-edit-profile { 
+            position: absolute; top: 0; right: 0; width: 30px; height: 30px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-logout {
+            position: absolute; top: 0; left: 0; font-size: 0.7rem;
+            padding: 4px 8px; border-radius: 4px; font-family: var(--font-tech);
+        }
         .btn-edit-profile:hover { background: var(--accent-gold); color: #000; }
         .btn-logout:hover { background: rgba(255, 80, 80, 0.15); border-color: rgba(255, 80, 80, 0.4); color: #ffaaaa; }
 
-        /* PC用: 統計表示 (モバイルでは非表示にしてタブに切り替え) */
+        /* PC用: 統計表示 */
         .stats-row { 
             display: flex; justify-content: space-between; gap: 12px; margin-top: 1.5rem; 
         }
@@ -164,9 +171,10 @@
         .stat-item.plan-theme .stat-val, .stat-item.plan-theme .stat-label { color: #00d2ff; }
 
         /* モバイル用タブコンテナ (PCでは非表示) */
-        .profile-tabs-mobile { display: none; margin-top: 10px; width: 100%; justify-content: center; }
+        .profile-tabs-mobile { display: none; margin-top: 5px; width: 100%; justify-content: center; }
+        .mobile-stats-row { display: none; } /* PCでは非表示 */
 
-        /* アクションボタン */
+        /* アクションボタン (PC) */
         .btn-plan {
             width: 100%; background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(0, 100, 200, 0.4));
             border: 1px solid rgba(0, 210, 255, 0.5); color: #d0f0ff; padding: 1.2rem; border-radius: 12px;
@@ -239,6 +247,7 @@
             box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4) !important; border: 1px solid #88ffff !important;
         }
 
+        /* PC用 Add Button */
         .btn-add-log {
             background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(180, 140, 30, 0.4));
             border: 1px solid var(--accent-gold); color: #ffe; 
@@ -350,6 +359,8 @@
 
         .mobile-bottom-nav { display: none; }
         .mobile-tab-header { display: none; }
+        .mobile-toggle-hint { display: none; }
+        .log-collapsible-area { display: block; } /* PCでは常に表示 */
 
         /* ▼▼▼ MOBILE OPTIMIZATION ▼▼▼ */
         @media (max-width: 900px) {
@@ -371,35 +382,37 @@
                 height: auto; 
                 padding: 0; 
                 margin: 0; 
+                padding-top: 60px !important; 
                 overflow: visible; 
             }
 
-            /* 左カラム（マイページ）: Stickyを解除し、中身のProfile PanelをStickyにする */
+            /* 左カラムのレイアウト (Sticky動作のためcontents) */
             .left-column { 
                 height: auto; 
                 margin-bottom: 0; 
                 padding: 0; 
-                display: block; 
-                position: static; /* 変更: コンテナ自体は固定しない */
+                display: contents !important; 
             }
             
-            /* プロフィールパネルをコンパクト化して固定 */
+            /* プロフィールパネル (固定・コンパクト化) */
             .profile-panel { 
                 display: flex; 
                 align-items: center; 
                 text-align: left; 
-                padding: 8px 12px; /* 余白削減 */
+                padding: 8px 12px; 
                 gap: 10px; 
                 margin-bottom: 0; 
                 flex-wrap: wrap; 
-                /* Sticky設定 */
+                
                 position: sticky;
-                top: 60px; /* ヘッダー高さ */
+                top: 60px; 
                 z-index: 15;
-                background: rgba(15, 20, 30, 0.98); 
+                background: rgba(15, 20, 25, 0.98); 
                 backdrop-filter: blur(10px);
                 border-bottom: 1px solid rgba(255,255,255,0.15);
-                border-radius: 0 0 16px 16px; 
+                border-radius: 0; 
+                width: 100%;
+                box-sizing: border-box;
             }
             .smart-card.profile-panel { 
                 border: none; 
@@ -407,15 +420,27 @@
                 box-shadow: 0 5px 20px rgba(0,0,0,0.3); 
             }
 
-            /* 要素のコンパクト化 */
             .avatar-circle { width: 40px; height: 40px; margin: 0; flex-shrink: 0; border-width: 1px; }
             .avatar-default { font-size: 1.2rem; }
             
-            .profile-info-group { flex: 1; min-width: 0; }
-            .user-name { font-size: 0.95rem; margin-bottom: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .user-email { margin-bottom: 0; font-size: 0.6rem; opacity: 0.7; }
+            .profile-info-group { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+            .user-name { font-size: 0.95rem; margin-bottom: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+            .user-email { margin-bottom: 0; font-size: 0.6rem; opacity: 0.7; line-height: 1.2; }
             
-            /* ボタン類を右端に配置 */
+            /* モバイル用統計表示 (コンパクト) */
+            .mobile-stats-row {
+                display: block !important; /* モバイルでのみ表示 */
+                font-size: 0.75rem;
+                font-family: var(--font-tech);
+                margin-top: 2px;
+                color: #888;
+                line-height: 1.2;
+            }
+            .m-stat-item.log-color { color: var(--accent-gold); }
+            .m-stat-item.plan-color { color: #00d2ff; }
+            .m-stat-item strong { font-size: 0.9rem; margin-right: 2px; }
+            .m-stat-divider { margin: 0 6px; opacity: 0.3; }
+            
             .profile-controls { 
                 position: static; height: auto; margin: 0;
                 display: flex; gap: 8px; 
@@ -425,11 +450,10 @@
                 padding: 4px 8px; font-size: 0.7rem; border-radius: 4px;
             }
 
-            /* PC用統計エリアは非表示にして、新しいタブを表示 */
             .stats-row { display: none; }
             .profile-tabs-mobile { display: flex; }
 
-            /* --- 新しいタブデザイン (Capsule Style) --- */
+            /* --- タブデザイン (Capsule) --- */
             .tab-capsule {
                 display: flex; 
                 gap: 5px;
@@ -483,7 +507,6 @@
                 z-index: 1;
                 display: flex; justify-content: center; align-items: center; gap: 6px;
             }
-            .p-tab-btn span { font-family: var(--font-tech); font-size: 0.9em; opacity: 0.8; }
             .p-tab-btn.active { color: #fff; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 
             .action-panel { display: none; }
@@ -501,20 +524,95 @@
             }
             .page-heading { display: none; }
 
+            /* Feed Card (Mobile Optimized) */
             .feed-card { 
                 display: flex !important; 
                 flex-direction: column !important; 
                 grid-template-columns: 1fr !important;
                 margin-bottom: 1.5rem; 
                 height: auto !important;
+                padding: 1rem;
+                position: relative;
             }
-            .feed-img-col { 
-                width: 100% !important; 
-                height: 200px; 
-                border-right: none; 
-                border-bottom: 1px solid rgba(255,255,255,0.1); 
+            
+            /* モバイル用：折りたたみ式スタイル */
+
+            /* 共通：画像がある場合 */
+            .feed-card.has-image {
+                overflow: hidden;
             }
-            .feed-content { padding: 1rem; width: 100%; }
+
+            /* --- 閉じた状態 (画像あり) --- */
+            .feed-card:not(.open).has-image .feed-img-col {
+                display: block;
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                z-index: 0; border: none;
+            }
+            /* 背景暗化フィルター */
+            .feed-card:not(.open).has-image .feed-img-col::after {
+                content: '';
+                position: absolute; top:0; left:0; width:100%; height:100%;
+                background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.8));
+                pointer-events: none;
+            }
+            /* テキストを浮き上がらせる */
+            .feed-card:not(.open).has-image .feed-content {
+                position: relative; z-index: 1;
+                background: transparent;
+                text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+            }
+            /* 閉じた状態 (画像なし) -> 通常通り画像エリア非表示 */
+            .feed-card:not(.open):not(.has-image) .feed-img-col {
+                display: none;
+            }
+            .feed-card:not(.open):not(.has-image) .feed-content {
+                padding: 0; width: 100%;
+            }
+            
+            /* --- 開いた状態 (画像あり) --- */
+            .feed-card.open.has-image .feed-img-col {
+                display: block;
+                position: relative; /* 流れに戻す */
+                height: 200px;
+                width: calc(100% + 2rem) !important;
+                margin: -1rem -1rem 1rem -1rem;
+                z-index: 1;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+            /* 画像クリックで拡大できるようにポインターを表示 */
+            .feed-card.open.has-image .feed-img {
+                cursor: zoom-in;
+            }
+
+            /* 開いた状態 (画像なし) -> 画像エリア非表示のまま */
+            .feed-card.open:not(.has-image) .feed-img-col {
+                display: none;
+            }
+            
+            /* 詳細エリアのアコーディオンアニメーション */
+            .log-collapsible-area {
+                max-height: 0;
+                overflow: hidden;
+                opacity: 0;
+                transition: max-height 0.4s ease, opacity 0.3s ease;
+            }
+            .feed-card.open .log-collapsible-area {
+                max-height: 1000px; /* 十分な高さ */
+                opacity: 1;
+                margin-top: 1rem;
+            }
+
+            /* 開閉ヒントボタン */
+            .mobile-toggle-hint {
+                display: block;
+                margin-top: 0.5rem;
+                font-size: 0.8rem;
+                color: var(--accent-gold);
+                text-align: center;
+                opacity: 0.8;
+            }
+            .mobile-toggle-hint::before { content: "▼ 詳細を見る"; }
+            .feed-card.open .mobile-toggle-hint::before { content: "▲ 閉じる"; }
 
             .mobile-tab-header { 
                 display: flex; 
@@ -571,19 +669,58 @@
             .nav-item.active { color: var(--accent-gold); }
             .nav-icon { font-size: 1.5rem; margin-bottom: 2px; }
 
-            .btn-add-log {
+            /* フローティングボタン共通スタイル */
+            .floating-action-btn {
                 position: fixed; 
                 bottom: calc(var(--footer-height) + 15px); 
                 right: 15px; 
                 z-index: 90;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
-                width: 50px; height: 50px; 
-                border-radius: 50%;
-                font-size: 0; 
-                padding: 0; 
-                display: flex; align-items: center; justify-content: center;
+                
+                /* 横長・カプセル型にする */
+                width: auto; 
+                height: auto; 
+                padding: 12px 20px;
+                border-radius: 30px;
+                
+                font-size: 0.9rem; 
+                font-weight: bold;
+                font-family: var(--font-main);
+                
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                gap: 5px;
+                color: #fff;
+                border: 1px solid rgba(255,255,255,0.3);
             }
-            .btn-add-log::before { content: '＋'; font-size: 1.5rem; }
+
+            /* Log用 (Gold) */
+            .floating-action-btn.log-btn {
+                background: linear-gradient(135deg, rgba(212, 175, 55, 0.9), rgba(180, 140, 30, 0.9));
+                border-color: var(--accent-gold);
+            }
+            
+            /* Plan用 (Blue) */
+            .floating-action-btn.plan-btn {
+                background: linear-gradient(135deg, rgba(0, 210, 255, 0.9), rgba(0, 100, 200, 0.9));
+                border-color: #00d2ff;
+            }
+        }
+        
+        /* 画像拡大モーダル用 */
+        #img-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 3000;
+            display: none; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        #img-modal-content {
+            max-width: 95%; max-height: 95%;
+            object-fit: contain;
+            border: 2px solid #fff;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
         }
     </style>
 </head>
@@ -619,6 +756,11 @@
                 <div class="profile-info-group">
                     <h2 id="display-name" class="user-name">Guest User</h2>
                     <div id="display-email-sub" class="user-email">guest@example.com</div>
+                    <div class="mobile-stats-row">
+                        <span class="m-stat-item log-color"><strong id="mob-stat-logs">0</strong>LOGS</span>
+                        <span class="m-stat-divider">/</span>
+                        <span class="m-stat-item plan-color"><strong id="mob-stat-plans">0</strong>PLANS</span>
+                    </div>
                 </div>
                 <div class="profile-controls">
                     <button class="btn-logout" onclick="signOut()">ログアウト</button>
@@ -637,8 +779,8 @@
                 <div class="profile-tabs-mobile">
                     <div class="tab-capsule">
                         <div class="tab-highlight" id="profile-tab-highlight"></div>
-                        <button class="p-tab-btn active" id="btn-tab-log" onclick="handleStatClick('log')">LOGS <span id="val-logs">0</span></button>
-                        <button class="p-tab-btn" id="btn-tab-plan" onclick="handleStatClick('plan')">PLANS <span id="val-plans">0</span></button>
+                        <button class="p-tab-btn active" id="btn-tab-log" onclick="handleStatClick('log')">星空日誌</button>
+                        <button class="p-tab-btn" id="btn-tab-plan" onclick="handleStatClick('plan')">観測予定</button>
                     </div>
                 </div>
             </div>
@@ -664,15 +806,22 @@
                 </div>
                 <button class="btn-add-log" onclick="openModal('log')">＋ 星空日誌を書く</button>
             </div>
-            <button class="btn-add-log mobile-only" onclick="openModal('log')" style="display:none;">＋</button>
+            
             <div id="logs-list"><div class="loading">Loading...</div></div>
         </main>
     </div>
+
+    <button id="fab-log" class="floating-action-btn log-btn" onclick="openModal('log')" style="display:none;">＋ 新しい日誌</button>
+    <button id="fab-plan" class="floating-action-btn plan-btn" onclick="openModal('plan')" style="display:none;">＋ 観測予定を追加</button>
 
     <nav class="mobile-bottom-nav">
         <div class="nav-item active" id="nav-mypage" onclick="switchMobileView('mypage')"><div class="nav-icon">👤</div><span>マイページ</span></div>
         <div class="nav-item" id="nav-timeline" onclick="switchMobileView('timeline')"><div class="nav-icon">🌏</div><span>タイムライン</span></div>
     </nav>
+    
+    <div id="img-modal-overlay" onclick="closeImageModal()">
+        <img id="img-modal-content">
+    </div>
 
     <div id="auth-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(2,5,10,0.95); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); overflow-y:auto;">
         <a href="index.html" class="header-back-btn auth-back-pos">トップへ戻る</a>
@@ -869,9 +1018,9 @@
                 // PC用
                 document.getElementById('stat-total').textContent = logsCount;
                 document.getElementById('stat-plans').textContent = plansCount;
-                // Mobile用
-                document.getElementById('val-logs').textContent = logsCount;
-                document.getElementById('val-plans').textContent = plansCount;
+                // Mobile用 (新しいIDにセット)
+                document.getElementById('mob-stat-logs').textContent = logsCount;
+                document.getElementById('mob-stat-plans').textContent = plansCount;
 
                 renderMyPlans(myDataCache); 
                 
@@ -935,24 +1084,35 @@
             const actionPanel = document.querySelector('.action-panel');
             const plansCard = document.getElementById('plans-card');
 
+            // 変更箇所: PC時はフローティングボタンを確実に非表示に
+            const fabLog = document.getElementById('fab-log');
+            const fabPlan = document.getElementById('fab-plan');
+
             if (!isMobile) {
-                myPage.style.display = 'flex';
+                // PC表示
+                myPage.style.display = ''; 
                 contentCol.style.display = 'block';
                 plansCard.style.display = 'flex';
                 plansCard.classList.remove('active-mobile-view');
-                document.querySelector('.btn-add-log.mobile-only').style.display = 'none';
+                document.querySelectorAll('.mobile-only').forEach(e => e.style.display = 'none');
+                
+                // FAB非表示
+                fabLog.style.display = 'none';
+                fabPlan.style.display = 'none';
+
                 actionPanel.style.display = 'block'; 
                 return; 
             }
 
+            // モバイル表示
             navMy.classList.remove('active');
             navTime.classList.remove('active');
 
             if (mobileView === 'mypage') {
                 navMy.classList.add('active');
-                myPage.style.display = 'block'; 
+                myPage.style.display = 'contents'; 
+                
                 timelineCtrl.style.display = 'none';
-                document.querySelector('.btn-add-log.mobile-only').style.display = 'flex';
                 handleStatClick(mobileMySubTab);
             } else {
                 navTime.classList.add('active');
@@ -960,7 +1120,17 @@
                 contentCol.style.display = 'block'; 
                 timelineCtrl.style.display = 'flex'; 
                 plansCard.style.display = 'none'; 
-                document.querySelector('.btn-add-log.mobile-only').style.display = 'flex';
+                
+                // タイムラインではLog追加ボタンを表示（プランタブならプラン追加）
+                const isTimelinePlan = document.querySelectorAll('.mobile-tab-btn')[1].classList.contains('active');
+                if (isTimelinePlan) {
+                    fabLog.style.display = 'none';
+                    fabPlan.style.display = 'flex';
+                } else {
+                    fabLog.style.display = 'flex';
+                    fabPlan.style.display = 'none';
+                }
+                
                 actionPanel.style.display = 'none';
             }
         }
@@ -982,10 +1152,12 @@
             const btnPlan = document.getElementById('btn-tab-plan');
             const contentCol = document.getElementById('content-column'); 
             const plansCard = document.getElementById('plans-card');
-            const actionPanel = document.querySelector('.action-panel');
+            
+            const fabLog = document.getElementById('fab-log');
+            const fabPlan = document.getElementById('fab-plan');
 
-            // ハイライトのアニメーションと文字色切り替え
             if(type === 'log') {
+                // UI切り替え (Logs)
                 highlight.classList.remove('move-right');
                 btnLog.classList.add('active');
                 btnPlan.classList.remove('active');
@@ -993,9 +1165,14 @@
                 contentCol.style.display = 'block'; 
                 plansCard.style.display = 'none';
                 plansCard.classList.remove('active-mobile-view');
-                actionPanel.style.display = 'none'; 
+                
+                // ボタン切り替え: LogボタンON, PlanボタンOFF
+                fabLog.style.display = 'flex';
+                fabPlan.style.display = 'none';
+                
                 switchMode('my'); 
             } else {
+                // UI切り替え (Plans)
                 highlight.classList.add('move-right');
                 btnLog.classList.remove('active');
                 btnPlan.classList.add('active');
@@ -1003,19 +1180,30 @@
                 contentCol.style.display = 'none';  
                 plansCard.style.display = 'flex';
                 plansCard.classList.add('active-mobile-view');
-                actionPanel.style.display = 'block'; 
+                
+                // ボタン切り替え: LogボタンOFF, PlanボタンON
+                fabLog.style.display = 'none';
+                fabPlan.style.display = 'flex';
             }
         }
 
         function switchMobileTimelineTab(type) {
             const btns = document.querySelectorAll('.mobile-tab-btn');
             btns.forEach(b => b.classList.remove('active'));
+            
+            const fabLog = document.getElementById('fab-log');
+            const fabPlan = document.getElementById('fab-plan');
+
             if(type === 'log') {
                 btns[0].classList.add('active');
                 switchMode('global');
+                fabLog.style.display = 'flex';
+                fabPlan.style.display = 'none';
             } else {
                 btns[1].classList.add('active');
                 switchMode('plans');
+                fabLog.style.display = 'none';
+                fabPlan.style.display = 'flex';
             }
         }
 
@@ -1095,7 +1283,12 @@
                 let deleteBtn = '';
                 let clickAttr = '';
                 let cardClass = 'smart-card feed-card';
+                // 画像があるかチェック
+                const hasImg = item.imageUrl ? ' has-image' : '';
+                cardClass += hasImg;
+
                 let privateMark = '';
+                let editBtnHtml = ''; // モバイル詳細エリア用
 
                 const likedList = item.likedBy || [];
                 const usefulList = item.usefulBy || [];
@@ -1107,14 +1300,25 @@
                 let myReactionView = '';
                 if (currentMode === 'my' || (isMobile && mobileView==='mypage')) {
                     deleteBtn = `<button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>`;
-                    clickAttr = `onclick="editLog('${item.logId}')"`;
-                    cardClass += ' clickable';
+                    
+                    // モバイルかつマイページの場合はアコーディオン開閉
+                    if (isMobile) {
+                        clickAttr = `onclick="toggleLogCard(this)"`;
+                        // 編集ボタンを詳細エリア内に追加
+                        editBtnHtml = `<button class="btn-reaction" style="margin-left:auto; border-color:rgba(255,255,255,0.3);" onclick="event.stopPropagation(); editLog('${item.logId}')">✎ 編集</button>`;
+                    } else {
+                        // PCの場合は従来通り全体クリックで編集
+                        clickAttr = `onclick="editLog('${item.logId}')"`;
+                        cardClass += ' clickable';
+                    }
+
                     if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
                     
                     myReactionView = `
                         <div class="reaction-group">
                             <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}', 'like')"><span>❤</span> ${likeCount}</button>
                             <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}', 'useful')"><span>★</span> ${usefulCount}</button>
+                            ${editBtnHtml}
                         </div>
                     `;
                 }
@@ -1122,7 +1326,10 @@
                 if (type === 'log') {
                     const stars = "★".repeat(parseInt(item.rating||0));
                     let thumbHtml = `<div class="feed-no-img">🔭</div>`;
-                    if(item.imageUrl) thumbHtml = `<img src="${item.imageUrl}" class="feed-img">`;
+                    // モバイルでは展開時にのみ画像を表示し、クリックで拡大
+                    if(item.imageUrl) {
+                        thumbHtml = `<img src="${item.imageUrl}" class="feed-img" onclick="event.stopPropagation(); openImageModal(this.src)">`;
+                    }
                     const commentHtml = makeCommentHtml(item.comment || '');
 
                     let reactionHtml = '';
@@ -1137,19 +1344,24 @@
                         `;
                     }
 
+                    // 構造変更: 詳細部分を log-collapsible-area で囲む
+                    // 修正点: mobile-toggle-hintの中身を空にする
                     const html = `
                         <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
                             <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
                             <div class="feed-content">
                                 ${userInfoHtml}
                                 <div class="feed-head"><h3 class="feed-title">${escapeHtml(item.target)}${privateMark}</h3><span class="feed-stars">${stars}</span></div>
-                                <div class="feed-meta"><span class="meta-tag">機材: ${escapeHtml(item.tool)}</span></div>
-                                <div class="feed-text">${commentHtml}</div>
-                                <div class="feed-foot">
-                                    ${reactionHtml}
-                                    ${myReactionView}
-                                    ${deleteBtn}
+                                <div class="log-collapsible-area">
+                                    <div class="feed-meta"><span class="meta-tag">機材: ${escapeHtml(item.tool)}</span></div>
+                                    <div class="feed-text">${commentHtml}</div>
+                                    <div class="feed-foot">
+                                        ${reactionHtml}
+                                        ${myReactionView}
+                                        ${deleteBtn}
+                                    </div>
                                 </div>
+                                <div class="mobile-toggle-hint"></div>
                             </div>
                         </div>
                     `;
@@ -1177,15 +1389,33 @@
                             <div class="feed-content">
                                 ${userInfoHtml}
                                 <div class="feed-head"><h3 class="feed-title" style="color:#e0f7ff;">${escapeHtml(item.target)}</h3></div>
-                                <div class="feed-meta"><span class="meta-tag" style="border-color:#00d2ff; color:#00d2ff; background:rgba(0,210,255,0.1);">Plan</span></div>
-                                <div class="feed-text" style="border-top-color:rgba(0,210,255,0.2);">${commentHtml}</div>
-                                ${refArea}
+                                <div class="log-collapsible-area">
+                                    <div class="feed-meta"><span class="meta-tag" style="border-color:#00d2ff; color:#00d2ff; background:rgba(0,210,255,0.1);">Plan</span></div>
+                                    <div class="feed-text" style="border-top-color:rgba(0,210,255,0.2);">${commentHtml}</div>
+                                    ${refArea}
+                                </div>
                             </div>
                         </div>
                     `;
                     container.insertAdjacentHTML('beforeend', html);
                 }
             });
+        }
+
+        // 新規追加: カード開閉トグル
+        function toggleLogCard(el) {
+            el.classList.toggle('open');
+        }
+
+        // 新規追加: 画像拡大モーダル
+        function openImageModal(src) {
+            const overlay = document.getElementById('img-modal-overlay');
+            const img = document.getElementById('img-modal-content');
+            img.src = src;
+            overlay.style.display = 'flex';
+        }
+        function closeImageModal() {
+            document.getElementById('img-modal-overlay').style.display = 'none';
         }
 
         function openModal(type) {
