@@ -29,11 +29,26 @@
 
         body {
             background-color: var(--bg-deep);
-            background-image: radial-gradient(circle at 50% 0%, #2a3a55 0%, var(--bg-deep) 80%);
+            /* background-image は擬似要素(body::before)に移動して固定 */
             height: 100vh; 
             overflow: hidden; 
             color: var(--text-main);
             margin: 0;
+            position: relative; /* 擬似要素の基準点 */
+        }
+
+        /* --- 背景固定用の擬似要素 --- */
+        /* これによりスクロールしてもグラデーションが切れずに固定されます */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle at 50% 0%, #2a3a55 0%, var(--bg-deep) 80%);
+            z-index: -1; /* コンテンツの背面に配置 */
+            pointer-events: none;
         }
 
         /* --- ヘッダー --- */
@@ -523,7 +538,7 @@
             .feed-card.open.has-image .feed-img-col {
                 display: block;
                 position: relative;
-                /* 変更点: 高さを250pxに固定してoverflow制御 */
+                /* 高さを250pxに固定してoverflow制御 */
                 height: 250px;
                 width: 100% !important;
                 margin: 0;
@@ -551,7 +566,7 @@
             /* 画像クリックで拡大できるようにポインターを表示 */
             .feed-card.open.has-image .feed-img {
                 cursor: zoom-in;
-                /* 変更点: 枠に合わせてトリミング表示 */
+                /* 枠に合わせてトリミング表示 */
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
@@ -943,8 +958,15 @@
 
         let isMobile = window.innerWidth <= 900;
         let currentMobileTab = 'my-log'; // 初期タブ
+        
+        let lastWidth = window.innerWidth; // 画面幅監視用
 
         window.addEventListener('resize', () => {
+            // 幅が変わったときだけレイアウト更新（スクロールによるアドレスバー伸縮対策）
+            const newWidth = window.innerWidth;
+            if (newWidth === lastWidth) return;
+            
+            lastWidth = newWidth;
             isMobile = window.innerWidth <= 900;
             updateViewLayout();
         });
