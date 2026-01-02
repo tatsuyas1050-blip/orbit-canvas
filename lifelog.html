@@ -29,16 +29,14 @@
 
         body {
             background-color: var(--bg-deep);
-            /* background-image は擬似要素(body::before)に移動して固定 */
             height: 100vh; 
             overflow: hidden; 
             color: var(--text-main);
             margin: 0;
-            position: relative; /* 擬似要素の基準点 */
+            position: relative; 
         }
 
         /* --- 背景固定用の擬似要素 --- */
-        /* これによりスクロールしてもグラデーションが切れずに固定されます */
         body::before {
             content: "";
             position: fixed;
@@ -47,7 +45,7 @@
             width: 100%;
             height: 100%;
             background-image: radial-gradient(circle at 50% 0%, #2a3a55 0%, var(--bg-deep) 80%);
-            z-index: -1; /* コンテンツの背面に配置 */
+            z-index: -1; 
             pointer-events: none;
         }
 
@@ -320,12 +318,22 @@
         .feed-card.plan-type {
             border-left: 4px solid rgba(0, 210, 255, 0.5); 
             background: linear-gradient(90deg, rgba(0, 40, 60, 0.6), rgba(30, 40, 60, 0.5));
+            /* プランタイプはブロック表示（画像カラム無し） */
+            display: block !important; 
         }
         .feed-card.plan-type:hover { border-left-color: #00d2ff; border-color: rgba(0, 210, 255, 0.4); }
         .feed-card.plan-type .feed-date-badge { background: rgba(0, 210, 255, 0.9); }
         .feed-card.plan-type .feed-user-icon { border-color: #00d2ff; }
         .private-mark { color: #aaa; border: 1px solid #555; font-size: 0.6rem; padding: 1px 4px; border-radius: 3px; margin-left: 5px; vertical-align: middle; }
         .feed-card.clickable { cursor: pointer; transition: transform 0.3s, box-shadow 0.3s; }
+        
+        /* プラン用のトグルヒント文言変更 */
+        .feed-card.plan-type .mobile-toggle-hint::before {
+            content: "▼ メモを表示";
+        }
+        .feed-card.plan-type.open .mobile-toggle-hint::before {
+            content: "▲ 閉じる";
+        }
 
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -378,6 +386,141 @@
         .mobile-bottom-nav { display: none; }
         .mobile-toggle-hint { display: none; }
         .log-collapsible-area { display: block; } /* PCでは常に表示 */
+
+        /* ▼▼▼ 公開設定セレクタ (チェックボックス代替) ▼▼▼ */
+        .vis-selector {
+            display: flex;
+            background: rgba(255,255,255,0.1);
+            border-radius: 30px; 
+            padding: 4px;
+            margin-top: 5px;
+        }
+        .vis-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: #888;
+            padding: 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            font-family: var(--font-tech);
+        }
+        .vis-btn.active {
+            background: var(--accent-gold);
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        /* Plan Theme */
+        .modal-box.plan-theme .vis-btn.active {
+            background: #00d2ff;
+            color: #000;
+        }
+
+        /* ▼▼▼ 機材選択セレクタ (ボタン式・複数選択・アイコン無し) ▼▼▼ */
+        .tool-selector {
+            display: flex; gap: 5px; overflow-x: auto;
+            padding-bottom: 5px; /* スクロールバー余白 */
+        }
+        .tool-btn {
+            flex: 1;
+            min-width: 70px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #ccc;
+            padding: 12px 5px; /* パディング調整 */
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 0.85rem; /* 文字サイズ少し大きく */
+            font-weight: 500;
+            display: flex; align-items: center; justify-content: center; /* 中央揃え */
+            font-family: var(--font-main); /* フォント合わせる */
+        }
+        .tool-btn.active {
+            background: rgba(212, 175, 55, 0.2);
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.1) inset;
+        }
+        
+        /* ▼▼▼ 評価スライダー (目盛り付き) ▼▼▼ */
+        .rating-wrapper {
+            background: rgba(255,255,255,0.05);
+            padding: 15px; border-radius: 8px;
+            text-align: center;
+        }
+        .rating-value {
+            font-size: 1.8rem; color: var(--accent-gold); letter-spacing: 3px;
+            margin-bottom: 5px; text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+        .rating-desc {
+            font-size: 0.8rem; color: #bbb; margin-bottom: 15px;
+        }
+        
+        /* 目盛り付きスライダーコンテナ */
+        .slider-container {
+            position: relative;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .slider-track-bg {
+            position: absolute;
+            top: 50%; left: 10px; right: 10px; /* inputのpadding等を考慮 */
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-50%);
+            z-index: 0;
+            border-radius: 2px;
+        }
+        .slider-ticks {
+            position: absolute;
+            top: 50%; left: 10px; right: 10px;
+            display: flex;
+            justify-content: space-between;
+            transform: translateY(-50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        .tick {
+            width: 8px; height: 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+        }
+        
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; 
+            margin: 0;
+            background: transparent; /* 背景透明 */
+            position: relative;
+            z-index: 1;
+            outline: none; border: none; padding: 0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 24px; height: 24px; border-radius: 50%;
+            background: var(--accent-gold);
+            cursor: pointer; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            margin-top: -10px; /* トラックに対する位置調整 */
+        }
+        /* トラック（操作線）も透明にして自前の線を見せる */
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            background: transparent;
+            border: none;
+        }
+        
+        .rating-labels {
+            display: flex; justify-content: space-between;
+            font-size: 0.7rem; color: #888; margin-top: 8px;
+        }
 
         /* ▼▼▼ MOBILE OPTIMIZATION ▼▼▼ */
         @media (max-width: 900px) {
@@ -699,6 +842,82 @@
                 background: linear-gradient(135deg, rgba(0, 210, 255, 0.9), rgba(0, 100, 200, 0.9));
                 border-color: #00d2ff;
             }
+            
+            /* ▼▼▼ モバイル・フルスクリーンモーダル設定 ▼▼▼ */
+            /* 狭い画面 (600px以下) でモーダルをフルスクリーン化 */
+            @media (max-width: 600px) {
+                .modal-box {
+                    width: 100% !important;
+                    height: 100% !important;
+                    max-width: none !important;
+                    border-radius: 0 !important;
+                    border: none !important;
+                    padding: 20px !important;
+                    display: flex;
+                    flex-direction: column;
+                    background: #080c15 !important; /* 背景色を濃く */
+                }
+                
+                /* タイトルを左寄せにしてSNS風に */
+                .modal-h {
+                    text-align: left;
+                    margin-top: 20px;
+                    margin-bottom: 20px;
+                    border-bottom: none;
+                    font-size: 1.8rem;
+                }
+                
+                /* 閉じるボタンを大きく、押しやすく */
+                .modal-close {
+                    top: 15px;
+                    right: 15px;
+                    width: 36px;
+                    height: 36px;
+                    background: rgba(255,255,255,0.1) !important;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 100;
+                }
+                
+                /* フォームの2列表示を解除して1列にする (ここが重要) */
+                .form-row {
+                    grid-template-columns: 1fr !important;
+                    gap: 1.2rem !important;
+                }
+                
+                /* 入力エリアを広げてタップしやすく */
+                input[type="text"], input[type="date"], select, textarea {
+                    font-size: 1rem;
+                    padding: 14px;
+                    background: rgba(255,255,255,0.05);
+                }
+                
+                /* コメント欄を広げる */
+                textarea {
+                    min-height: 150px;
+                }
+                
+                /* ボタンを画面下部に配置 */
+                .btn-modal-action {
+                    margin-top: auto;
+                    padding: 16px;
+                    font-size: 1.1rem;
+                    border-radius: 8px; /* 丸みを少し抑える */
+                }
+                
+                /* フォーム全体を縦に伸ばす */
+                #unified-form {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                }
+                /* 最後のグループ以外は通常通り */
+                .form-grp:last-of-type {
+                    margin-bottom: 20px;
+                }
+            }
         }
         
         /* 画像拡大モーダル用 */
@@ -876,8 +1095,35 @@
                 </div>
                 <div id="log-fields">
                     <div class="form-row form-grp">
-                        <div><label>機材</label><select id="input-tool"><option>肉眼</option><option>双眼鏡</option><option>天体望遠鏡</option><option>カメラ</option></select></div>
-                        <div><label>評価</label><select id="input-rating"><option value="5">★★★★★</option><option value="4">★★★★☆</option><option value="3">★★★☆☆</option><option value="2">★★☆☆☆</option><option value="1">★☆☆☆☆</option></select></div>
+                        <div>
+                            <label>機材 (複数選択可)</label>
+                            <div class="tool-selector">
+                                <input type="hidden" id="input-tool" value="肉眼">
+                                <button type="button" class="tool-btn active" onclick="setTool('肉眼', this)"><span>肉眼</span></button>
+                                <button type="button" class="tool-btn" onclick="setTool('双眼鏡', this)"><span>双眼鏡</span></button>
+                                <button type="button" class="tool-btn" onclick="setTool('天体望遠鏡', this)"><span>望遠鏡</span></button>
+                                <button type="button" class="tool-btn" onclick="setTool('カメラ', this)"><span>カメラ</span></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label>評価</label>
+                            <div class="rating-wrapper">
+                                <div class="rating-value" id="rating-display">★★★☆☆</div>
+                                <div class="rating-desc" id="rating-text">普通に見えた</div>
+                                <div class="slider-container">
+                                    <div class="slider-track-bg"></div>
+                                    <div class="slider-ticks">
+                                        <span class="tick"></span><span class="tick"></span><span class="tick"></span><span class="tick"></span><span class="tick"></span>
+                                    </div>
+                                    <input type="range" id="input-rating-range" min="1" max="5" value="3" step="1" oninput="updateRating(this.value)">
+                                </div>
+                                <input type="hidden" id="input-rating" value="3">
+                                <div class="rating-labels">
+                                    <span>見えない</span>
+                                    <span>よく見えた</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-grp">
                         <label>写真 (1枚のみ)</label>
@@ -895,12 +1141,21 @@
                     <label id="label-comment">メモ・感想</label>
                     <textarea id="input-comment" rows="4"></textarea>
                 </div>
+                
                 <div class="form-grp">
-                    <label class="checkbox-wrapper">
-                        <input type="checkbox" id="input-public" checked>
-                        <span>みんなに公開する</span>
-                    </label>
+                    <label>公開設定</label>
+                    <div class="vis-selector">
+                        <input type="checkbox" id="input-public" checked style="display:none">
+                        <button type="button" class="vis-btn active" id="vis-btn-public" onclick="setPublicState(true)">
+                            <span style="font-size:1.2rem;">🌏</span> 公開
+                        </button>
+                        <button type="button" class="vis-btn" id="vis-btn-private" onclick="setPublicState(false)">
+                            <span style="font-size:1.2rem;">🔒</span> 非公開
+                        </button>
+                    </div>
+                    <p style="font-size:0.75rem; color:#888; margin-top:5px; margin-left:5px;">※公開するとフィードに表示されます</p>
                 </div>
+
                 <button type="submit" class="btn-modal-action" id="btn-save">保存する</button>
             </form>
         </div>
@@ -960,6 +1215,7 @@
         let currentMobileTab = 'my-log'; // 初期タブ
         
         let lastWidth = window.innerWidth; // 画面幅監視用
+        let publicDataCache = []; // グローバル変数として定義
 
         window.addEventListener('resize', () => {
             // 幅が変わったときだけレイアウト更新（スクロールによるアドレスバー伸縮対策）
@@ -1059,6 +1315,7 @@
                     });
                     const data = await res.json();
                     const publicData = data.logs || [];
+                    publicDataCache = publicData; // キャッシュに保存
 
                     if (mode === 'global') {
                         itemsToShow = publicData.filter(d => d.type === 'log');
@@ -1217,172 +1474,205 @@
 
             items.sort((a,b) => new Date(b.date) - new Date(a.date));
 
-            items.forEach((item, i) => {
-                const d = new Date(item.date);
-                const dateStr = `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
-                
-                let userInfoHtml = '';
-                if (item.authorName) {
-                    const iconSrc = item.authorIcon || ''; 
-                    const iconImg = iconSrc ? `<img src="${iconSrc}" class="feed-user-icon">` : `<span class="feed-user-icon" style="background:#333; display:inline-block;"></span>`;
-                    userInfoHtml = `<div class="feed-user-info">${iconImg} <span>${escapeHtml(item.authorName)}</span></div>`;
-                } else {
-                    userInfoHtml = `<div class="feed-user-info" style="opacity:0.5;"><span>Guest User</span></div>`;
-                }
-                
-                let deleteBtn = '';
-                let clickAttr = '';
-                let cardClass = 'smart-card feed-card';
-                // 画像があるかチェック
-                const hasImg = item.imageUrl ? ' has-image' : '';
-                cardClass += hasImg;
+            try {
+                items.forEach((item, i) => {
+                    const d = new Date(item.date);
+                    const dateStr = `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
+                    
+                    let userInfoHtml = '';
+                    if (item.authorName) {
+                        const iconSrc = item.authorIcon || ''; 
+                        const iconImg = iconSrc ? `<img src="${iconSrc}" class="feed-user-icon">` : `<span class="feed-user-icon" style="background:#333; display:inline-block;"></span>`;
+                        userInfoHtml = `<div class="feed-user-info">${iconImg} <span>${escapeHtml(item.authorName)}</span></div>`;
+                    } else {
+                        userInfoHtml = `<div class="feed-user-info" style="opacity:0.5;"><span>Guest User</span></div>`;
+                    }
+                    
+                    let deleteBtn = '';
+                    let clickAttr = '';
+                    let cardClass = 'smart-card feed-card';
+                    // 画像があるかチェック
+                    const hasImg = item.imageUrl ? ' has-image' : '';
+                    cardClass += hasImg;
 
-                let privateMark = '';
-                let editBtnHtml = ''; // モバイル詳細エリア用(アイコン版)
+                    let privateMark = '';
+                    let editBtnHtml = ''; // モバイル詳細エリア用(アイコン版)
 
-                const likedList = item.likedBy || [];
-                const usefulList = item.usefulBy || [];
-                const likeCount = likedList.length;
-                const usefulCount = usefulList.length;
-                const likedJson = encodeURIComponent(JSON.stringify(likedList));
-                const usefulJson = encodeURIComponent(JSON.stringify(usefulList));
+                    const likedList = item.likedBy || [];
+                    const usefulList = item.usefulBy || [];
+                    const likeCount = likedList.length;
+                    const usefulCount = usefulList.length;
+                    const likedJson = encodeURIComponent(JSON.stringify(likedList));
+                    const usefulJson = encodeURIComponent(JSON.stringify(usefulList));
 
-                let myReactionView = '';
-                if (currentMode === 'my' || (isMobile && (currentMobileTab === 'my-log'))) {
-                    // モバイルかつマイページの場合はアコーディオン開閉
+                    // モバイル表示なら常にタップで開閉可能にする
                     if (isMobile) {
                         clickAttr = `onclick="toggleLogCard(this)"`;
-                        // テキストボタンに変更
-                        editBtnHtml = `
-                            <button class="btn-edit-log" onclick="event.stopPropagation(); editLog('${item.logId}')">編集</button>
-                            <button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>
-                        `;
-                    } else {
-                        // PCの場合は従来通り全体クリックで編集
-                        deleteBtn = `<button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>`;
-                        editBtnHtml = `<button class="btn-reaction" style="margin-left:auto; border-color:rgba(255,255,255,0.3);" onclick="event.stopPropagation(); editLog('${item.logId}')">✎ 編集</button>`;
-                        clickAttr = `onclick="editLog('${item.logId}')"`;
-                        cardClass += ' clickable';
                     }
 
-                    if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
-                    
-                    if (isMobile) {
-                        // モバイル用フッターレイアウト
-                        myReactionView = `
-                            <div class="feed-foot-mobile">
-                                <div class="reaction-group">
-                                    <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}', 'like')"><span>❤</span> ${likeCount}</button>
-                                    <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}', 'useful')"><span>★</span> ${usefulCount}</button>
-                                </div>
-                                <div style="display:flex; gap:5px;">
-                                    ${editBtnHtml}
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        // PC用レイアウト
-                        myReactionView = `
-                            <div class="feed-foot">
-                                <div class="reaction-group">
-                                    <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}', 'like')"><span>❤</span> ${likeCount}</button>
-                                    <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}', 'useful')"><span>★</span> ${usefulCount}</button>
-                                    ${editBtnHtml}
-                                </div>
-                                ${deleteBtn}
-                            </div>
-                        `;
-                    }
-                }
-
-                if (type === 'log') {
-                    const stars = "★".repeat(parseInt(item.rating||0));
-                    let thumbHtml = `<div class="feed-no-img">🔭</div>`;
-                    // モバイルでは展開時にのみ画像を表示し、クリックで拡大
-                    if(item.imageUrl) {
-                        thumbHtml = `<img src="${item.imageUrl}" class="feed-img" onclick="event.stopPropagation(); openImageModal(this.src)">`;
-                        // バッジ表示 (モバイルのみ)
-                        if(isMobile) {
-                            thumbHtml += `<div class="img-badge">タップで画像表示</div>`;
-                        }
-                    }
-                    const commentHtml = makeCommentHtml(item.comment || '');
-
-                    let reactionHtml = '';
-                    if (currentMode !== 'my') {
-                        const liked = likedList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
-                        const useful = usefulList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
-                        const commonReaction = `
-                            <div class="reaction-group">
-                                <button class="btn-reaction ${liked?'liked':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'like', this)"><span>❤</span> ${likeCount>0 ? likeCount : 'いいね'}</button>
-                                <button class="btn-reaction ${useful?'useful':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'useful', this)"><span>★</span> ${usefulCount>0 ? usefulCount : '参考'}</button>
-                            </div>
-                        `;
+                    let myReactionView = '';
+                    // ボタン表示の条件分岐
+                    if (currentMode === 'my' || (isMobile && (currentMobileTab === 'my-log'))) {
+                        // 自分のログまたは自分のプランの場合
                         
-                        if(isMobile) {
-                            reactionHtml = `<div class="feed-foot-mobile">${commonReaction}</div>`;
-                        } else {
-                            reactionHtml = `<div class="feed-foot">${commonReaction}</div>`;
+                        if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
+                        
+                        // PCかつ自分のログなら、全体クリックで編集モードへ
+                        if (!isMobile) {
+                            clickAttr = `onclick="editLog('${item.logId}')"`;
+                            cardClass += ' clickable';
                         }
-                    }
 
-                    // 修正: "機材:"のラベルを復活
-                    const html = `
-                        <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
-                            <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
-                            <div class="feed-content">
-                                ${userInfoHtml}
-                                <div class="feed-head">
-                                    <h3 class="feed-title">${escapeHtml(item.target)}${privateMark}</h3>
-                                    <div style="text-align:right;">
-                                        <div class="feed-stars">${stars}</div>
-                                        <div style="font-size:0.75rem; color:#aaa; margin-top:4px;">機材: ${escapeHtml(item.tool)}</div>
+                        // 編集・削除ボタンの生成
+                        if (isMobile) {
+                            editBtnHtml = `
+                                <button class="btn-edit-log" onclick="event.stopPropagation(); editLog('${item.logId}')">編集</button>
+                                <button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>
+                            `;
+                        } else {
+                            deleteBtn = `<button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>`;
+                            editBtnHtml = `<button class="btn-edit-log" onclick="event.stopPropagation(); editLog('${item.logId}')">編集</button>`;
+                        }
+
+                        if (isMobile) {
+                            // モバイル用フッターレイアウト
+                            myReactionView = `
+                                <div class="feed-foot-mobile">
+                                    <div class="reaction-group">
+                                        <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}', 'like')"><span>❤</span> ${likeCount}</button>
+                                        <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}', 'useful')"><span>★</span> ${usefulCount}</button>
+                                    </div>
+                                    <div style="display:flex; gap:5px;">
+                                        ${editBtnHtml}
                                     </div>
                                 </div>
-                                <div class="log-collapsible-area">
-                                    <div class="feed-text">${commentHtml}</div>
-                                    ${reactionHtml}
-                                    ${myReactionView}
+                            `;
+                        } else {
+                            // PC用レイアウト
+                            myReactionView = `
+                                <div class="feed-foot">
+                                    <div class="reaction-group">
+                                        <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}', 'like')"><span>❤</span> ${likeCount}</button>
+                                        <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}', 'useful')"><span>★</span> ${usefulCount}</button>
+                                    </div>
+                                    <div style="display:flex; gap:10px;">
+                                        ${editBtnHtml}
+                                        ${deleteBtn}
+                                    </div>
                                 </div>
-                                <div class="mobile-toggle-hint"></div>
-                            </div>
-                        </div>
-                    `;
-                    container.insertAdjacentHTML('beforeend', html);
+                            `;
+                        }
+                    } else {
+                        // 他人のログ・プランの場合 (フィード/ジョイン)
+                        // PCではクリック不可(デフォルト)、モバイルは上で toggleLogCard を設定済み
+                    }
 
-                } else {
-                    const commentHtml = makeCommentHtml(item.comment || '');
-                    const refList = item.referencedBy || [];
-                    const refCount = refList.length;
-                    const refListJson = encodeURIComponent(JSON.stringify(refList));
-                    
-                    const refArea = `
-                        <div style="display:flex; justify-content:flex-end; gap:5px; margin-top:10px;">
-                            ${refCount > 0 ? `<span class="ref-count" onclick="event.stopPropagation(); showRefUsers('${refListJson}', 'useful')">${refCount}人が参考にしています</span>` : ''}
-                            <button class="btn-ref-plan" onclick="event.stopPropagation(); referencePlan('${item.userId}', '${item.logId}')">この予定を参考にする</button>
-                        </div>
-                    `;
+                    if (type === 'log') {
+                        const stars = "★".repeat(parseInt(item.rating||0));
+                        let thumbHtml = `<div class="feed-no-img">🔭</div>`;
+                        // モバイルでは展開時にのみ画像を表示し、クリックで拡大
+                        if(item.imageUrl) {
+                            thumbHtml = `<img src="${item.imageUrl}" class="feed-img" onclick="event.stopPropagation(); openImageModal(this.src)">`;
+                            // バッジ表示 (モバイルのみ)
+                            if(isMobile) {
+                                thumbHtml += `<div class="img-badge">タップで画像表示</div>`;
+                            }
+                        }
+                        const commentHtml = makeCommentHtml(item.comment || '');
 
-                    const html = `
-                        <div class="smart-card feed-card plan-type" style="animation-delay:${i*0.05}s">
-                            <div class="feed-img-col" style="display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.3);">
-                                <div style="font-size:3rem; color:#00d2ff;">📅</div>
-                                <div class="feed-date-badge">${dateStr}</div>
-                            </div>
-                            <div class="feed-content">
-                                ${userInfoHtml}
-                                <div class="feed-head"><h3 class="feed-title" style="color:#e0f7ff;">${escapeHtml(item.target)}</h3></div>
-                                <div class="log-collapsible-area">
-                                    <div class="feed-meta"><span class="meta-tag" style="border-color:#00d2ff; color:#00d2ff; background:rgba(0,210,255,0.1);">Plan</span></div>
-                                    <div class="feed-text" style="border-top-color:rgba(0,210,255,0.2);">${commentHtml}</div>
-                                    ${refArea}
+                        let reactionHtml = '';
+                        if (currentMode !== 'my') {
+                            const liked = likedList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
+                            const useful = usefulList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
+                            const commonReaction = `
+                                <div class="reaction-group">
+                                    <button class="btn-reaction ${liked?'liked':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'like', this)"><span>❤</span> ${likeCount>0 ? likeCount : 'いいね'}</button>
+                                    <button class="btn-reaction ${useful?'useful':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'useful', this)"><span>★</span> ${usefulCount>0 ? usefulCount : '参考'}</button>
+                                </div>
+                            `;
+                            
+                            if(isMobile) {
+                                reactionHtml = `<div class="feed-foot-mobile">${commonReaction}</div>`;
+                            } else {
+                                reactionHtml = `<div class="feed-foot">${commonReaction}</div>`;
+                            }
+                        }
+
+                        // 修正: "機材:"のラベルを復活
+                        const html = `
+                            <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
+                                <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
+                                <div class="feed-content">
+                                    ${userInfoHtml}
+                                    <div class="feed-head">
+                                        <h3 class="feed-title">${escapeHtml(item.target)}${privateMark}</h3>
+                                        <div style="text-align:right;">
+                                            <div class="feed-stars">${stars}</div>
+                                            <div style="font-size:0.75rem; color:#aaa; margin-top:4px;">機材: ${escapeHtml(item.tool)}</div>
+                                        </div>
+                                    </div>
+                                    <div class="log-collapsible-area">
+                                        <div class="feed-text">${commentHtml}</div>
+                                        ${reactionHtml}
+                                        ${myReactionView}
+                                    </div>
+                                    <div class="mobile-toggle-hint"></div>
                                 </div>
                             </div>
-                        </div>
-                    `;
-                    container.insertAdjacentHTML('beforeend', html);
-                }
-            });
+                        `;
+                        container.insertAdjacentHTML('beforeend', html);
+
+                    } else {
+                        // Plan (Join)
+                        const commentHtml = makeCommentHtml(item.comment || '');
+                        const refList = item.referencedBy || [];
+                        const refCount = refList.length;
+                        const refListJson = encodeURIComponent(JSON.stringify(refList));
+                        
+                        const refArea = `
+                            <div style="display:flex; justify-content:flex-end; gap:5px; margin-top:10px;">
+                                ${refCount > 0 ? `<span class="ref-count" onclick="event.stopPropagation(); showRefUsers('${refListJson}', 'useful')">${refCount}人が参考にしています</span>` : ''}
+                                <button class="btn-ref-plan" onclick="event.stopPropagation(); referencePlan('${item.userId}', '${item.logId}')">この予定を参考にする</button>
+                            </div>
+                        `;
+
+                        // プランカードのデザイン変更 (画像カラム削除、ボタン位置変更など)
+                        const html = `
+                            <div class="smart-card feed-card plan-type" style="animation-delay:${i*0.05}s" ${clickAttr}>
+                                <div class="feed-content">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <div style="font-family:var(--font-tech); font-size:1.1rem; color:#00d2ff; font-weight:bold;">
+                                            <span style="font-size:1.2rem;">📅</span> ${dateStr}
+                                        </div>
+                                        <button class="btn-ref-plan" style="font-size:0.8rem; padding:4px 12px;" onclick="event.stopPropagation(); initiateReference('${item.logId}')">参考にする</button>
+                                    </div>
+                                    
+                                    <div class="feed-head">
+                                        <h3 class="feed-title" style="color:#e0f7ff;">${escapeHtml(item.target)}${privateMark}</h3>
+                                    </div>
+                                    
+                                    <div style="opacity:0.8; margin-bottom:10px; font-size:0.85rem;">
+                                        ${userInfoHtml}
+                                    </div>
+
+                                    <div class="log-collapsible-area">
+                                        <div class="feed-text" style="border-top:rgba(0,210,255,0.2);">${commentHtml}</div>
+                                        <div style="text-align:right; margin-top:5px;">
+                                            ${refCount > 0 ? `<span class="ref-count" onclick="event.stopPropagation(); showRefUsers('${refListJson}', 'useful')">${refCount}人が参考にしています</span>` : ''}
+                                            ${myReactionView}
+                                        </div>
+                                    </div>
+                                    <div class="mobile-toggle-hint"></div>
+                                </div>
+                            </div>
+                        `;
+                        container.insertAdjacentHTML('beforeend', html);
+                    }
+                });
+            } catch (error) {
+                console.error("Render Error:", error);
+                container.innerHTML += `<div style="color:red; padding:1rem;">表示エラーが発生しました</div>`;
+            }
         }
 
         // 新規追加: カード開閉トグル
@@ -1423,6 +1713,7 @@
                 btn.textContent = "追加";
                 btn.className = "btn-modal-action plan-mode";
                 document.getElementById('input-date').required = false; 
+                setPublicState(true);
             } else {
                 modalBox.classList.remove('plan-theme');
                 h.textContent = "ログを作成";
@@ -1431,6 +1722,11 @@
                 btn.textContent = "保存";
                 btn.className = "btn-modal-action";
                 document.getElementById('input-date').required = true;
+                
+                // デフォルト状態のセット
+                setPublicState(true);
+                setTool('肉眼', null); // デフォルト選択
+                updateRating(3); // デフォルト評価(3)
             }
         }
 
@@ -1440,7 +1736,70 @@
             convertingPlanId = null;
             editingLog = null;
             clearImage();
-            document.getElementById('input-public').checked = true;
+            // 初期状態に戻す
+            setPublicState(true);
+            setTool('肉眼', null);
+            updateRating(3);
+        }
+
+        // 公開設定
+        function setPublicState(isPublic) {
+            document.getElementById('input-public').checked = isPublic;
+            const btnPub = document.getElementById('vis-btn-public');
+            const btnPri = document.getElementById('vis-btn-private');
+            
+            if(isPublic) {
+                btnPub.classList.add('active');
+                btnPri.classList.remove('active');
+            } else {
+                btnPub.classList.remove('active');
+                btnPri.classList.add('active');
+            }
+        }
+
+        // 新規追加: 機材選択 (複数選択・文字のみ)
+        function setTool(val, btnEl) {
+            const input = document.getElementById('input-tool');
+            let currentTools = input.value ? input.value.split(',') : [];
+            currentTools = currentTools.map(t => t.trim()).filter(t => t);
+
+            if (currentTools.includes(val)) {
+                currentTools = currentTools.filter(t => t !== val);
+            } else {
+                currentTools.push(val);
+            }
+            
+            input.value = currentTools.join(',');
+            updateToolButtons(currentTools);
+        }
+        
+        function updateToolButtons(selectedTools) {
+            const btns = document.querySelectorAll('.tool-btn');
+            btns.forEach(b => {
+                // アイコンを削除したので、直接テキストコンテンツを参照
+                const span = b.querySelector('span'); // spanタグがあればそれを使う
+                const txt = span ? span.textContent : b.textContent;
+                
+                const isSelected = selectedTools.includes(txt) || (txt === '望遠鏡' && selectedTools.includes('天体望遠鏡'));
+                
+                if(isSelected) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
+        }
+
+        // 新規追加: 評価スライダー更新
+        function updateRating(val) {
+            document.getElementById('input-rating').value = val;
+            document.getElementById('input-rating-range').value = val;
+            
+            const stars = "★".repeat(val) + "☆".repeat(5 - val);
+            document.getElementById('rating-display').textContent = stars;
+            
+            const texts = ["", "全然見えなかった...", "あまり見えなかった", "普通に見えた", "よく見えた！", "最高に見えた！"];
+            document.getElementById('rating-text').textContent = texts[val];
         }
 
         document.getElementById('unified-form').addEventListener('submit', async (e) => {
@@ -1673,10 +2032,22 @@
             document.getElementById('input-date').value = target.date;
             document.getElementById('input-target').value = target.target;
             document.getElementById('input-comment').value = target.comment || '';
-            document.getElementById('input-public').checked = (target.isPublic !== false);
+            // 編集時は保存された公開設定を反映
+            const isPublic = (target.isPublic !== false);
+            setPublicState(isPublic);
+            
             if(type === 'log') {
-                document.getElementById('input-tool').value = target.tool || '肉眼';
-                document.getElementById('input-rating').value = target.rating || '5';
+                // 機材と評価を復元
+                // データ形式が "肉眼,カメラ" のような文字列を想定
+                const toolVal = target.tool || '肉眼';
+                document.getElementById('input-tool').value = toolVal;
+                // ボタンの見た目を更新
+                const selectedTools = toolVal.split(',').map(t => t.trim());
+                updateToolButtons(selectedTools);
+                
+                const ratingVal = target.rating || 3;
+                updateRating(ratingVal);
+                
                 if(target.imageUrl) {
                     document.getElementById('upload-box').style.display='none';
                     document.getElementById('preview-area').style.display='block';
@@ -1831,17 +2202,21 @@
             document.getElementById('user-list-modal').style.display = 'flex';
         }
 
-        async function referencePlan(targetUserId, targetLogId) {
-            if(!confirm("この予定を参考に、あなたの予定を作成しますか？")) return;
-            try {
-                const token = currentSession.getAccessToken().getJwtToken();
-                const res = await fetch(API_URL, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'reference_plan', token: token, targetUserId: targetUserId, targetLogId: targetLogId, myName: myProfile.name, myIcon: myProfile.icon })
-                });
-                if(!res.ok) throw new Error("Failed"); alert("自分の予定に追加しました！"); fetchMyDataAndInit(); 
-            } catch(e) { alert("エラー: " + e.message); }
+        // 新規追加: 参考ボタン押下時の処理 (モーダルを開いて編集させる)
+        function initiateReference(logId) {
+            let target = publicDataCache.find(d => d.logId === logId);
+            if(!target) target = myDataCache.find(d => d.logId === logId);
+            if(!target) return;
+
+            openModal('plan');
+            document.getElementById('input-date').value = target.date;
+            document.getElementById('input-target').value = target.target;
+            const author = target.authorName || 'Guest User';
+            document.getElementById('input-comment').value = `${author}さんの予定を参考にしました`;
         }
+
+        // 古い関数は使わないため削除または無効化
+        // async function referencePlan(targetUserId, targetLogId) { ... } 
     </script>
 </body>
 </html>
