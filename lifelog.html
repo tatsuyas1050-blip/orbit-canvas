@@ -355,13 +355,32 @@
         .form-grp { margin-bottom: 1.5rem; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         label { display: block; font-size: 0.85rem; color: #ccc; margin-bottom: 0.5rem; font-family: var(--font-tech); }
+        
+        /* 修正: 日付入力欄の幅・スタイル調整 (カレンダーアイコン非表示含む) */
         input[type="text"], input[type="date"], input[type="password"], input[type="email"], select, textarea {
             width: 100%; 
-            max-width: 100%; /* 横幅はみ出し防止 */
+            max-width: 100%; 
             min-width: 0;
-            box-sizing: border-box; background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 0.8rem; border-radius: 6px;
+            box-sizing: border-box; 
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2); 
+            color: #fff; 
+            padding: 0.8rem; 
+            border-radius: 6px;
         }
+
+        /* カレンダーアイコンを非表示にする */
+        input[type="date"]::-webkit-inner-spin-button,
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            display: none;
+            -webkit-appearance: none;
+        }
+        input[type="date"] {
+            -moz-appearance: textfield;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
         #upload-box { border: 1px dashed rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 2rem; text-align: center; background: rgba(255, 255, 255, 0.03); cursor: pointer; }
         .btn-modal-action {
             width: 100%; padding: 12px; border-radius: 30px; border: none;
