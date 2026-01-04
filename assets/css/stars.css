@@ -1,4 +1,4 @@
-@charset "UTF-8";
+@@charset "UTF-8";
 
 :root {
     --panel-width: 320px;
@@ -359,19 +359,39 @@ input[type="range"]::-webkit-slider-thumb {
 /* --- Responsive Adjustments --- */
 @media (max-width: 900px) {
     #mobile-controls { display: flex; }
+    
     #side-dock { 
         width: 100%; max-width: 300px; 
         transform: translateX(100%); 
         background: rgba(13, 18, 28, 0.95);
+        
+        /* 変更: 閉じている間はvisibility: hiddenで完全に隠す (横スクロール防止) */
+        visibility: hidden;
+        /* アニメーション遅延調整: 開くときは即座に表示、閉じるときは移動後に非表示 */
+        transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s 0.5s;
     }
-    #side-dock.open { transform: translateX(0); }
-    /* ストリップの見た目調整 */
+    
+    #side-dock.open { 
+        transform: translateX(0); 
+        /* 開いたときは表示 */
+        visibility: visible;
+        /* 遅延なしで即表示 */
+        transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s 0s;
+    }
+    
+    /* ストリップ（開閉ボタン）の見た目調整 */
     .dock-strip {
         padding-top: 10px; background: rgba(5,10,20,0.95); height: auto;
         border-radius: 8px 0 0 8px; top: 60px; bottom: auto;
         width: 44px;
+        /* 調整: 本体との隙間をなくすため、幅に合わせて配置 */
+        left: -44px;
         box-shadow: -2px 2px 10px rgba(0,0,0,0.3);
+        
+        /* 重要: ドック本体が隠れていても、取っ手だけは常に見えるようにする */
+        visibility: visible;
     }
+    
     .dock-tab {
         padding: 10px 0; width: 100%;
     }
