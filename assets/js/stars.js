@@ -945,6 +945,10 @@ function createStarPoints(type, data, parentGroup) {
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
     const magnitudes = new Float32Array(count);
+    
+    // PCとモバイルでサイズ係数を変える
+    const isMobile = window.innerWidth <= 900;
+    const sizeBase = isMobile ? 4.0 : 2.0; // PCでは小さくする
 
     data.forEach((obj, i) => {
         const spectFirst = obj.spect_type ? obj.spect_type.charAt(0).toUpperCase() : 'A';
@@ -952,7 +956,8 @@ function createStarPoints(type, data, parentGroup) {
         colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
         let mag = parseFloat(obj.vmag || obj.mag || 6.0); if (isNaN(mag)) mag = 6.0;
         
-        sizes[i] = Math.max(1.5, (8.0 - mag) * 4.0); 
+        // サイズ計算に sizeBase を使用
+        sizes[i] = Math.max(1.0, (8.0 - mag) * sizeBase); 
         
         magnitudes[i] = mag;
     });
