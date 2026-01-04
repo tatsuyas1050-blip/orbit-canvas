@@ -13,6 +13,8 @@
 
 * {
     box-sizing: border-box;
+    /* モバイルでのタップハイライトを消す */
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -34,7 +36,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
-    height: 80px; /* 高さ指定でレイアウトを安定化 */
+    height: 80px; 
 }
 
 /* ページタイトル (絶対配置で中央寄せ) */
@@ -44,12 +46,25 @@ body {
     font-weight: 500;
     letter-spacing: 0.15em;
     font-size: 1.4rem;
-    
-    /* 変更箇所: 強制中央寄せ */
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
     width: max-content;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.2;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.page-title span {
+    font-size: 0.85rem;
+    color: #fff;
+    font-family: 'Shippori Mincho', serif;
+    letter-spacing: 0.1em;
+    opacity: 0.7;
+    margin-top: 4px;
+    font-weight: 400;
 }
 
 /* 共通: 戻るボタン */
@@ -71,7 +86,7 @@ body {
 }
 
 .header-back-btn::before {
-    content: '≪'; /* Starsページに合わせてここも統一 */
+    content: '≪';
     font-size: 1.1rem;
     transition: transform 0.3s ease;
 }
@@ -88,7 +103,7 @@ body {
     transform: translateX(-4px);
 }
 
-/* ハンバーガーメニュー & ナビゲーション (全ページ共通パーツ) */
+/* ハンバーガーメニュー & ナビゲーション */
 .menu-container { position: fixed; top: 0; right: 0; z-index: 200; }
 .menu-toggle {
     position: absolute; top: 2rem; right: 2rem;
@@ -135,89 +150,24 @@ body {
 }
 .nav-link:hover { color: var(--accent-gold); }
 
-/* --- base.css の末尾に追加・修正 --- */
-
-/* ヘッダータイトルの英語併記スタイル */
-.page-title {
-    display: flex;
-    flex-direction: column; /* 上下に並べる */
-    align-items: center;    /* 中央揃え */
-    line-height: 1.2;
-    color: #fff;            /* 文字色を白に変更 */
-    font-family: 'Shippori Mincho', serif; /* 日本語は明朝体 */
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3); /* ほんのり光らせて視認性を高める */
-}
-
-.page-title span {
-    font-size: 0.85rem;
-    color: #fff;            /* 英語部分も白 */
-    font-family: 'Shippori Mincho', serif; /* 日本語は明朝体 */
-    letter-spacing: 0.1em;
-    opacity: 0.7;           /* 英語は少し薄くして階層をつける */
-    margin-top: 4px;
-    font-weight: 400;
-}
-
-/* スマホ表示時の微調整 */
-@media (max-width: 600px) {
-    .page-title { font-size: 1.3rem; }
-    .page-title span { font-size: 0.7rem; }
-}
-
-/* --- base.css の末尾に追加 --- */
-
-/* ▼▼▼ スマートフォン用ヘッダー調整 (900px以下) ▼▼▼ */
+/* Mobile Adjustments */
 @media (max-width: 900px) {
-    
-    /* ヘッダー全体を少しスリムに */
-    .common-header {
-        height: 60px; /* PCの80pxから縮小 */
-        padding: 0 1rem; /* 横の余白を詰める */
-    }
-
-    /* 戻るボタン：文字を消してアイコン(≪)だけにする */
+    .common-header { height: 60px; padding: 0 1rem; }
     .header-back-btn {
-        font-size: 0; /* "トップへ戻る"の文字を不可視化 */
-        padding: 0;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%; /* 正円にする */
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.1); /* 背景を少し濃くして押しやすく */
+        font-size: 0; padding: 0; width: 40px; height: 40px;
+        border-radius: 50%; justify-content: center;
+        background: rgba(255, 255, 255, 0.1);
     }
-
-    /* アイコン部分のサイズを復帰させる */
-    .header-back-btn::before {
-        font-size: 1.2rem;
-        margin-right: 0; /* アイコン右の余白を削除 */
-        transform: translateX(-1px); /* 微調整で中央寄せ */
-    }
-
-    /* ページタイトル：サイズダウン */
-    .page-title {
-        font-size: 1.1rem;
-        width: auto; /* 幅制限を解除 */
-    }
-    .page-title span {
-        font-size: 0.65rem;
-        margin-top: 2px;
-    }
-
-    /* ハンバーガーメニューの位置調整 */
-    /* ヘッダーが低くなった分、ボタンも上に移動させる */
-    .menu-toggle {
-        top: 5px; /* 60pxの高さに対して中央寄りに */
-        right: 10px;
-        transform: scale(0.8); /* 少し小さくして圧迫感を減らす */
-    }
+    .header-back-btn::before { font-size: 1.2rem; margin-right: 0; transform: translateX(-1px); }
+    .page-title { font-size: 1.1rem; width: auto; }
+    .page-title span { font-size: 0.65rem; margin-top: 2px; }
+    .menu-toggle { top: 5px; right: 10px; transform: scale(0.8); }
 }
 
-/* --- Mobile Utility Classes (base.css 末尾に追加) --- */
 .mobile-only { display: none !important; }
 .pc-only { display: block; }
-
 @media (max-width: 900px) {
     .mobile-only { display: block !important; }
-    .mobile-only.flex { display: flex !important; } /* flex指定が必要な場合用 */
+    .mobile-only.flex { display: flex !important; }
     .pc-only { display: none !important; }
 }

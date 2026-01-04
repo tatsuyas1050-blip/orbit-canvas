@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>星を探す - Star Planetarium</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,95 +35,138 @@
     <div class="ui-layer">
         <a href="index.html" class="glass-back-btn">トップへ戻る</a>
         
-        <div id="screen-clock">----/--/-- --:--</div>
+        <div id="screen-clock" class="pc-only-clock">----/--/-- --:--</div>
 
-        <div id="settings-dock" class="open">
-            <div class="dock-strip-vertical" id="toggle-settings-strip">
-                <button class="toggle-btn-v" id="btn-settings-toggle">≫</button>
-                <span class="strip-label-v">設定</span>
+        <div id="side-dock">
+            <div class="dock-strip">
+                <button class="dock-tab active" id="tab-btn-settings" title="設定">設定</button>
+                <button class="dock-tab" id="tab-btn-info" title="天体データ">天体</button>
+                <button class="dock-toggle" id="btn-dock-toggle">≫</button>
             </div>
             
-            <div id="main-panel">
-                <div class="panel-header-row">
-                    <h2 style="margin:0; color:var(--accent-gold); font-size:1.2rem;">設定</h2>
-                </div>
-
-                <div class="panel-section">
-                    <h3 class="section-title">観測地点</h3>
-                    <button id="btn-location" class="btn-gold" style="width:100%;">📍 現在地を取得</button>
-                    <div class="coord-group">
-                        <span class="coord-label">緯度</span>
-                        <input type="number" id="input-lat" class="coord-input" step="0.1" min="-90" max="90">
+            <div class="dock-body">
+                <div id="pane-settings" class="dock-pane active">
+                    <div class="panel-header-row">
+                        <h2 style="margin:0; color:var(--accent-gold); font-size:1.2rem;">設定</h2>
                     </div>
-                    <input type="range" id="slider-lat" min="-90" max="90" step="0.1">
-                    <div class="coord-group">
-                        <span class="coord-label">経度</span>
-                        <input type="number" id="input-lon" class="coord-input" step="0.1" min="-180" max="180">
-                    </div>
-                    <input type="range" id="slider-lon" min="-180" max="180" step="0.1">
-                </div>
 
-                <div class="panel-section">
-                    <h3 class="section-title">日時設定</h3>
-                    <input type="datetime-local" id="date-picker">
-                    <div class="shuttle-container">
-                        <div class="shuttle-labels">
-                            <span>◀ 戻る</span>
-                            <span style="color:var(--accent-gold);">STOP</span>
-                            <span>進む ▶</span>
+                    <div class="panel-section">
+                        <h3 class="section-title">観測地点</h3>
+                        <button id="btn-location" class="btn-gold" style="width:100%;">📍 現在地を取得</button>
+                        <div class="coord-group">
+                            <span class="coord-label">緯度</span>
+                            <input type="number" id="input-lat" class="coord-input" step="0.1" min="-90" max="90">
                         </div>
-                        <input type="range" id="time-shuttle" min="-100" max="100" value="0" step="1">
+                        <input type="range" id="slider-lat" min="-90" max="90" step="0.1">
+                        <div class="coord-group">
+                            <span class="coord-label">経度</span>
+                            <input type="number" id="input-lon" class="coord-input" step="0.1" min="-180" max="180">
+                        </div>
+                        <input type="range" id="slider-lon" min="-180" max="180" step="0.1">
                     </div>
-                    <div class="time-btn-grid">
-                        <button id="btn-prev-h" class="btn-gold">-1H</button>
-                        <button id="btn-next-h" class="btn-gold">+1H</button>
-                        <button id="btn-prev-d" class="btn-gold">-1D</button>
-                        <button id="btn-next-d" class="btn-gold">+1D</button>
+
+                    <div class="panel-section">
+                        <h3 class="section-title">日時設定</h3>
+                        <input type="datetime-local" id="date-picker">
+                        <div class="shuttle-container">
+                            <div class="shuttle-labels">
+                                <span>◀ 戻る</span>
+                                <span style="color:var(--accent-gold);">STOP</span>
+                                <span>進む ▶</span>
+                            </div>
+                            <input type="range" id="time-shuttle" min="-100" max="100" value="0" step="1">
+                        </div>
+                        <div class="time-btn-grid">
+                            <button id="btn-prev-h" class="btn-gold">-1H</button>
+                            <button id="btn-next-h" class="btn-gold">+1H</button>
+                            <button id="btn-prev-d" class="btn-gold">-1D</button>
+                            <button id="btn-next-d" class="btn-gold">+1D</button>
+                        </div>
+                        <div class="time-actions">
+                            <button id="btn-tonight" class="btn-gold" style="flex:1;">今夜 21時</button>
+                            <button id="btn-now" class="btn-gold" style="flex:1;">現在時刻</button>
+                        </div>
                     </div>
-                    <div class="time-actions">
-                        <button id="btn-tonight" class="btn-gold" style="flex:1;">今夜 21時</button>
-                        <button id="btn-now" class="btn-gold" style="flex:1;">現在時刻</button>
+
+                    <div class="panel-section">
+                        <h3 class="section-title">表示オプション</h3>
+                        <button id="btn-sunlight" class="btn-gold active" style="width:100%; margin-bottom:5px;">☀ 太陽光の影響</button>
+                        <button id="btn-grid" class="btn-gold active" style="width:100%; margin-bottom:5px;">🌐 座標線を表示</button>
+                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                            <span class="coord-label">星の数</span>
+                            <span class="coord-label" id="mag-label">4.5等まで</span>
+                        </div>
+                        <input type="range" id="mag-slider" min="-2" max="7.5" step="0.1" value="4.5">
+                        <div style="margin-top:8px;">
+                            <span class="coord-label" style="display:block; margin-bottom:4px;">天体フィルター</span>
+                            <div id="filter-container"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="panel-section">
-                    <h3 class="section-title">表示オプション</h3>
-                    <button id="btn-grid" class="btn-gold active" style="width:100%; margin-bottom:5px;">🌐 座標線を表示</button>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                        <span class="coord-label">星の数</span>
-                        <span class="coord-label" id="mag-label">4.5等まで</span>
+                <div id="pane-info" class="dock-pane">
+                    <div class="panel-header-row">
+                        <h2 style="margin:0; color:var(--accent-gold); font-size:1.2rem;">天体データ</h2>
                     </div>
-                    <input type="range" id="mag-slider" min="-2" max="7.5" step="0.1" value="4.5">
-                    <div style="margin-top:8px;">
-                        <span class="coord-label" style="display:block; margin-bottom:4px;">天体フィルター</span>
-                        <div id="filter-container"></div>
+                    <div class="panel-section">
+                        <h1 id="star-name" style="margin-top:0.5rem;">未選択</h1>
+                        <div class="star-info-grid">
+                            <div class="star-detail-item">
+                                <span class="detail-label">高度/方位</span>
+                                <span class="detail-value" id="star-altaz">-</span>
+                            </div>
+                            <div class="star-detail-item">
+                                <span class="detail-label">距離 (Distance)</span>
+                                <span class="detail-value"><span id="star-dist">-</span> <span id="dist-unit"></span></span>
+                            </div>
+                            <div class="star-detail-item">
+                                <span class="detail-label">タイプ (Type)</span>
+                                <span class="detail-value" id="star-type">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="panel-section">
+                        <p style="font-size:0.8rem; opacity:0.7;">星図上の天体をクリックすると、ここに詳細が表示されます。</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div id="info-dock">
-            <div class="dock-strip-horizontal" id="toggle-info-strip">
-                <span class="strip-label-h">天体データ</span>
-                <button class="toggle-btn-h closed" id="btn-info-toggle">≫</button>
+        <div id="mobile-controls">
+            <div class="mobile-info-header">
+                <span class="mobile-clock-label">表示中の日時</span>
+                <span id="mobile-clock-display" class="mobile-clock-value">----/--/-- --:--</span>
+            </div>
+            
+            <div class="mobile-location-row">
+                <span id="mobile-location-display">緯度: --.--  経度: ---.--</span>
             </div>
 
-            <div id="side-panel">
-                <h1 id="star-name">Object Name</h1>
-                <div class="star-info-grid">
-                    <div class="star-detail-item">
-                        <span class="detail-label">高度/方位</span>
-                        <span class="detail-value" id="star-altaz">-</span>
-                    </div>
-                    <div class="star-detail-item">
-                        <span class="detail-label">距離 (Distance)</span>
-                        <span class="detail-value"><span id="star-dist">-</span> <span id="dist-unit"></span></span>
-                    </div>
-                    <div class="star-detail-item">
-                        <span class="detail-label">タイプ (Type)</span>
-                        <span class="detail-value" id="star-type">-</span>
-                    </div>
+            <div class="mobile-row">
+                <span class="mobile-label">時間</span>
+                <input type="range" id="mobile-time-shuttle" min="-100" max="100" value="0" step="1">
+            </div>
+            
+            <div class="mobile-time-actions">
+                <button class="mobile-btn-small" id="btn-mobile-location">📍 現在地</button>
+                <div style="flex-grow:1;"></div>
+                <button class="mobile-btn-small" id="btn-mobile-now">現在時刻</button>
+                <button class="mobile-btn-small" id="btn-mobile-tonight">今夜21時</button>
+            </div>
+
+            <div class="mobile-row" style="margin-top: 5px;">
+                <span class="mobile-label">星の数</span>
+                <div class="mag-badge-container">
+                    <span id="mobile-mag-value" class="mag-badge">4.5等</span>
                 </div>
+                <input type="range" id="mobile-mag-slider" min="-2" max="7.5" step="0.1" value="4.5">
+            </div>
+            
+            <div class="mobile-toggles">
+                <button class="mobile-btn" id="btn-mobile-constellation">星座</button>
+                <button class="mobile-btn" id="btn-mobile-labels">天体名</button>
+                <button class="mobile-btn" id="btn-mobile-grid">座標線</button>
+                <button class="mobile-btn" id="btn-mobile-sunlight">☀太陽光</button>
             </div>
         </div>
     </div>

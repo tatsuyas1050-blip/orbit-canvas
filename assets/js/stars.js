@@ -6,15 +6,14 @@ const CONFIG = {
     bgColor: 0x050a14, 
     
     // --- 画角設定 ---
-    cameraFov: 50,  // 初期値
-    minFov: 10,     // ズームイン最大（望遠）
-    maxFov: 75,     // ズームアウト最大（広角）
+    cameraFov: 50,  
+    minFov: 10,     
+    maxFov: 75,     
     
     categories: {
         SolarSystem: { label: '太陽系', color: '#ffd700', type: 'solar_body' }, 
         star: { label: '恒星', color: '#ffffff', type: 'point' }, 
         
-        // 星座線と星座名
         ConstellationLines: { label: '星座線', color: '#a0d9ff', type: 'line' },
         ConstellationLabels: { label: '星座名', color: '#a0d9ff', type: 'label_only' },
 
@@ -40,13 +39,13 @@ const CONFIG = {
     }
 };
 
-// --- 空の色設定 (高度に応じたベースカラー: 青～紺のみ) ---
+// --- 空の色設定 (高度に応じたベースカラー) ---
 const SKY_GRADIENT = [
-    { alt: -18, color: new THREE.Color('#050a14') }, // 完全な夜
-    { alt: -6,  color: new THREE.Color('#0a1320') }, // 薄明
-    { alt: 0,   color: new THREE.Color('#0f2035') }, // 日の出・日の入りベース
-    { alt: 6,   color: new THREE.Color('#142840') }, // 昼間への移行
-    { alt: 90,  color: new THREE.Color('#0a1a2a') }  // 昼間
+    { alt: -18, color: new THREE.Color('#050a14') }, 
+    { alt: -6,  color: new THREE.Color('#0a1320') }, 
+    { alt: 0,   color: new THREE.Color('#0f2035') }, 
+    { alt: 6,   color: new THREE.Color('#142840') }, 
+    { alt: 90,  color: new THREE.Color('#0a1a2a') }  
 ];
 
 const CATALOG_FILES = [
@@ -75,7 +74,7 @@ const state = {
     lon: 139.6917,
     date: new Date(),
     gridVisible: true,
-    sunlightVisible: true, // 太陽光の影響ON/OFF
+    sunlightVisible: true,
     magLimit: 4.5,
     shuttleValue: 0,
     selectedStarIndex: -1,
@@ -84,7 +83,9 @@ const state = {
     dragStartX: 0,
     dragStartY: 0,
     
-    // 選択サイクル用
+    // ラベル表示状態管理
+    labelsVisible: true, 
+    
     clickCandidates: [],
     clickCandidateIndex: 0,
     lastClickTime: 0
@@ -108,7 +109,7 @@ function init() {
     container.appendChild(renderer.domElement);
 
     controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableZoom = false; // OrbitControls標準ズームは無効化
+    controls.enableZoom = false; 
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
@@ -125,7 +126,10 @@ function init() {
     createCompass();
 
     raycaster = new THREE.Raycaster();
-    raycaster.params.Points.threshold = 15; 
+    
+    const isMobile = window.innerWidth <= 900;
+    raycaster.params.Points.threshold = isMobile ? 30 : 15; 
+    
     mouse = new THREE.Vector2();
 
     setupUI();
@@ -142,7 +146,6 @@ function init() {
     });
     window.addEventListener('click', onClick);
 
-    // ズーム（ホイール）イベント
     container.addEventListener('wheel', onMouseWheel, { passive: false });
 
     animate();
@@ -157,13 +160,18 @@ function onMouseWheel(event) {
 }
 
 function setupUI() {
+    const isMobile = window.innerWidth <= 900;
+
     const dateInput = document.getElementById('date-picker');
-    const settingsDock = document.getElementById('settings-dock');
-    const infoDock = document.getElementById('info-dock');
-    const btnSettingsToggle = document.getElementById('btn-settings-toggle');
-    const btnInfoToggle = document.getElementById('btn-info-toggle');
-    const toggleSettingsStrip = document.getElementById('toggle-settings-strip');
-    const toggleInfoStrip = document.getElementById('toggle-info-strip');
+    
+    // 変更: ドック関連の要素取得
+    const sideDock = document.getElementById('side-dock');
+    const btnDockToggle = document.getElementById('btn-dock-toggle');
+    const tabBtnSettings = document.getElementById('tab-btn-settings');
+    const tabBtnInfo = document.getElementById('tab-btn-info');
+    const paneSettings = document.getElementById('pane-settings');
+    const paneInfo = document.getElementById('pane-info');
+
     const screenClock = document.getElementById('screen-clock'); 
     
     const magSlider = document.getElementById('mag-slider');
@@ -175,23 +183,65 @@ function setupUI() {
     const sliderLon = document.getElementById('slider-lon');
     const filterContainer = document.getElementById('filter-container');
 
-    toggleSettingsStrip.addEventListener('click', () => {
-        settingsDock.classList.toggle('open');
-        const isOpen = settingsDock.classList.contains('open');
-        btnSettingsToggle.textContent = isOpen ? '≫' : '≪';
+    // モバイル用コントロール
+    const mobileTimeShuttle = document.getElementById('mobile-time-shuttle');
+    const mobileMagSlider = document.getElementById('mobile-mag-slider');
+    const mobileMagValue = document.getElementById('mobile-mag-value');
+    const mobileClockDisplay = document.getElementById('mobile-clock-display');
+    const mobileLocationDisplay = document.getElementById('mobile-location-display');
+    
+    const btnMobileConstellation = document.getElementById('btn-mobile-constellation');
+    const btnMobileLabels = document.getElementById('btn-mobile-labels');
+    const btnMobileGrid = document.getElementById('btn-mobile-grid');
+    const btnMobileSunlight = document.getElementById('btn-mobile-sunlight'); 
+    const btnMobileNow = document.getElementById('btn-mobile-now');
+    const btnMobileTonight = document.getElementById('btn-mobile-tonight');
+    const btnMobileLocation = document.getElementById('btn-mobile-location'); 
+
+    // PC用ドックの初期状態設定
+    if (isMobile) {
+        sideDock.classList.remove('open');
+        btnDockToggle.textContent = '≪';
+    } else {
+        sideDock.classList.add('open');
+        btnDockToggle.textContent = '≫';
+    }
+
+    // ドック開閉トグル
+    btnDockToggle.addEventListener('click', () => {
+        sideDock.classList.toggle('open');
+        const isOpen = sideDock.classList.contains('open');
+        btnDockToggle.textContent = isOpen ? '≫' : '≪';
     });
 
-    toggleInfoStrip.addEventListener('click', () => {
-        infoDock.classList.toggle('open');
-        const isOpen = infoDock.classList.contains('open');
-        if (isOpen) {
-            btnInfoToggle.classList.remove('closed');
-            btnInfoToggle.classList.add('opened');
-        } else {
-            btnInfoToggle.classList.remove('opened');
-            btnInfoToggle.classList.add('closed');
+    // タブ切り替え処理
+    const switchTab = (tabName) => {
+        // 全タブ非アクティブ化
+        tabBtnSettings.classList.remove('active');
+        tabBtnInfo.classList.remove('active');
+        paneSettings.classList.remove('active');
+        paneInfo.classList.remove('active');
+
+        // 指定タブアクティブ化
+        if (tabName === 'settings') {
+            tabBtnSettings.classList.add('active');
+            paneSettings.classList.add('active');
+        } else if (tabName === 'info') {
+            tabBtnInfo.classList.add('active');
+            paneInfo.classList.add('active');
         }
-    });
+
+        // ドックが閉じていたら開く
+        if (!sideDock.classList.contains('open')) {
+            sideDock.classList.add('open');
+            btnDockToggle.textContent = '≫';
+        }
+    };
+
+    tabBtnSettings.addEventListener('click', () => switchTab('settings'));
+    tabBtnInfo.addEventListener('click', () => switchTab('info'));
+
+    // --- 以下、各種コントロールの設定は既存通り ---
 
     inputLat.value = state.lat.toFixed(2);
     inputLon.value = state.lon.toFixed(2);
@@ -208,7 +258,11 @@ function setupUI() {
         const day = d.getDate().toString().padStart(2, '0');
         const hour = d.getHours().toString().padStart(2, '0');
         const min = d.getMinutes().toString().padStart(2, '0');
-        screenClock.textContent = `${year}/${month}/${day} ${hour}:${min}`;
+        
+        const dateStr = `${year}/${month}/${day} ${hour}:${min}`;
+        
+        if(screenClock) screenClock.textContent = dateStr;
+        if(mobileClockDisplay) mobileClockDisplay.textContent = dateStr;
     };
     updateDateInput();
 
@@ -223,6 +277,44 @@ function setupUI() {
         onTimeChange();
     });
     
+    // 時間シャトル (PC & Mobile 同期)
+    const syncShuttle = (val) => {
+        state.shuttleValue = parseInt(val);
+        timeShuttle.value = val;
+        mobileTimeShuttle.value = val;
+    };
+    timeShuttle.addEventListener('input', (e) => syncShuttle(e.target.value));
+    mobileTimeShuttle.addEventListener('input', (e) => syncShuttle(e.target.value));
+
+    const resetShuttle = () => { 
+        syncShuttle(0);
+        updateDateInput(); 
+        updateSolarSystemData(); 
+    };
+    timeShuttle.addEventListener('mouseup', resetShuttle); 
+    timeShuttle.addEventListener('touchend', resetShuttle);
+    mobileTimeShuttle.addEventListener('mouseup', resetShuttle); 
+    mobileTimeShuttle.addEventListener('touchend', resetShuttle);
+
+    // 等級スライダー (PC & Mobile 同期)
+    const syncMag = (val) => {
+        state.magLimit = parseFloat(val);
+        magSlider.value = val;
+        mobileMagSlider.value = val;
+        
+        const text = `${state.magLimit.toFixed(1)}等`;
+        document.getElementById('mag-label').textContent = text + 'まで';
+        if(mobileMagValue) mobileMagValue.textContent = text; 
+
+        if (layers['star']) {
+            layers['star'].mesh.children[0].material.uniforms.magLimit.value = state.magLimit;
+        }
+        updatePositions(); 
+    };
+    magSlider.addEventListener('input', (e) => syncMag(e.target.value));
+    mobileMagSlider.addEventListener('input', (e) => syncMag(e.target.value));
+
+    // 時間操作ボタン (PC)
     const addTime = (hours) => { 
         state.date.setTime(state.date.getTime() + hours * 60 * 60 * 1000); 
         updateDateInput(); 
@@ -233,62 +325,99 @@ function setupUI() {
     document.getElementById('btn-prev-d').addEventListener('click', () => addTime(-24));
     document.getElementById('btn-next-d').addEventListener('click', () => addTime(24));
 
-    timeShuttle.addEventListener('input', (e) => { state.shuttleValue = parseInt(e.target.value); });
-    const resetShuttle = () => { 
-        state.shuttleValue = 0; 
-        timeShuttle.value = 0; 
-        updateDateInput(); 
-        updateSolarSystemData(); 
-    };
-    timeShuttle.addEventListener('mouseup', resetShuttle); 
-    timeShuttle.addEventListener('touchend', resetShuttle);
-
-    document.getElementById('btn-tonight').addEventListener('click', () => {
+    // 今夜21時 / 現在時刻 (PC & Mobile 共通処理)
+    const setTonight = () => {
         const d = new Date(); d.setHours(21, 0, 0, 0); state.date = d; 
         resetShuttle(); 
         onTimeChange();
         state.selectedObject = null;
         document.getElementById('star-reticle').classList.remove('visible');
-    });
-    document.getElementById('btn-now').addEventListener('click', () => {
+    };
+    
+    const setNow = () => {
         state.date = new Date(); 
         resetShuttle(); 
         onTimeChange();
         state.selectedObject = null;
         document.getElementById('star-reticle').classList.remove('visible');
-    });
+    };
 
-    magSlider.addEventListener('input', (e) => {
-        state.magLimit = parseFloat(e.target.value);
-        document.getElementById('mag-label').textContent = `${state.magLimit.toFixed(1)}等まで`;
-        if (layers['star']) {
-            layers['star'].mesh.children[0].material.uniforms.magLimit.value = state.magLimit;
-        }
-        updatePositions();
-    });
+    document.getElementById('btn-tonight').addEventListener('click', setTonight);
+    document.getElementById('btn-now').addEventListener('click', setNow);
+    
+    btnMobileTonight.addEventListener('click', setTonight);
+    btnMobileNow.addEventListener('click', setNow);
 
-    // --- ボタン: 座標線 ---
+    // 座標線トグル
     const btnGrid = document.getElementById('btn-grid');
-    btnGrid.addEventListener('click', (e) => {
-        state.gridVisible = !state.gridVisible; 
-        if (gridHelper) gridHelper.visible = state.gridVisible; 
-        e.target.classList.toggle('active');
-    });
+    const toggleGrid = () => {
+        state.gridVisible = !state.gridVisible;
+        if (gridHelper) gridHelper.visible = state.gridVisible;
+        btnGrid.classList.toggle('active', state.gridVisible);
+        btnMobileGrid.classList.toggle('active', state.gridVisible);
+    };
+    btnGrid.addEventListener('click', toggleGrid);
+    btnMobileGrid.addEventListener('click', toggleGrid);
+    btnMobileGrid.classList.add('active'); // 初期状態
 
-    // --- ボタン: 太陽光の影響 ---
-    const btnSunlight = document.createElement('button');
-    btnSunlight.textContent = '☀ 太陽光の影響';
-    btnSunlight.className = 'btn-gold active'; 
-    btnSunlight.style.width = '100%';
-    btnSunlight.style.marginBottom = '5px';
-    btnGrid.parentNode.insertBefore(btnSunlight, btnGrid);
+    // モバイル: 星座トグル (線と名前の両方)
+    const toggleConstellation = () => {
+        let visible = false;
+        if(layers['ConstellationLines']) {
+            visible = !layers['ConstellationLines'].visible; // Toggle based on lines
+            layers['ConstellationLines'].visible = visible;
+            layers['ConstellationLines'].mesh.visible = visible;
+        }
+        if(layers['ConstellationLabels']) {
+            layers['ConstellationLabels'].visible = visible;
+            layers['ConstellationLabels'].mesh.visible = visible;
+        }
+        btnMobileConstellation.classList.toggle('active', visible);
+    };
+    btnMobileConstellation.addEventListener('click', toggleConstellation);
+    btnMobileConstellation.classList.add('active'); // 初期状態ON
 
-    btnSunlight.addEventListener('click', () => {
+    // モバイル: 天体名トグル
+    const toggleStarLabels = () => {
+        state.labelsVisible = !state.labelsVisible;
+        
+        // 恒星ラベルはupdatePositionsで制御
+        updatePositions(); 
+        
+        // DSOや太陽系のラベルは個別に切り替え
+        Object.keys(layers).forEach(key => {
+             if (key === 'star' || key === 'ConstellationLines' || key === 'ConstellationLabels') return;
+             const group = layers[key].mesh;
+             group.children.forEach(child => {
+                 if (child.userData.hasLabel) {
+                     child.children.forEach(grandChild => {
+                         if (grandChild.userData.isLabel) {
+                             grandChild.visible = state.labelsVisible;
+                         }
+                     });
+                 }
+             });
+        });
+
+        btnMobileLabels.classList.toggle('active', state.labelsVisible);
+    };
+    btnMobileLabels.addEventListener('click', toggleStarLabels);
+    btnMobileLabels.classList.add('active'); // 初期状態ON
+
+    // 太陽光の影響 (PC)
+    const pcSunlightBtn = document.getElementById('btn-sunlight');
+    const toggleSunlight = () => {
         state.sunlightVisible = !state.sunlightVisible;
-        btnSunlight.classList.toggle('active');
-        // シェーダーと背景色更新のために再描画
+        if(pcSunlightBtn) pcSunlightBtn.classList.toggle('active', state.sunlightVisible);
+        btnMobileSunlight.classList.toggle('active', state.sunlightVisible);
         updateSolarSystemData();
-    });
+    };
+
+    if(pcSunlightBtn) pcSunlightBtn.addEventListener('click', toggleSunlight);
+    
+    // モバイル版太陽光ボタン
+    btnMobileSunlight.addEventListener('click', toggleSunlight);
+    btnMobileSunlight.classList.add('active'); // 初期状態ON
 
     const updateLocation = (rawLat, rawLon) => {
         let displayLat = Math.max(-90, Math.min(90, rawLat));
@@ -302,35 +431,51 @@ function setupUI() {
         sliderLat.value = displayLat;
         inputLon.value = displayLon;
         sliderLon.value = displayLon;
+        
+        // モバイル用表示更新
+        const mobileLocationDisplay = document.getElementById('mobile-location-display');
+        if(mobileLocationDisplay) {
+            mobileLocationDisplay.textContent = `緯度: ${state.lat.toFixed(2)}  経度: ${state.lon.toFixed(2)}`;
+        }
+
         updatePositions();
         updateSolarSystemData(); 
     };
+    
+    // 初期表示更新
+    const mobileLocationDisplayInit = document.getElementById('mobile-location-display');
+    if(mobileLocationDisplayInit) {
+        mobileLocationDisplayInit.textContent = `緯度: ${state.lat.toFixed(2)}  経度: ${state.lon.toFixed(2)}`;
+    }
 
     inputLat.addEventListener('change', () => updateLocation(parseFloat(inputLat.value), parseFloat(inputLon.value)));
     inputLon.addEventListener('change', () => updateLocation(parseFloat(inputLat.value), parseFloat(inputLon.value)));
     sliderLat.addEventListener('input', () => updateLocation(parseFloat(sliderLat.value), parseFloat(sliderLon.value)));
     sliderLon.addEventListener('input', () => updateLocation(parseFloat(sliderLat.value), parseFloat(sliderLon.value)));
 
-    document.getElementById('btn-location').addEventListener('click', () => {
+    // 現在地取得 (PC & Mobile)
+    const getLocation = (btn) => {
         if (!navigator.geolocation) return alert("Geolocation not supported");
-        const btn = document.getElementById('btn-location');
-        const txt = btn.textContent;
+        const originalText = btn.textContent;
         btn.textContent = "取得中...";
         navigator.geolocation.getCurrentPosition(pos => {
             updateLocation(pos.coords.latitude, pos.coords.longitude);
-            btn.textContent = txt;
-        }, () => { alert("位置情報を取得できませんでした。"); btn.textContent = txt; });
-    });
+            btn.textContent = originalText;
+        }, () => { 
+            alert("位置情報を取得できませんでした。"); 
+            btn.textContent = originalText; 
+        });
+    };
 
+    document.getElementById('btn-location').addEventListener('click', function() { getLocation(this); });
+    btnMobileLocation.addEventListener('click', function() { getLocation(this); });
+
+    // 「more」ボタンの挙動：サイドドックを開き、infoタブを表示
     btnMore.addEventListener('click', (e) => {
         e.stopPropagation();
         if (state.selectedObject) {
             showSidePanel(state.selectedObject);
-            const infoDock = document.getElementById('info-dock');
-            infoDock.classList.add('open');
-            const btnInfo = document.getElementById('btn-info-toggle');
-            btnInfo.classList.remove('closed');
-            btnInfo.classList.add('opened');
+            switchTab('info'); // 変更：infoタブを開く
         }
     });
 
@@ -510,8 +655,7 @@ function createSolarSystemSprites(data, parentGroup) {
         const labelSprite = new THREE.Sprite(labelMat);
         const aspect = labelMap.image.width / labelMap.image.height;
         
-        // --- 修正箇所: ラベルサイズを少し小さく ---
-        const baseH = 12; // 15 -> 12
+        const baseH = 12; 
         const baseW = baseH * aspect;
         labelSprite.scale.set(baseW, baseH, 1);
         
@@ -682,9 +826,7 @@ function createLabelTexture(text, colorStr, fontSize = 32) {
 async function fetchAllData() {
     const loader = document.getElementById('loader');
     const promises = CATALOG_FILES.map(item => 
-        // ---------------------------------------------------------------------------
-        // 修正箇所: カタログファイルのパスを 'catalogs/' から 'assets/catalogs/' に変更
-        // ---------------------------------------------------------------------------
+        // 修正箇所: カタログファイルのパスを 'assets/catalogs/' に統一
         fetch(`assets/catalogs/${item.file}`)
             .then(res => { if (!res.ok) throw new Error(`${item.file}: ${res.status}`); return res.json(); })
             .then(data => ({ type: item.type, data: data }))
@@ -752,7 +894,6 @@ function createConstellationLabels(data, config, parentGroup) {
         const sprite = new THREE.Sprite(material);
         const aspect = labelMap.image.width / labelMap.image.height;
         
-        // --- 修正箇所: ラベルサイズを少し小さく ---
         const baseH = 12; 
         const baseW = baseH * aspect;
         sprite.scale.set(baseW, baseH, 1);
@@ -789,14 +930,13 @@ function createStarPoints(type, data, parentGroup) {
             pointTexture: { value: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/spark1.png') },
             magLimit: { value: state.magLimit }, 
             uTime: { value: 0.0 },
-            // --- 修正箇所: FOV情報を受け取る ---
             uFov: { value: CONFIG.cameraFov } 
         },
         vertexShader: `
             attribute float size; attribute vec3 color; attribute float aMagnitude;
             varying vec3 vColor; varying float vMag;
             uniform float magLimit; uniform float uTime;
-            uniform float uFov; // FOV Uniform
+            uniform float uFov; 
             float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
             void main() {
                 vMag = aMagnitude; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
@@ -807,8 +947,6 @@ function createStarPoints(type, data, parentGroup) {
                 vColor = color * twinkle;
                 float exposureScale = 0.5 + max(0.0, magLimit) * 0.4; 
                 
-                // --- 修正箇所: ズームイン(FOV小)のとき星を大きくする ---
-                // 基準FOV=50.0 とし、現在のuFovとの比率で補正
                 float fovFactor = 50.0 / uFov;
                 
                 gl_PointSize = size * exposureScale * fovFactor * (300.0 / -mvPosition.z);
@@ -840,8 +978,7 @@ function createStarLabels(data, parentGroup) {
         const labelSprite = new THREE.Sprite(labelMat);
         const aspect = labelMap.image.width / labelMap.image.height;
         
-        // --- 修正箇所: ラベルサイズを少し小さく ---
-        const baseH = 8; // 11 -> 8
+        const baseH = 8; 
         const baseW = baseH * aspect;
         labelSprite.scale.set(baseW, baseH, 1);
         
@@ -877,8 +1014,7 @@ function createDSOSprites(type, data, config, parentGroup) {
             const labelSprite = new THREE.Sprite(labelMat);
             const aspect = labelMap.image.width / labelMap.image.height;
             
-            // --- 修正箇所: ラベルサイズを少し小さく ---
-            const baseH = 10; // 14 -> 10
+            const baseH = 10; 
             const baseW = baseH * aspect;
             labelSprite.scale.set(baseW, baseH, 1);
             labelSprite.userData.baseScale = { x: baseW, y: baseH };
@@ -946,7 +1082,11 @@ function updatePositions() {
             const coord = calcHorizontalCoord(ra, dec, lstRad, sinLat, cosLat, r);
             child.position.set(coord.x, coord.y, coord.z);
             if (!d.isLabelOnly && d.mag !== undefined) {
-                child.visible = (d.mag <= state.magLimit);
+                if (d.isLabel) {
+                     child.visible = (d.mag <= state.magLimit) && state.labelsVisible;
+                } else {
+                     child.visible = (d.mag <= state.magLimit);
+                }
             }
         });
     });
@@ -984,7 +1124,7 @@ function calculateLST(date, longitude) {
     return (LST % 360) * (Math.PI / 180);
 }
 
-// --- スカイドームとシェーダー (修正版: ON/OFF対応) ---
+// --- スカイドームとシェーダー (ON/OFF対応) ---
 function createSkyDome() {
     const geometry = new THREE.SphereGeometry(900, 64, 64);
     
@@ -1001,41 +1141,26 @@ function createSkyDome() {
         uniform vec3 baseColor;
         uniform vec3 sunDirection;
         uniform float sunAlt;
-        uniform float uSunlightEnabled; // 1.0 or 0.0
+        uniform float uSunlightEnabled; 
 
         varying vec3 vWorldPosition;
 
-        float inverseLerp(float a, float b, float v) {
-            return clamp((v - a) / (b - a), 0.0, 1.0);
-        }
-
         void main() {
             vec3 viewDir = normalize(vWorldPosition);
-            vec3 sunDir = normalize(sunDirection);
-            
             vec3 color = baseColor;
-            
-            float dotP = dot(viewDir, sunDir);
+            float dotP = dot(viewDir, normalize(sunDirection));
             
             if (dotP > 0.0) {
                 float glowSize = 14.0;
                 float glowIntensity = pow(dotP, glowSize);
-                
-                vec3 sunsetColor = vec3(1.0, 0.35, 0.05); // 濃いオレンジ
-                vec3 dayColor = vec3(0.8, 0.9, 1.0);     // 青白い白
-                
-                float tSunsetRise = smoothstep(-20.0, -5.0, sunAlt);
-                float tSunsetFall = 1.0 - smoothstep(5.0, 25.0, sunAlt);
-                float sunsetStrength = tSunsetRise * tSunsetFall;
+                vec3 sunsetColor = vec3(1.0, 0.35, 0.05); 
+                vec3 dayColor = vec3(0.8, 0.9, 1.0);     
                 
                 float dayStrength = smoothstep(0.0, 25.0, sunAlt);
-                
                 float totalPower = smoothstep(-20.0, -5.0, sunAlt);
-
                 vec3 glowColor = mix(sunsetColor, dayColor, dayStrength);
                 float brightness = mix(0.8, 0.4, dayStrength);
 
-                // uSunlightEnabled を掛けてON/OFF制御
                 color += glowColor * glowIntensity * totalPower * brightness * uSunlightEnabled;
             }
             
@@ -1070,7 +1195,6 @@ function updateSky(sunAlt, sunAz) {
 
     let targetColor;
 
-    // 太陽光の影響がONのときだけ、高度に応じた色計算を行う
     if (state.sunlightVisible) {
         if (sunAlt <= SKY_GRADIENT[0].alt) {
             targetColor = SKY_GRADIENT[0].color;
@@ -1088,7 +1212,6 @@ function updateSky(sunAlt, sunAz) {
             }
         }
     } else {
-        // OFFのときは固定の夜空色
         targetColor = new THREE.Color(0x050a14);
     }
 
@@ -1182,6 +1305,9 @@ function getObjectName(obj) {
 function onClick(event) {
     if (event.target.closest('.ui-layer') && !event.target.classList.contains('ui-layer')) return;
     if (event.target.closest('div[style*="position: absolute"]')) return; 
+
+    // スマホのコントロールバー上でのクリックを無視
+    if (event.target.closest('#mobile-controls')) return;
 
     const diffX = Math.abs(event.clientX - state.dragStartX);
     const diffY = Math.abs(event.clientY - state.dragStartY);
@@ -1277,6 +1403,26 @@ function onClick(event) {
             
             showSidePanel(targetObj);
             
+            // 変更点: 天体を選択したらサイドドックを開き、infoタブを表示
+            const sideDock = document.getElementById('side-dock');
+            const btnDockToggle = document.getElementById('btn-dock-toggle');
+            const tabBtnSettings = document.getElementById('tab-btn-settings');
+            const tabBtnInfo = document.getElementById('tab-btn-info');
+            const paneSettings = document.getElementById('pane-settings');
+            const paneInfo = document.getElementById('pane-info');
+
+            // infoタブをアクティブ化
+            tabBtnSettings.classList.remove('active');
+            paneSettings.classList.remove('active');
+            tabBtnInfo.classList.add('active');
+            paneInfo.classList.add('active');
+
+            // ドックを開く
+            if (!sideDock.classList.contains('open')) {
+                sideDock.classList.add('open');
+                btnDockToggle.textContent = '≫';
+            }
+
             updateReticle(); 
         } else {
             resetSelectionHelper();
@@ -1291,14 +1437,6 @@ function resetSelectionHelper() {
     const reticle = document.getElementById('star-reticle');
     reticle.classList.remove('visible');
     reticle.style.display = 'none'; 
-    
-    const infoDock = document.getElementById('info-dock');
-    if (infoDock.classList.contains('open')) {
-        infoDock.classList.remove('open');
-        const btnInfo = document.getElementById('btn-info-toggle');
-        btnInfo.classList.remove('opened');
-        btnInfo.classList.add('closed');
-    }
 }
 
 function showSidePanel(obj) {
@@ -1341,6 +1479,10 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    // レイキャスター閾値のレスポンシブ更新
+    const isMobile = window.innerWidth <= 900;
+    raycaster.params.Points.threshold = isMobile ? 30 : 15;
 }
 
 function updateReticle() {
@@ -1462,7 +1604,6 @@ function animate() {
         const points = layers['star'].mesh.children.find(c => c.isPoints);
         if (points) {
             points.material.uniforms.uTime.value += 0.005;
-            // --- 修正箇所: FOVをシェーダーへ送る ---
             if (points.material.uniforms.uFov) {
                 points.material.uniforms.uFov.value = camera.fov;
             }
@@ -1480,13 +1621,18 @@ function animate() {
         document.getElementById('date-picker').value = local.toISOString().slice(0, 16);
         
         const screenClock = document.getElementById('screen-clock');
-        if(screenClock){
+        const mobileClockDisplay = document.getElementById('mobile-clock-display');
+        
+        if(screenClock || mobileClockDisplay){
             const year = d.getFullYear();
             const month = (d.getMonth() + 1).toString().padStart(2, '0');
             const day = d.getDate().toString().padStart(2, '0');
             const hour = d.getHours().toString().padStart(2, '0');
             const min = d.getMinutes().toString().padStart(2, '0');
-            screenClock.textContent = `${year}/${month}/${day} ${hour}:${min}`;
+            const dateStr = `${year}/${month}/${day} ${hour}:${min}`;
+            
+            if(screenClock) screenClock.textContent = dateStr;
+            if(mobileClockDisplay) mobileClockDisplay.textContent = dateStr;
         }
     }
     controls.update();

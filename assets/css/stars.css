@@ -2,16 +2,21 @@
 
 :root {
     --panel-width: 340px;
+    --strip-width: 44px; /* ストリップの幅 */
     --panel-height: 280px;
-    --strip-bg: rgba(5, 10, 20, 0.8);
+    --strip-bg: rgba(5, 10, 20, 0.85);
+    --mobile-control-height: 250px;
 }
 
 body {
     overflow: hidden;
     user-select: none;
+    background-color: #050a14;
 }
 
-#canvas-container { width: 100vw; height: 100vh; display: block; }
+#canvas-container { 
+    width: 100vw; height: 100vh; height: 100dvh; display: block; 
+}
 
 .ui-layer {
     position: absolute; pointer-events: none;
@@ -43,7 +48,7 @@ input[type="datetime-local"] {
     width: 100%; box-sizing: border-box;
 }
 
-/* Glass Back Button (Specific for Stars Page) */
+/* Glass Back Button */
 .glass-back-btn {
     position: absolute; top: 1.5rem; left: 1.5rem;
     display: inline-flex; align-items: center; gap: 8px;
@@ -67,7 +72,7 @@ input[type="datetime-local"] {
 }
 .glass-back-btn:hover::before { transform: translateX(-4px); }
 
-/* Screen Clock */
+/* Screen Clock (PC) */
 #screen-clock {
     position: absolute; top: 1.5rem; right: 70px;
     color: var(--accent-gold); font-size: 1.1rem; font-weight: 500; letter-spacing: 0.1em;
@@ -77,83 +82,73 @@ input[type="datetime-local"] {
     text-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 
-/* Settings Dock */
-#settings-dock {
+/* --- Side Dock (Integrated) --- */
+#side-dock {
     position: absolute; top: 0; right: 0; height: 100%;
     display: flex; align-items: stretch; pointer-events: auto;
-    transform: translateX(var(--panel-width));
+    /* ストリップは見えていて、本体だけ隠す */
+    transform: translateX(var(--panel-width)); 
     transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: 150;
 }
-#settings-dock.open { transform: translateX(0); }
+#side-dock.open { transform: translateX(0); }
 
-.dock-strip-vertical {
-    width: 32px; background: var(--strip-bg);
+/* ドック左端のストリップ（タブエリア） */
+.dock-strip {
+    width: var(--strip-width); 
+    background: var(--strip-bg);
     border-left: 1px solid rgba(212, 175, 55, 0.5);
     backdrop-filter: blur(4px);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    cursor: pointer; gap: 15px; box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column; align-items: center;
+    padding-top: 60px; gap: 10px;
+    /* ストリップ自体は常に画面内にあるように配置（親のtransformの影響を打ち消す） */
+    position: absolute; left: calc(var(--strip-width) * -1); top: 0; bottom: 0;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.3);
 }
-.strip-label-v {
+
+/* タブボタン */
+.dock-tab {
     writing-mode: vertical-rl; text-orientation: upright;
-    color: var(--accent-gold); font-size: 0.85rem; letter-spacing: 0.3em;
-    font-weight: 500; user-select: none; text-shadow: 0 0 5px rgba(0,0,0,0.8);
+    background: transparent; border: none; 
+    color: rgba(255,255,255,0.5);
+    font-family: var(--font-main); font-size: 0.85rem; letter-spacing: 0.2em;
+    cursor: pointer; padding: 15px 5px;
+    border-right: 3px solid transparent; /* アクティブ表示用 */
+    transition: all 0.3s;
 }
-.toggle-btn-v {
-    background: transparent; border: none; color: var(--accent-gold);
-    font-family: var(--font-main); font-size: 1.2rem; cursor: pointer;
-    padding: 10px 0; transition: text-shadow 0.3s;
+.dock-tab:hover { color: var(--accent-gold); }
+.dock-tab.active {
+    color: var(--accent-gold);
+    background: rgba(212, 175, 55, 0.1);
+    border-right: 3px solid var(--accent-gold);
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
 }
-.toggle-btn-v:hover { text-shadow: 0 0 5px var(--accent-gold); }
 
-#main-panel {
-    width: var(--panel-width); background: var(--panel-bg);
-    border-left: 1px solid var(--accent-gold); padding: 1.2rem;
+/* 開閉トグルボタン */
+.dock-toggle {
+    margin-top: auto; margin-bottom: 20px;
+    background: transparent; border: none; color: var(--accent-gold);
+    font-size: 1.2rem; cursor: pointer; padding: 10px 0;
+    transition: transform 0.3s;
+}
+
+/* ドック本体 */
+.dock-body {
+    width: var(--panel-width); background: rgba(20, 25, 35, 0.95);
+    border-left: 1px solid var(--accent-gold); 
     box-sizing: border-box; backdrop-filter: blur(10px);
-    display: flex; flex-direction: column; gap: 1rem; overflow-y: auto;
+    display: flex; flex-direction: column; overflow-y: auto;
 }
 
-/* Info Dock */
-#info-dock {
-    position: absolute; bottom: 0; left: 50%; width: 90%; max-width: 600px;
-    transform: translate(-50%, var(--panel-height));
-    display: flex; flex-direction: column; pointer-events: auto;
-    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-    z-index: 160;
+/* パネル（設定・天体データ）の表示切替 */
+.dock-pane {
+    display: none; padding: 1.5rem; flex-direction: column; gap: 1rem;
+    animation: fadeIn 0.3s ease;
 }
-#info-dock.open { transform: translate(-50%, 0); }
+.dock-pane.active { display: flex; }
 
-.dock-strip-horizontal {
-    height: 32px; width: 100%; background: var(--strip-bg);
-    border-top: 1px solid rgba(212, 175, 55, 0.5);
-    border-left: 1px solid rgba(212, 175, 55, 0.3);
-    border-right: 1px solid rgba(212, 175, 55, 0.3);
-    border-radius: 8px 8px 0 0; backdrop-filter: blur(4px);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; gap: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
-}
-.strip-label-h {
-    color: var(--accent-gold); font-size: 0.9rem; letter-spacing: 0.2em;
-    font-weight: 500; user-select: none; text-shadow: 0 0 5px rgba(0,0,0,0.8);
-}
-.toggle-btn-h {
-    background: transparent; border: none; color: var(--accent-gold);
-    font-family: var(--font-main); font-size: 1.2rem; cursor: pointer;
-    display: inline-block; transition: transform 0.4s ease;
-}
-.toggle-btn-h:hover { text-shadow: 0 0 5px var(--accent-gold); }
-.toggle-btn-h.closed { transform: rotate(-90deg); }
-.toggle-btn-h.opened { transform: rotate(90deg); }
-
-#side-panel {
-    height: var(--panel-height); background: var(--panel-bg);
-    border-top: 1px solid var(--accent-gold);
-    border-left: 1px solid rgba(212, 175, 55, 0.3);
-    border-right: 1px solid rgba(212, 175, 55, 0.3);
-    padding: 1.5rem 2rem; box-sizing: border-box;
-    backdrop-filter: blur(10px); overflow-y: auto;
-    display: flex; flex-direction: column;
-}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Panel Internals */
 .panel-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
@@ -192,13 +187,84 @@ input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-g
 .reticle-name-text { font-size: 1.2rem; color: var(--text-white); text-shadow: 0 0 5px #000; font-weight: 500; }
 .btn-more { background: transparent; border: 1px solid var(--accent-gold); color: var(--accent-gold); font-size: 0.7rem; padding: 2px 8px; cursor: pointer; pointer-events: auto; opacity: 0.8; transition: all 0.2s; }
 .btn-more:hover { background: var(--accent-gold); color: var(--bg-dark); opacity: 1; }
-
 #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent-gold); font-size: 1.2rem; letter-spacing: 0.2em; text-align: center; }
 
-@media (max-width: 768px) {
-    #settings-dock { width: 100%; transform: translateX(calc(100% - 32px)); }
-    #main-panel { width: calc(100% - 32px); }
-    .star-info-grid { grid-template-columns: 1fr 1fr; }
-    #screen-clock { right: 50px; font-size: 0.9rem; }
+/* --- Mobile Controls --- */
+#mobile-controls {
+    display: none;
+    position: absolute;
+    bottom: 0; left: 0; width: 100%;
+    background: linear-gradient(to top, rgba(5, 10, 20, 0.98), rgba(5, 10, 20, 0.9) 85%, transparent);
+    padding: 10px 20px 25px;
+    z-index: 140; 
+    box-sizing: border-box;
+    pointer-events: auto;
+    flex-direction: column;
+    gap: 8px; 
 }
 
+.mobile-info-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+}
+.mobile-clock-label { font-size: 0.75rem; color: rgba(255,255,255,0.6); }
+.mobile-clock-value {
+    font-family: sans-serif; color: var(--accent-gold); font-size: 1.1rem; letter-spacing: 0.05em;
+    font-weight: 500; text-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+.mobile-location-row {
+    width: 100%; text-align: right;
+    font-size: 0.75rem; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px; font-family: sans-serif;
+}
+.mobile-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+.mobile-label { font-size: 0.8rem; color: rgba(255,255,255,0.8); min-width: 50px; }
+
+.mag-badge-container { min-width: 60px; display: flex; justify-content: center; }
+.mag-badge {
+    background: rgba(212, 175, 55, 0.15); border: 1px solid var(--accent-gold); color: var(--accent-gold);
+    border-radius: 4px; padding: 2px 8px; font-family: sans-serif; font-size: 0.9rem; font-weight: bold;
+    box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); min-width: 50px; text-align: center;
+}
+
+.mobile-time-actions { display: flex; justify-content: space-between; width: 100%; gap: 5px; margin-bottom: 2px; }
+.mobile-btn-small {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(212, 175, 55, 0.3); color: var(--accent-gold);
+    border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; cursor: pointer;
+    font-family: var(--font-main); transition: all 0.2s; white-space: nowrap;
+}
+.mobile-btn-small:hover { background: rgba(212, 175, 55, 0.2); border-color: var(--accent-gold); }
+
+.mobile-toggles { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; width: 100%; margin-top: 8px; }
+.mobile-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(212, 175, 55, 0.4); color: rgba(255,255,255,0.8);
+    border-radius: 10px; padding: 6px 0; font-size: 0.75rem; cursor: pointer; transition: all 0.3s;
+    font-family: var(--font-main); text-align: center;
+}
+.mobile-btn.active {
+    background: rgba(212, 175, 55, 0.25); border-color: var(--accent-gold); color: var(--accent-gold);
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+}
+#mobile-controls input[type="range"] { flex: 1; width: auto; }
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 900px) {
+    #mobile-controls { display: flex; }
+    #side-dock { 
+        width: 100%; max-width: 300px; 
+        transform: translateX(100%); 
+        background: rgba(5, 10, 20, 0.95);
+    }
+    #side-dock.open { transform: translateX(0); }
+    /* ストリップの見た目調整 */
+    .dock-strip {
+        padding-top: 10px; background: rgba(5,10,20,0.95); height: auto;
+        border-radius: 8px 0 0 8px; top: 60px; bottom: auto;
+    }
+    .dock-tab {
+        padding: 10px 5px; font-size: 0.75rem;
+    }
+    .pc-only-clock { display: none; }
+    .glass-back-btn { top: 1rem; left: 1rem; width: 40px; height: 40px; padding: 0; justify-content: center; font-size: 0; }
+    .glass-back-btn::before { margin: 0; font-size: 1.2rem; }
+    #canvas-container { height: 100dvh; }
+}
