@@ -14,7 +14,8 @@ const CONFIG = {
         SolarSystem: { label: '太陽系', color: '#ffd700', type: 'solar_body' }, 
         star: { label: '恒星', color: '#ffffff', type: 'point' }, 
         
-        ConstellationLines: { label: '星座線', color: '#a0d9ff', type: 'line' },
+        // 変更: 星座線の色を白っぽく
+        ConstellationLines: { label: '星座線', color: '#e0f0ff', type: 'line' },
         ConstellationLabels: { label: '星座名', color: '#a0d9ff', type: 'label_only' },
 
         MultipleStar: { label: '重星', color: '#dcd0ff', type: 'double_circle' },
@@ -164,7 +165,6 @@ function setupUI() {
 
     const dateInput = document.getElementById('date-picker');
     
-    // 変更: ドック関連の要素取得
     const sideDock = document.getElementById('side-dock');
     const btnDockToggle = document.getElementById('btn-dock-toggle');
     const tabBtnSettings = document.getElementById('tab-btn-settings');
@@ -183,7 +183,6 @@ function setupUI() {
     const sliderLon = document.getElementById('slider-lon');
     const filterContainer = document.getElementById('filter-container');
 
-    // モバイル用コントロール
     const mobileTimeShuttle = document.getElementById('mobile-time-shuttle');
     const mobileMagSlider = document.getElementById('mobile-mag-slider');
     const mobileMagValue = document.getElementById('mobile-mag-value');
@@ -198,7 +197,6 @@ function setupUI() {
     const btnMobileTonight = document.getElementById('btn-mobile-tonight');
     const btnMobileLocation = document.getElementById('btn-mobile-location'); 
 
-    // PC用ドックの初期状態設定
     if (isMobile) {
         sideDock.classList.remove('open');
         btnDockToggle.textContent = '≪';
@@ -207,22 +205,18 @@ function setupUI() {
         btnDockToggle.textContent = '≫';
     }
 
-    // ドック開閉トグル
     btnDockToggle.addEventListener('click', () => {
         sideDock.classList.toggle('open');
         const isOpen = sideDock.classList.contains('open');
         btnDockToggle.textContent = isOpen ? '≫' : '≪';
     });
 
-    // タブ切り替え処理
     const switchTab = (tabName) => {
-        // 全タブ非アクティブ化
         tabBtnSettings.classList.remove('active');
         tabBtnInfo.classList.remove('active');
         paneSettings.classList.remove('active');
         paneInfo.classList.remove('active');
 
-        // 指定タブアクティブ化
         if (tabName === 'settings') {
             tabBtnSettings.classList.add('active');
             paneSettings.classList.add('active');
@@ -231,7 +225,6 @@ function setupUI() {
             paneInfo.classList.add('active');
         }
 
-        // ドックが閉じていたら開く
         if (!sideDock.classList.contains('open')) {
             sideDock.classList.add('open');
             btnDockToggle.textContent = '≫';
@@ -240,8 +233,6 @@ function setupUI() {
 
     tabBtnSettings.addEventListener('click', () => switchTab('settings'));
     tabBtnInfo.addEventListener('click', () => switchTab('info'));
-
-    // --- 以下、各種コントロールの設定は既存通り ---
 
     inputLat.value = state.lat.toFixed(2);
     inputLon.value = state.lon.toFixed(2);
@@ -277,11 +268,12 @@ function setupUI() {
         onTimeChange();
     });
     
-    // 時間シャトル (PC & Mobile 同期)
     const syncShuttle = (val) => {
         state.shuttleValue = parseInt(val);
         timeShuttle.value = val;
         mobileTimeShuttle.value = val;
+        updateSliderBackground(timeShuttle, 'center');
+        updateSliderBackground(mobileTimeShuttle, 'center');
     };
     timeShuttle.addEventListener('input', (e) => syncShuttle(e.target.value));
     mobileTimeShuttle.addEventListener('input', (e) => syncShuttle(e.target.value));
@@ -296,7 +288,6 @@ function setupUI() {
     mobileTimeShuttle.addEventListener('mouseup', resetShuttle); 
     mobileTimeShuttle.addEventListener('touchend', resetShuttle);
 
-    // 等級スライダー (PC & Mobile 同期)
     const syncMag = (val) => {
         state.magLimit = parseFloat(val);
         magSlider.value = val;
@@ -309,12 +300,22 @@ function setupUI() {
         if (layers['star']) {
             layers['star'].mesh.children[0].material.uniforms.magLimit.value = state.magLimit;
         }
-        updatePositions(); 
+        updatePositions();
+        updateSliderBackground(magSlider, 'left');
+        updateSliderBackground(mobileMagSlider, 'left');
     };
     magSlider.addEventListener('input', (e) => syncMag(e.target.value));
     mobileMagSlider.addEventListener('input', (e) => syncMag(e.target.value));
 
-    // 時間操作ボタン (PC)
+    sliderLat.addEventListener('input', () => {
+        updateLocation(parseFloat(sliderLat.value), parseFloat(sliderLon.value));
+        updateSliderBackground(sliderLat, 'center');
+    });
+    sliderLon.addEventListener('input', () => {
+        updateLocation(parseFloat(sliderLat.value), parseFloat(sliderLon.value));
+        updateSliderBackground(sliderLon, 'center');
+    });
+
     const addTime = (hours) => { 
         state.date.setTime(state.date.getTime() + hours * 60 * 60 * 1000); 
         updateDateInput(); 
@@ -325,7 +326,6 @@ function setupUI() {
     document.getElementById('btn-prev-d').addEventListener('click', () => addTime(-24));
     document.getElementById('btn-next-d').addEventListener('click', () => addTime(24));
 
-    // 今夜21時 / 現在時刻 (PC & Mobile 共通処理)
     const setTonight = () => {
         const d = new Date(); d.setHours(21, 0, 0, 0); state.date = d; 
         resetShuttle(); 
@@ -348,7 +348,6 @@ function setupUI() {
     btnMobileTonight.addEventListener('click', setTonight);
     btnMobileNow.addEventListener('click', setNow);
 
-    // 座標線トグル
     const btnGrid = document.getElementById('btn-grid');
     const toggleGrid = () => {
         state.gridVisible = !state.gridVisible;
@@ -358,13 +357,12 @@ function setupUI() {
     };
     btnGrid.addEventListener('click', toggleGrid);
     btnMobileGrid.addEventListener('click', toggleGrid);
-    btnMobileGrid.classList.add('active'); // 初期状態
+    btnMobileGrid.classList.add('active');
 
-    // モバイル: 星座トグル (線と名前の両方)
     const toggleConstellation = () => {
         let visible = false;
         if(layers['ConstellationLines']) {
-            visible = !layers['ConstellationLines'].visible; // Toggle based on lines
+            visible = !layers['ConstellationLines'].visible; 
             layers['ConstellationLines'].visible = visible;
             layers['ConstellationLines'].mesh.visible = visible;
         }
@@ -375,16 +373,11 @@ function setupUI() {
         btnMobileConstellation.classList.toggle('active', visible);
     };
     btnMobileConstellation.addEventListener('click', toggleConstellation);
-    btnMobileConstellation.classList.add('active'); // 初期状態ON
+    btnMobileConstellation.classList.add('active');
 
-    // モバイル: 天体名トグル
     const toggleStarLabels = () => {
         state.labelsVisible = !state.labelsVisible;
-        
-        // 恒星ラベルはupdatePositionsで制御
         updatePositions(); 
-        
-        // DSOや太陽系のラベルは個別に切り替え
         Object.keys(layers).forEach(key => {
              if (key === 'star' || key === 'ConstellationLines' || key === 'ConstellationLabels') return;
              const group = layers[key].mesh;
@@ -398,13 +391,11 @@ function setupUI() {
                  }
              });
         });
-
         btnMobileLabels.classList.toggle('active', state.labelsVisible);
     };
     btnMobileLabels.addEventListener('click', toggleStarLabels);
-    btnMobileLabels.classList.add('active'); // 初期状態ON
+    btnMobileLabels.classList.add('active');
 
-    // 太陽光の影響 (PC)
     const pcSunlightBtn = document.getElementById('btn-sunlight');
     const toggleSunlight = () => {
         state.sunlightVisible = !state.sunlightVisible;
@@ -415,9 +406,8 @@ function setupUI() {
 
     if(pcSunlightBtn) pcSunlightBtn.addEventListener('click', toggleSunlight);
     
-    // モバイル版太陽光ボタン
     btnMobileSunlight.addEventListener('click', toggleSunlight);
-    btnMobileSunlight.classList.add('active'); // 初期状態ON
+    btnMobileSunlight.classList.add('active');
 
     const updateLocation = (rawLat, rawLon) => {
         let displayLat = Math.max(-90, Math.min(90, rawLat));
@@ -432,34 +422,39 @@ function setupUI() {
         inputLon.value = displayLon;
         sliderLon.value = displayLon;
         
-        // モバイル用表示更新
         const mobileLocationDisplay = document.getElementById('mobile-location-display');
         if(mobileLocationDisplay) {
-            mobileLocationDisplay.textContent = `緯度: ${state.lat.toFixed(2)}  経度: ${state.lon.toFixed(2)}`;
+            mobileLocationDisplay.textContent = `N ${state.lat.toFixed(2)}° / E ${state.lon.toFixed(2)}°`;
         }
 
         updatePositions();
         updateSolarSystemData(); 
     };
     
-    // 初期表示更新
     const mobileLocationDisplayInit = document.getElementById('mobile-location-display');
     if(mobileLocationDisplayInit) {
-        mobileLocationDisplayInit.textContent = `緯度: ${state.lat.toFixed(2)}  経度: ${state.lon.toFixed(2)}`;
+        mobileLocationDisplayInit.textContent = `N ${state.lat.toFixed(2)}° / E ${state.lon.toFixed(2)}°`;
     }
 
-    inputLat.addEventListener('change', () => updateLocation(parseFloat(inputLat.value), parseFloat(inputLon.value)));
-    inputLon.addEventListener('change', () => updateLocation(parseFloat(inputLat.value), parseFloat(inputLon.value)));
-    sliderLat.addEventListener('input', () => updateLocation(parseFloat(sliderLat.value), parseFloat(sliderLon.value)));
-    sliderLon.addEventListener('input', () => updateLocation(parseFloat(sliderLat.value), parseFloat(sliderLon.value)));
+    inputLat.addEventListener('change', () => {
+        updateLocation(parseFloat(inputLat.value), parseFloat(inputLon.value));
+        updateSliderBackground(sliderLat, 'center');
+        updateSliderBackground(sliderLon, 'center');
+    });
+    inputLon.addEventListener('change', () => {
+        updateLocation(parseFloat(inputLat.value), parseFloat(inputLon.value));
+        updateSliderBackground(sliderLat, 'center');
+        updateSliderBackground(sliderLon, 'center');
+    });
 
-    // 現在地取得 (PC & Mobile)
     const getLocation = (btn) => {
         if (!navigator.geolocation) return alert("Geolocation not supported");
         const originalText = btn.textContent;
         btn.textContent = "取得中...";
         navigator.geolocation.getCurrentPosition(pos => {
             updateLocation(pos.coords.latitude, pos.coords.longitude);
+            updateSliderBackground(sliderLat, 'center');
+            updateSliderBackground(sliderLon, 'center');
             btn.textContent = originalText;
         }, () => { 
             alert("位置情報を取得できませんでした。"); 
@@ -470,16 +465,14 @@ function setupUI() {
     document.getElementById('btn-location').addEventListener('click', function() { getLocation(this); });
     btnMobileLocation.addEventListener('click', function() { getLocation(this); });
 
-    // 「more」ボタンの挙動：サイドドックを開き、infoタブを表示
     btnMore.addEventListener('click', (e) => {
         e.stopPropagation();
         if (state.selectedObject) {
             showSidePanel(state.selectedObject);
-            switchTab('info'); // 変更：infoタブを開く
+            switchTab('info');
         }
     });
 
-    // --- フィルターボタン生成 ---
     Object.keys(CONFIG.categories).forEach(key => {
         if (key === 'star' || key === 'SolarSystem') return;
 
@@ -527,6 +520,40 @@ function setupUI() {
         
         filterContainer.appendChild(btn);
     });
+
+    updateSliderBackground(magSlider, 'left');
+    updateSliderBackground(mobileMagSlider, 'left');
+    updateSliderBackground(timeShuttle, 'center');
+    updateSliderBackground(mobileTimeShuttle, 'center');
+    updateSliderBackground(sliderLat, 'center');
+    updateSliderBackground(sliderLon, 'center');
+}
+
+function updateSliderBackground(slider, type) {
+    if (!slider) return;
+    
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const val = parseFloat(slider.value);
+    
+    const percent = ((val - min) / (max - min)) * 100;
+    const baseColor = 'rgba(255, 255, 255, 0.1)';
+    const activeColor = '#d4af37'; 
+
+    if (type === 'left') {
+        slider.style.background = `linear-gradient(to right, ${activeColor} 0%, ${activeColor} ${percent}%, ${baseColor} ${percent}%, ${baseColor} 100%)`;
+    } else if (type === 'center') {
+        let zeroPercent = 50;
+        if (min <= 0 && max >= 0) {
+            zeroPercent = ((0 - min) / (max - min)) * 100;
+        }
+
+        if (val >= 0) {
+            slider.style.background = `linear-gradient(to right, ${baseColor} 0%, ${baseColor} ${zeroPercent}%, ${activeColor} ${zeroPercent}%, ${activeColor} ${percent}%, ${baseColor} ${percent}%, ${baseColor} 100%)`;
+        } else {
+            slider.style.background = `linear-gradient(to right, ${baseColor} 0%, ${baseColor} ${percent}%, ${activeColor} ${percent}%, ${activeColor} ${zeroPercent}%, ${baseColor} ${zeroPercent}%, ${baseColor} 100%)`;
+        }
+    }
 }
 
 function updateSolarSystemData() {
@@ -881,7 +908,15 @@ function createConstellationLines(data, config, parentGroup) {
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(data.length * 6); 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const material = new THREE.LineBasicMaterial({ color: config.color, transparent: true, opacity: 0.4, depthTest: false });
+    
+    // 変更: 線を太く見せるため不透明度を上げる
+    const material = new THREE.LineBasicMaterial({ 
+        color: config.color, 
+        transparent: true, 
+        opacity: 0.6, // 0.4 -> 0.6
+        depthTest: false 
+    });
+    
     const lineSegments = new THREE.LineSegments(geometry, material);
     lineSegments.frustumCulled = false; 
     parentGroup.add(lineSegments);
@@ -916,7 +951,9 @@ function createStarPoints(type, data, parentGroup) {
         const color = CONFIG.starColors[spectFirst] || CONFIG.starColors.default;
         colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
         let mag = parseFloat(obj.vmag || obj.mag || 6.0); if (isNaN(mag)) mag = 6.0;
-        sizes[i] = Math.max(0.5, (8.0 - mag) * 1.5);
+        
+        sizes[i] = Math.max(1.5, (8.0 - mag) * 4.0); 
+        
         magnitudes[i] = mag;
     });
 
@@ -959,8 +996,16 @@ function createStarPoints(type, data, parentGroup) {
                 float fadeRange = 1.0; float delta = magLimit - vMag;
                 float opacity = clamp(delta / fadeRange, 0.0, 1.0);
                 if (opacity <= 0.0) discard;
-                float d = distance(gl_PointCoord, vec2(0.5)); if (d > 0.5) discard;
-                float intensity = pow(1.0 - d * 2.0, 3.0) * 1.5;
+                
+                vec2 coord = gl_PointCoord - vec2(0.5);
+                float dist = length(coord) * 2.0; // 0.0 ~ 1.0
+                if (dist > 1.0) discard;
+                
+                float core = exp(-dist * dist * 10.0);
+                float glow = exp(-dist * 2.5);
+                
+                float intensity = core * 1.8 + glow * 0.4;
+                
                 gl_FragColor = vec4(vColor, intensity * opacity);
             }
         `,
@@ -1271,7 +1316,14 @@ function createGrid() {
         gridHelper.traverse(c => { if(c.geometry)c.geometry.dispose(); if(c.material)c.material.dispose(); }); 
     }
     gridHelper = new THREE.Group();
-    const material = new THREE.LineBasicMaterial({ color: 0x445566, transparent: true, opacity: 0.3 });
+    
+    // 変更: 座標線を少し明るく、くっきりと
+    const material = new THREE.LineBasicMaterial({ 
+        color: 0x708090, // 0x445566 -> 0x708090
+        transparent: true, 
+        opacity: 0.5 // 0.3 -> 0.5
+    });
+    
     for (let i = 0; i < 12; i++) {
         const theta = (i / 12) * Math.PI * 2; const pts = [];
         for (let j = 0; j <= 20; j++) {

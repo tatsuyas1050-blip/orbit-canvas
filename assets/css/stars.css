@@ -1,11 +1,11 @@
 @charset "UTF-8";
 
 :root {
-    --panel-width: 340px;
-    --strip-width: 44px; /* ストリップの幅 */
-    --panel-height: 280px;
-    --strip-bg: rgba(5, 10, 20, 0.85);
-    --mobile-control-height: 250px;
+    --panel-width: 320px;
+    --strip-width: 50px;
+    --panel-bg-color: rgba(13, 18, 28, 0.85); /* より深みのある色 */
+    --strip-bg-color: rgba(5, 10, 20, 0.95);
+    --gold-glow: 0 0 10px rgba(212, 175, 55, 0.3);
 }
 
 body {
@@ -25,10 +25,10 @@ body {
 
 /* UI Components */
 .btn-gold, input[type="datetime-local"], .coord-input {
-    background: rgba(5, 10, 20, 0.6);
-    border: 1px solid var(--accent-gold);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(212, 175, 55, 0.5);
     color: var(--accent-gold);
-    padding: 0.3rem 0.6rem;
+    padding: 0.4rem 0.6rem;
     cursor: pointer;
     font-family: var(--font-main);
     transition: all 0.3s;
@@ -38,12 +38,13 @@ body {
     border-radius: 4px;
 }
 .btn-gold:hover, .btn-gold.active {
-    background: rgba(212, 175, 55, 0.2);
-    box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+    background: rgba(212, 175, 55, 0.15);
+    border-color: var(--accent-gold);
+    box-shadow: var(--gold-glow);
+    color: #fff;
 }
 input[type="datetime-local"] {
     color: var(--text-white);
-    border-color: rgba(212, 175, 55, 0.5);
     font-family: sans-serif;
     width: 100%; box-sizing: border-box;
 }
@@ -68,7 +69,7 @@ input[type="datetime-local"] {
 .glass-back-btn::before { content: '≪'; font-size: 1.1rem; transition: transform 0.3s ease; }
 .glass-back-btn:hover {
     background: rgba(212, 175, 55, 0.15); border-color: var(--accent-gold);
-    box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); transform: translateY(-2px); color: #fff;
+    box-shadow: var(--gold-glow); transform: translateY(-2px); color: #fff;
 }
 .glass-back-btn:hover::before { transform: translateX(-4px); }
 
@@ -82,97 +83,135 @@ input[type="datetime-local"] {
     text-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 
-/* --- Side Dock (Integrated) --- */
+/* --- Side Dock (Refined Design) --- */
 #side-dock {
     position: absolute; top: 0; right: 0; height: 100%;
     display: flex; align-items: stretch; pointer-events: auto;
-    /* ストリップは見えていて、本体だけ隠す */
     transform: translateX(var(--panel-width)); 
     transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: 150;
 }
 #side-dock.open { transform: translateX(0); }
 
-/* ドック左端のストリップ（タブエリア） */
+/* ドック左端のストリップ */
 .dock-strip {
     width: var(--strip-width); 
-    background: var(--strip-bg);
-    border-left: 1px solid rgba(212, 175, 55, 0.5);
-    backdrop-filter: blur(4px);
+    background: var(--strip-bg-color);
+    border-left: 1px solid rgba(212, 175, 55, 0.3);
+    backdrop-filter: blur(10px);
     display: flex; flex-direction: column; align-items: center;
-    padding-top: 60px; gap: 10px;
-    /* ストリップ自体は常に画面内にあるように配置（親のtransformの影響を打ち消す） */
+    padding-top: 80px; gap: 15px;
     position: absolute; left: calc(var(--strip-width) * -1); top: 0; bottom: 0;
-    box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+    box-shadow: -2px 0 15px rgba(0,0,0,0.5);
 }
 
 /* タブボタン */
 .dock-tab {
-    writing-mode: vertical-rl; text-orientation: upright;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
     background: transparent; border: none; 
-    color: rgba(255,255,255,0.5);
-    font-family: var(--font-main); font-size: 0.85rem; letter-spacing: 0.2em;
-    cursor: pointer; padding: 15px 5px;
-    border-right: 3px solid transparent; /* アクティブ表示用 */
+    color: rgba(255,255,255,0.4);
+    cursor: pointer; padding: 15px 0; width: 100%;
     transition: all 0.3s;
+    position: relative;
 }
+.dock-tab::after {
+    content: ''; position: absolute; right: 0; top: 10%; bottom: 10%; width: 3px;
+    background: transparent; transition: background 0.3s; border-radius: 2px 0 0 2px;
+}
+.tab-icon { font-size: 1.2rem; margin-bottom: 5px; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5)); }
+.tab-text { 
+    writing-mode: vertical-rl; text-orientation: upright; 
+    font-family: var(--font-main); font-size: 0.8rem; letter-spacing: 0.2em; 
+}
+
 .dock-tab:hover { color: var(--accent-gold); }
 .dock-tab.active {
-    color: var(--accent-gold);
-    background: rgba(212, 175, 55, 0.1);
-    border-right: 3px solid var(--accent-gold);
-    font-weight: bold;
-    text-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
+    color: #fff;
+    text-shadow: 0 0 8px var(--accent-gold);
 }
+.dock-tab.active .tab-icon { color: var(--accent-gold); }
+.dock-tab.active::after { background: var(--accent-gold); box-shadow: 0 0 8px var(--accent-gold); }
 
 /* 開閉トグルボタン */
 .dock-toggle {
     margin-top: auto; margin-bottom: 20px;
     background: transparent; border: none; color: var(--accent-gold);
-    font-size: 1.2rem; cursor: pointer; padding: 10px 0;
-    transition: transform 0.3s;
+    font-size: 1.2rem; cursor: pointer; padding: 15px 0; width: 100%;
+    transition: transform 0.3s, color 0.3s;
 }
+.dock-toggle:hover { text-shadow: 0 0 5px var(--accent-gold); }
 
 /* ドック本体 */
 .dock-body {
-    width: var(--panel-width); background: rgba(20, 25, 35, 0.95);
-    border-left: 1px solid var(--accent-gold); 
-    box-sizing: border-box; backdrop-filter: blur(10px);
+    width: var(--panel-width); 
+    background: var(--panel-bg-color);
+    border-left: 1px solid rgba(212, 175, 55, 0.2); 
+    box-sizing: border-box; 
+    backdrop-filter: blur(15px);
     display: flex; flex-direction: column; overflow-y: auto;
+    box-shadow: inset 5px 0 20px rgba(0,0,0,0.2);
 }
 
-/* パネル（設定・天体データ）の表示切替 */
+/* パネル */
 .dock-pane {
-    display: none; padding: 1.5rem; flex-direction: column; gap: 1rem;
-    animation: fadeIn 0.3s ease;
+    display: none; padding: 2rem 1.5rem; flex-direction: column; gap: 1.2rem;
+    animation: fadeIn 0.4s ease;
 }
 .dock-pane.active { display: flex; }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
 
 /* Panel Internals */
-.panel-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-.panel-section { display: flex; flex-direction: column; gap: 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.8rem; }
+.panel-header-row { margin-bottom: 0.5rem; border-bottom: 1px solid rgba(212, 175, 55, 0.4); padding-bottom: 0.5rem; }
+.panel-title { 
+    margin: 0; color: var(--accent-gold); font-size: 1.4rem; letter-spacing: 0.1em; 
+    font-weight: 500; text-align: center; text-shadow: 0 0 10px rgba(212,175,55,0.2);
+}
+
+.panel-section { display: flex; flex-direction: column; gap: 0.8rem; padding-bottom: 1rem; border-bottom: 1px dashed rgba(255,255,255,0.1); }
 .panel-section:last-child { border-bottom: none; }
-.section-title { color: var(--accent-gold); font-size: 0.9rem; font-weight: 500; letter-spacing: 0.1em; margin: 0; display: flex; align-items: center; gap: 6px; }
-.section-title::before { content: ''; display: block; width: 3px; height: 1em; background: var(--accent-gold); }
+
+.section-title { 
+    color: #fff; font-size: 0.9rem; font-weight: normal; letter-spacing: 0.1em; margin: 0; 
+    display: flex; align-items: center; gap: 8px; opacity: 0.9;
+}
+.section-title::before { content: '◆'; font-size: 0.7rem; color: var(--accent-gold); }
 
 .coord-group { display: flex; justify-content: space-between; align-items: center; }
-.coord-label { font-size: 0.75rem; opacity: 0.8; }
-.coord-input { width: 70px; padding: 0.2rem; text-align: right; font-family: sans-serif; }
-input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-gold); margin: 2px 0; height: 10px; }
+.coord-label { font-size: 0.75rem; opacity: 0.7; }
+.coord-input { width: 70px; padding: 0.2rem; text-align: right; font-family: sans-serif; background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.2); }
 
-.shuttle-container { background: rgba(255,255,255,0.05); padding: 6px; border-radius: 4px; display: flex; flex-direction: column; gap: 2px; }
+/* スライダー共通 (CSSでの背景指定は必要最小限にし、JSでの操作を可能にする) */
+input[type="range"] { 
+    width: 100%; cursor: pointer; accent-color: var(--accent-gold); margin: 2px 0; height: 6px; 
+    background: rgba(255,255,255,0.1); /* JSが無効な場合のデフォルト */
+    border-radius: 3px; -webkit-appearance: none; appearance: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px; background: var(--accent-gold); border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.shuttle-container { 
+    background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05);
+    display: flex; flex-direction: column; gap: 4px; 
+}
 .shuttle-labels { display: flex; justify-content: space-between; font-size: 0.65rem; opacity: 0.7; }
 .time-btn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; }
 .time-actions { display: flex; gap: 4px; }
 #filter-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 
-#star-name { font-size: 1.8rem; color: var(--accent-gold); margin: 0; line-height: 1.2; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; margin-bottom: 1rem; }
-.star-info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
-.star-detail-item { display: flex; flex-direction: column; }
-.detail-label { font-size: 0.75rem; opacity: 0.6; margin-bottom: 0.2rem; }
-.detail-value { font-size: 1.1rem; font-family: sans-serif; }
+#star-name { 
+    font-size: 1.6rem; color: #fff; margin: 0; line-height: 1.3; 
+    border-bottom: 1px solid var(--accent-gold); padding-bottom: 0.5rem; margin-bottom: 1rem; 
+    text-shadow: 0 0 10px rgba(255,255,255,0.3);
+}
+.star-info-grid { display: grid; grid-template-columns: 1fr; gap: 0.8rem; }
+.star-detail-item { 
+    display: grid; grid-template-columns: 100px 1fr; align-items: baseline; 
+    border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;
+}
+.detail-label { font-size: 0.75rem; color: var(--accent-gold); opacity: 0.8; }
+.detail-value { font-size: 1.0rem; font-family: sans-serif; text-align: right; }
 
 /* Reticle & Loader */
 #star-reticle { position: absolute; width: 0; height: 0; pointer-events: none; display: none; z-index: 100; }
@@ -203,19 +242,91 @@ input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-g
     gap: 8px; 
 }
 
+/* モバイル用レイアウト調整 */
 .mobile-info-header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 2px; padding-bottom: 2px; border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+    display: flex; justify-content: center; align-items: center;
+    margin-bottom: 2px; padding-bottom: 4px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.1);
 }
-.mobile-clock-label { font-size: 0.75rem; color: rgba(255,255,255,0.6); }
+
 .mobile-clock-value {
-    font-family: sans-serif; color: var(--accent-gold); font-size: 1.1rem; letter-spacing: 0.05em;
+    font-family: sans-serif; color: var(--accent-gold); 
+    font-size: 1.3rem; /* 少し大きく */
+    letter-spacing: 0.05em;
     font-weight: 500; text-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
-.mobile-location-row {
-    width: 100%; text-align: right;
-    font-size: 0.75rem; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px; font-family: sans-serif;
+
+.mobile-location-row-compact {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    width: 100%; color: rgba(255, 255, 255, 0.6); 
+    font-family: sans-serif; font-size: 0.85rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 4px;
 }
+.mobile-coord-text {
+    flex-grow: 1; text-align: left;
+    font-family: monospace; letter-spacing: -0.5px;
+}
+
+/* 時間操作行 */
+.mobile-slider-row {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    margin-bottom: 0px;
+}
+
+/* ボタン群 (コンパクト化) */
+.mobile-time-btn-group {
+    display: flex; gap: 4px; flex-shrink: 0;
+}
+
+/* コンパクトボタン */
+.mobile-btn-compact {
+    background: rgba(255,255,255,0.1); 
+    border: 1px solid rgba(212, 175, 55, 0.4); 
+    color: var(--accent-gold);
+    border-radius: 4px; 
+    padding: 6px 8px; /* パディングを少し詰める */
+    font-size: 0.7rem; 
+    cursor: pointer;
+    font-family: var(--font-main); 
+    transition: all 0.2s; 
+    white-space: nowrap;
+    line-height: 1;
+}
+.mobile-btn-compact:hover { 
+    background: rgba(212, 175, 55, 0.25); 
+    border-color: var(--accent-gold); 
+}
+
+/* スライダーラッパー: 中央線を表示するためにrelativeにする */
+.mobile-slider-wrapper {
+    display: flex; align-items: center; gap: 4px; flex-grow: 1;
+    position: relative; 
+}
+
+/* 中央線 (スライダーの上に描画) */
+.mobile-slider-wrapper::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px; height: 14px; /* 線を少し長めに */
+    background-color: var(--accent-gold);
+    pointer-events: none; /* クリックを邪魔しない */
+    z-index: 5;
+    box-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
+.mobile-dir-label { font-size: 0.6rem; color: var(--accent-gold); opacity: 0.7; white-space: nowrap; }
+
+/* 時間スライダー (標準スタイルで統一) */
+#mobile-time-shuttle {
+    flex: 1;
+    background: rgba(255,255,255,0.1); /* 標準の背景 */
+}
+
 .mobile-row { display: flex; align-items: center; gap: 10px; width: 100%; }
 .mobile-label { font-size: 0.8rem; color: rgba(255,255,255,0.8); min-width: 50px; }
 
@@ -226,18 +337,17 @@ input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-g
     box-shadow: 0 0 5px rgba(212, 175, 55, 0.2); min-width: 50px; text-align: center;
 }
 
-.mobile-time-actions { display: flex; justify-content: space-between; width: 100%; gap: 5px; margin-bottom: 2px; }
 .mobile-btn-small {
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(212, 175, 55, 0.3); color: var(--accent-gold);
-    border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; cursor: pointer;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(212, 175, 55, 0.4); color: var(--accent-gold);
+    border-radius: 4px; padding: 6px 12px; font-size: 0.8rem; cursor: pointer;
     font-family: var(--font-main); transition: all 0.2s; white-space: nowrap;
 }
-.mobile-btn-small:hover { background: rgba(212, 175, 55, 0.2); border-color: var(--accent-gold); }
+.mobile-btn-small:hover { background: rgba(212, 175, 55, 0.25); border-color: var(--accent-gold); }
 
-.mobile-toggles { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; width: 100%; margin-top: 8px; }
+.mobile-toggles { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; width: 100%; margin-top: 8px; }
 .mobile-btn {
     background: rgba(255,255,255,0.05); border: 1px solid rgba(212, 175, 55, 0.4); color: rgba(255,255,255,0.8);
-    border-radius: 10px; padding: 6px 0; font-size: 0.75rem; cursor: pointer; transition: all 0.3s;
+    border-radius: 8px; padding: 10px 0; font-size: 0.8rem; cursor: pointer; transition: all 0.3s;
     font-family: var(--font-main); text-align: center;
 }
 .mobile-btn.active {
@@ -252,17 +362,22 @@ input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-g
     #side-dock { 
         width: 100%; max-width: 300px; 
         transform: translateX(100%); 
-        background: rgba(5, 10, 20, 0.95);
+        background: rgba(13, 18, 28, 0.95);
     }
     #side-dock.open { transform: translateX(0); }
     /* ストリップの見た目調整 */
     .dock-strip {
         padding-top: 10px; background: rgba(5,10,20,0.95); height: auto;
         border-radius: 8px 0 0 8px; top: 60px; bottom: auto;
+        width: 44px;
+        box-shadow: -2px 2px 10px rgba(0,0,0,0.3);
     }
     .dock-tab {
-        padding: 10px 5px; font-size: 0.75rem;
+        padding: 10px 0; width: 100%;
     }
+    .tab-icon { font-size: 1rem; margin-bottom: 2px; }
+    .tab-text { font-size: 0.6rem; letter-spacing: 0.1em; }
+    
     .pc-only-clock { display: none; }
     .glass-back-btn { top: 1rem; left: 1rem; width: 40px; height: 40px; padding: 0; justify-content: center; font-size: 0; }
     .glass-back-btn::before { margin: 0; font-size: 1.2rem; }

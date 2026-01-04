@@ -39,15 +39,22 @@
 
         <div id="side-dock">
             <div class="dock-strip">
-                <button class="dock-tab active" id="tab-btn-settings" title="設定">設定</button>
-                <button class="dock-tab" id="tab-btn-info" title="天体データ">天体</button>
+                <button class="dock-tab active" id="tab-btn-settings" title="設定">
+                    <span class="tab-icon">⚙</span>
+                    <span class="tab-text">設定</span>
+                </button>
+                <button class="dock-tab" id="tab-btn-info" title="天体データ">
+                    <span class="tab-icon">★</span>
+                    <span class="tab-text">天体</span>
+                </button>
+                
                 <button class="dock-toggle" id="btn-dock-toggle">≫</button>
             </div>
             
             <div class="dock-body">
                 <div id="pane-settings" class="dock-pane active">
                     <div class="panel-header-row">
-                        <h2 style="margin:0; color:var(--accent-gold); font-size:1.2rem;">設定</h2>
+                        <h2 class="panel-title">MENU</h2>
                     </div>
 
                     <div class="panel-section">
@@ -106,7 +113,7 @@
 
                 <div id="pane-info" class="dock-pane">
                     <div class="panel-header-row">
-                        <h2 style="margin:0; color:var(--accent-gold); font-size:1.2rem;">天体データ</h2>
+                        <h2 class="panel-title">DATA</h2>
                     </div>
                     <div class="panel-section">
                         <h1 id="star-name" style="margin-top:0.5rem;">未選択</h1>
@@ -133,25 +140,32 @@
         </div>
 
         <div id="mobile-controls">
+            
             <div class="mobile-info-header">
-                <span class="mobile-clock-label">表示中の日時</span>
                 <span id="mobile-clock-display" class="mobile-clock-value">----/--/-- --:--</span>
             </div>
             
-            <div class="mobile-location-row">
-                <span id="mobile-location-display">緯度: --.--  経度: ---.--</span>
-            </div>
-
-            <div class="mobile-row">
+            <div class="mobile-slider-row">
                 <span class="mobile-label">時間</span>
-                <input type="range" id="mobile-time-shuttle" min="-100" max="100" value="0" step="1">
+
+                <div class="mobile-time-btn-group">
+                    <button class="mobile-btn-compact" id="btn-mobile-now">現在</button>
+                    <button class="mobile-btn-compact" id="btn-mobile-tonight">今夜21時</button>
+                </div>
+                
+                <div class="mobile-slider-wrapper">
+                    <span class="mobile-dir-label">戻る</span>
+                    <input type="range" id="mobile-time-shuttle" min="-100" max="100" value="0" step="1">
+                    <span class="mobile-dir-label">進む</span>
+                </div>
             </div>
             
-            <div class="mobile-time-actions">
+            <div class="mobile-location-row-compact">
+                <div class="mobile-coord-text">
+                    <span style="font-size:0.75rem; opacity:0.7; margin-right:4px;">観測地</span>
+                    <span id="mobile-location-display">N --.-- / E ---.--</span>
+                </div>
                 <button class="mobile-btn-small" id="btn-mobile-location">📍 現在地</button>
-                <div style="flex-grow:1;"></div>
-                <button class="mobile-btn-small" id="btn-mobile-now">現在時刻</button>
-                <button class="mobile-btn-small" id="btn-mobile-tonight">今夜21時</button>
             </div>
 
             <div class="mobile-row" style="margin-top: 5px;">
