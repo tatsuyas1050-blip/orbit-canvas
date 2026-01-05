@@ -1368,7 +1368,8 @@ function onClick(event) {
 
     const diffX = Math.abs(event.clientX - state.dragStartX);
     const diffY = Math.abs(event.clientY - state.dragStartY);
-    if (diffX > 5 || diffY > 5) return;
+    // 変更: モバイルでの誤判定を防ぐため、ドラッグ閾値を少し広げる
+    if (diffX > 15 || diffY > 15) return;
 
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -1460,24 +1461,63 @@ function onClick(event) {
             
             showSidePanel(targetObj);
             
-            // 変更点: 天体を選択したらサイドドックを開き、infoタブを表示
-            const sideDock = document.getElementById('side-dock');
-            const btnDockToggle = document.getElementById('btn-dock-toggle');
-            const tabBtnSettings = document.getElementById('tab-btn-settings');
-            const tabBtnInfo = document.getElementById('tab-btn-info');
-            const paneSettings = document.getElementById('pane-settings');
-            const paneInfo = document.getElementById('pane-info');
+            // --- モバイル表示対応 ---
+            const isMobile = window.innerWidth <= 900;
+            if (isMobile) {
+                // サイドドックは自動で開かない (邪魔になるため)
+                // 代わりにヘッダーの時計表示部分を天体情報に切り替える
+                const mobileClock = document.getElementById('mobile-clock-display');
+                const mobileInfo = document.getElementById('mobile-object-info');
+                const mobileName = document.getElementById('mobile-obj-name');
+                const mobileDetail = document.getElementById('mobile-obj-detail');
 
-            // infoタブをアクティブ化
-            tabBtnSettings.classList.remove('active');
-            paneSettings.classList.remove('active');
-            tabBtnInfo.classList.add('active');
-            paneInfo.classList.add('active');
+                if (mobileClock && mobileInfo) {
+                    mobileClock.style.display = 'none';
+                    mobileInfo.style.display = 'flex';
+                    
+                    mobileName.textContent = getObjectName(targetObj);
+                    
+                    let magStr = (targetObj.vmag !== undefined ? targetObj.vmag : (targetObj.mag || '-')).toString();
+                    // 小数点第1位くらいまでにする
+                    if(!isNaN(parseFloat(magStr))) {
+                        magStr = parseFloat(magStr).toFixed(1);
+                    }
+                    
+                    let typeStr = targetObj.typeLabel || targetObj.proper || 'Star';
+                    mobileDetail.textContent = `Mag: ${magStr} / ${typeStr}`;
+                }
+                
+                // ドックの中身（タブ）だけはInfoに切り替えておく（手動で開いたときのため）
+                const tabBtnInfo = document.getElementById('tab-btn-info');
+                const paneInfo = document.getElementById('pane-info');
+                if(tabBtnInfo && paneInfo) {
+                    document.querySelectorAll('.dock-tab').forEach(t=>t.classList.remove('active'));
+                    document.querySelectorAll('.dock-pane').forEach(p=>p.classList.remove('active'));
+                    tabBtnInfo.classList.add('active');
+                    paneInfo.classList.add('active');
+                }
 
-            // ドックを開く
-            if (!sideDock.classList.contains('open')) {
-                sideDock.classList.add('open');
-                btnDockToggle.textContent = '≫';
+            } else {
+                // PCの場合はサイドドックを自動で開く
+                const sideDock = document.getElementById('side-dock');
+                const btnDockToggle = document.getElementById('btn-dock-toggle');
+                
+                const tabBtnSettings = document.getElementById('tab-btn-settings');
+                const tabBtnInfo = document.getElementById('tab-btn-info');
+                const paneSettings = document.getElementById('pane-settings');
+                const paneInfo = document.getElementById('pane-info');
+
+                // infoタブをアクティブ化
+                tabBtnSettings.classList.remove('active');
+                paneSettings.classList.remove('active');
+                tabBtnInfo.classList.add('active');
+                paneInfo.classList.add('active');
+
+                // ドックを開く
+                if (!sideDock.classList.contains('open')) {
+                    sideDock.classList.add('open');
+                    btnDockToggle.textContent = '≫';
+                }
             }
 
             updateReticle(); 
@@ -1494,6 +1534,14 @@ function resetSelectionHelper() {
     const reticle = document.getElementById('star-reticle');
     reticle.classList.remove('visible');
     reticle.style.display = 'none'; 
+    
+    // モバイル用表示のリセット (時計に戻す)
+    const mobileClock = document.getElementById('mobile-clock-display');
+    const mobileInfo = document.getElementById('mobile-object-info');
+    if (mobileClock && mobileInfo) {
+        mobileInfo.style.display = 'none';
+        mobileClock.style.display = 'block';
+    }
 }
 
 function showSidePanel(obj) {
