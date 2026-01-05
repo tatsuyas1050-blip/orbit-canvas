@@ -1460,11 +1460,10 @@ function onClick(event) {
             
             showSidePanel(targetObj);
             
-            // --- 変更箇所: モバイル判定 ---
+            // 修正箇所: PCの場合のみ、クリックで即座に情報パネルを開く。
+            // モバイルの場合は「詳しく」ボタンでの遷移とする。
             const isMobile = window.innerWidth <= 900;
             
-            // PCの場合のみ、クリックで自動的にサイドドックを開く
-            // モバイルの場合は、レチクルを表示するだけに留める
             if (!isMobile) {
                 const sideDock = document.getElementById('side-dock');
                 const btnDockToggle = document.getElementById('btn-dock-toggle');
