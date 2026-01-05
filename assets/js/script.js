@@ -3,19 +3,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuToggle = document.getElementById('menu-toggle');
     const navOverlay = document.getElementById('nav-overlay');
 
-    // ハンバーガーメニューが存在する場合のみイベントを設定
     if (menuToggle && navOverlay) {
         menuToggle.addEventListener('click', () => {
             menuToggle.classList.toggle('active');
             navOverlay.classList.toggle('open');
         });
 
-        // --- 追加機能: 現在のページのメニュー項目を非表示にする ---
-        // 現在のURLのパスからファイル名を取得
+        // 現在のページのメニュー項目を非表示にする
         const pathParts = window.location.pathname.split('/');
         let currentFile = pathParts[pathParts.length - 1];
-        
-        // ファイル名が空（ルートディレクトリなど）の場合は index.html とみなす
         if (currentFile === '' || currentFile === '/') {
             currentFile = 'index.html';
         }
@@ -23,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const navLinks = document.querySelectorAll('.nav-link');
         navLinks.forEach(link => {
             const href = link.getAttribute('href');
-            // リンク先が現在のファイル名と一致したら親のliを隠す
             if (href === currentFile) {
                 const listItem = link.closest('li');
                 if (listItem) {
@@ -31,6 +26,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+
+        // --- トップページアニメーション制御 ---
+        if (currentFile === 'index.html') {
+            const hero = document.querySelector('.hero');
+            
+            // タイムライン:
+            // 0.0s : タイトルfadeIn開始
+            // 8.0s : 円描画完了 (CSS animation設定より)
+            
+            // 8.0s後に「縮んで拡大フェードアウト」を開始
+            setTimeout(() => {
+                if (hero) {
+                    // CSS animation: heroExitSequence (1.2s)
+                    hero.classList.add('hero-exit'); 
+                }
+
+                // フェードアウトアニメーション完了(1.2秒後)に合わせてメニューを開く
+                setTimeout(() => {
+                    if (!navOverlay.classList.contains('open')) {
+                        menuToggle.classList.add('active');
+                        navOverlay.classList.add('open');
+                        
+                        // メニューが開いた後(少し待ってから)、背後のタイトルを表示状態に戻す
+                        // すぐに戻すとメニューのフェードイン中にタイトルがパッと現れてしまうため、
+                        // メニューが十分に見えてから(0.6秒後くらい)リセットする
+                        setTimeout(() => {
+                            if (hero) {
+                                hero.classList.remove('hero-exit');
+                            }
+                        }, 600);
+                    }
+                }, 1100); // アニメーション終了直前(1.1s)くらいでメニューを開き始める
+
+            }, 8000); // ページロードから8秒後に終了シーケンス開始
+        }
     }
 
     /* Canvas Logic (Top Page Only) */
@@ -42,11 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let stars = [];
         let shootingStars = [];
         
-        // 日周運動のための回転角度
         let rotationAngle = 0;
-        const rotationSpeed = 0.0002; // 回転速度
+        const rotationSpeed = 0.0002;
 
-        // リサイズ処理
         const resize = () => {
             width = window.innerWidth;
             height = window.innerHeight;
@@ -55,23 +83,20 @@ document.addEventListener('DOMContentLoaded', () => {
             initStars();
         };
 
-        // 星クラス
         class Star {
             constructor() {
-                // 画面外も含めて広範囲に配置（回転時に角が切れないように）
                 const maxDim = Math.sqrt(width * width + height * height);
                 this.x = (Math.random() - 0.5) * maxDim * 1.5;
                 this.y = (Math.random() - 0.5) * maxDim * 1.5;
                 this.size = Math.random() * 1.5;
-                this.baseAlpha = 0.3 + Math.random() * 0.7; // 基本の透明度
+                this.baseAlpha = 0.3 + Math.random() * 0.7;
                 this.blinkSpeed = 0.01 + Math.random() * 0.03;
                 this.blinkOffset = Math.random() * Math.PI * 2;
             }
 
             draw() {
-                // 瞬きのアニメーション (Sin波を使用)
                 const alpha = this.baseAlpha + Math.sin(Date.now() * 0.001 + this.blinkOffset) * 0.2;
-                const currentAlpha = Math.max(0, Math.min(1, alpha)); // 0~1に制限
+                const currentAlpha = Math.max(0, Math.min(1, alpha));
 
                 ctx.fillStyle = `rgba(255, 255, 255, ${currentAlpha})`;
                 ctx.beginPath();
@@ -80,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 流れ星クラス
         class ShootingStar {
             constructor() {
                 this.reset();
@@ -88,10 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             reset() {
                 this.x = Math.random() * width;
-                this.y = Math.random() * height * 0.5; // 上半分から出現
+                this.y = Math.random() * height * 0.5;
                 this.length = Math.random() * 80 + 10;
                 this.speed = Math.random() * 10 + 6;
-                this.angle = Math.PI / 4 + (Math.random() * 0.2 - 0.1); // 右下方向へ
+                this.angle = Math.PI / 4 + (Math.random() * 0.2 - 0.1);
                 this.life = 1.0;
                 this.active = true;
             }
@@ -125,35 +149,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 星の初期化
         function initStars() {
             stars = [];
-            // 画面サイズに応じて星の数を調整
             const starCount = Math.floor((width * height) / 800); 
             for (let i = 0; i < starCount; i++) {
                 stars.push(new Star());
             }
         }
 
-        // アニメーションループ
         function animate() {
             ctx.clearRect(0, 0, width, height);
 
-            // 1. 背景の星（日周運動あり）
             ctx.save();
-            
-            // 画面中心へ移動 -> 回転 -> 元の位置へ戻す（中心軸回転）
             ctx.translate(width / 2, height / 2);
             ctx.rotate(rotationAngle);
-            
             stars.forEach(star => star.draw());
-            
             ctx.restore();
 
-            // 回転角度の更新
             rotationAngle += rotationSpeed;
 
-            // 2. 流れ星（回転の影響を受けないように個別に描画）
             shootingStars.forEach((s, index) => {
                 if (s.active) {
                     s.update();
@@ -163,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 確率で新しい流れ星を生成
             if (Math.random() < 0.005 && shootingStars.length < 2) {
                 shootingStars.push(new ShootingStar());
             }
@@ -171,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
             requestAnimationFrame(animate);
         }
 
-        // イベントリスナーと初期実行
         window.addEventListener('resize', resize);
         resize();
         animate();

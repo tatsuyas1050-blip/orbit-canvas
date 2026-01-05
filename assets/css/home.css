@@ -17,11 +17,67 @@ body {
     position: relative; z-index: 1; height: 100vh;
     display: flex; justify-content: center; align-items: center;
     pointer-events: none;
+    transition: opacity 0.5s;
 }
 
 .hero {
     text-align: center; opacity: 0;
+    /* Title fadeIn:
+       0.5s待機 -> 3sかけて表示 (完了: 3.5s)
+    */
     animation: fadeIn 3s ease-out forwards 0.5s;
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* 拡大フェードアウト用トランジション */
+    transition: transform 1s ease-in, opacity 1s ease-in;
+}
+
+/* JSで付与するクラス: 最後に拡大して消える動き */
+.hero.hero-exit {
+    transform: scale(1.2);
+    opacity: 0;
+}
+
+.circle-container {
+    position: relative;
+    width: clamp(300px, 60vw, 500px);
+    height: clamp(300px, 60vw, 500px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.circle-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    transform: rotate(-90deg);
+    pointer-events: none;
+}
+
+.circle-path {
+    fill: none;
+    stroke: #e6b422; /* ゴールド */
+    stroke-width: 1.5;
+    stroke-dasharray: 616;
+    stroke-dashoffset: 616;
+    
+    /* 円の描画アニメーション:
+       3.5s (タイトル完了) + 0.5s (待機) = 4.0s から開始
+       4.0s かけてゆっくり描画 (完了: 8.0s) ※時間を伸ばしました
+       ease-in-out: 最初と最後がゆっくり
+    */
+    animation: drawCircle 4.0s ease-in-out forwards 4.0s;
+}
+
+.hero-text {
+    z-index: 2;
+    text-align: center;
 }
 
 .title {
@@ -30,6 +86,7 @@ body {
     letter-spacing: 0.2em;
     margin-bottom: 1rem;
     text-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+    white-space: nowrap;
 }
 
 .subtitle {
@@ -45,6 +102,14 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes drawCircle {
+    to { stroke-dashoffset: 0; }
+}
+
 @media (max-width: 768px) {
-    .title { font-size: 2rem; }
+    .title { font-size: 1.8rem; }
+    .circle-container {
+        width: 320px;
+        height: 320px;
+    }
 }
