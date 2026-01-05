@@ -14,7 +14,6 @@ const CONFIG = {
         SolarSystem: { label: '太陽系', color: '#ffd700', type: 'solar_body' }, 
         star: { label: '恒星', color: '#ffffff', type: 'point' }, 
         
-        // 変更: 星座線の色を白っぽく
         ConstellationLines: { label: '星座線', color: '#e0f0ff', type: 'line' },
         ConstellationLabels: { label: '星座名', color: '#a0d9ff', type: 'label_only' },
 
@@ -93,6 +92,10 @@ const state = {
 };
 
 function init() {
+    // カスタムUI要素とスタイルの注入
+    createStarNameDisplay();
+    injectCustomStyles();
+
     const container = document.getElementById('canvas-container');
 
     scene = new THREE.Scene();
@@ -128,8 +131,8 @@ function init() {
 
     raycaster = new THREE.Raycaster();
     
-    const isMobile = window.innerWidth <= 900;
-    raycaster.params.Points.threshold = isMobile ? 30 : 15; 
+    // 初期値設定
+    raycaster.params.Points.threshold = 15; 
     
     mouse = new THREE.Vector2();
 
@@ -141,15 +144,123 @@ function init() {
 
     window.addEventListener('resize', onWindowResize);
     window.addEventListener('pointermove', onPointerMove);
+    
+    // タップ/クリック開始位置の記録
     window.addEventListener('pointerdown', (e) => {
         state.dragStartX = e.clientX;
         state.dragStartY = e.clientY;
     });
-    window.addEventListener('click', onClick);
+    
+    // clickイベントの代わりにpointerupを使用し、独自にタップ判定を行う
+    window.addEventListener('pointerup', onPointerUp);
 
     container.addEventListener('wheel', onMouseWheel, { passive: false });
 
     animate();
+}
+
+// 画面下部に天体名を表示する要素を作成
+function createStarNameDisplay() {
+    if (document.getElementById('selected-star-name-display')) return;
+
+    const container = document.createElement('div');
+    container.id = 'selected-star-name-display';
+    
+    const textSpan = document.createElement('span');
+    textSpan.id = 'display-star-name-text';
+    
+    container.appendChild(textSpan);
+    document.body.appendChild(container);
+}
+
+// レチクルとUI調整用のスタイル定義
+function injectCustomStyles() {
+    const style = document.createElement('style');
+    style.innerHTML = `
+        /* 天体名表示エリア */
+        #selected-star-name-display {
+            position: absolute;
+            bottom: 230px; 
+            left: 0;
+            width: 100%;
+            text-align: center;
+            pointer-events: none; /* クリック透過 */
+            z-index: 990;
+            padding: 0 20px;
+            box-sizing: border-box;
+            
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            
+            font-family: 'Shippori Mincho', serif;
+            font-size: 0.9rem;
+            color: #fff;
+            text-shadow: 0 0 5px rgba(0,0,0,0.9), 0 0 2px var(--accent-gold);
+            letter-spacing: 0.05em;
+        }
+        
+        #selected-star-name-display.visible {
+            opacity: 1;
+        }
+
+        /* レチクル（詳細ボタンのみを含むコンテナ） */
+        #star-reticle {
+            position: absolute;
+            z-index: 1000;
+            display: none;
+            /* コンテナ自体はクリックを透過させる */
+            pointer-events: none !important;
+        }
+        
+        #star-reticle.visible {
+            display: block;
+        }
+
+        /* レチクル内の既存の名前表示を非表示にする */
+        #reticle-name {
+            display: none !important;
+        }
+
+        /* 詳細ボタンのスタイル調整 */
+        #btn-more {
+            display: block;
+            font-family: 'Shippori Mincho', serif;
+            font-size: 0.85rem !important;
+            padding: 6px 14px !important;
+            color: #d4af37 !important;
+            border: 1px solid rgba(212, 175, 55, 0.8) !important;
+            background: rgba(5, 10, 20, 0.85) !important;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            white-space: nowrap;
+            transition: all 0.2s;
+            
+            /* ボタンだけはクリックを有効にする */
+            pointer-events: auto !important;
+            
+            /* 常にレチクル中心の右下に配置 */
+            transform: translate(25px, 25px); 
+        }
+        #btn-more:active {
+            background: rgba(212, 175, 55, 0.3) !important;
+            transform: translate(25px, 25px) scale(0.95);
+        }
+
+        /* サイドドック（情報ウィンドウ）のz-indexを非常に大きくして最前面にする */
+        #side-dock {
+            z-index: 5000 !important; 
+        }
+        
+        /* モバイル調整 */
+        @media (max-width: 900px) {
+            #selected-star-name-display {
+                bottom: 210px; /* モバイルでの位置調整 */
+            }
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 function onMouseWheel(event) {
@@ -162,6 +273,9 @@ function onMouseWheel(event) {
 
 function setupUI() {
     const isMobile = window.innerWidth <= 900;
+
+    const btnMore = document.getElementById('btn-more');
+    if (btnMore) btnMore.textContent = '詳細≫';
 
     const dateInput = document.getElementById('date-picker');
     
@@ -176,7 +290,7 @@ function setupUI() {
     
     const magSlider = document.getElementById('mag-slider');
     const timeShuttle = document.getElementById('time-shuttle');
-    const btnMore = document.getElementById('btn-more');
+    
     const inputLat = document.getElementById('input-lat');
     const inputLon = document.getElementById('input-lon');
     const sliderLat = document.getElementById('slider-lat');
@@ -209,9 +323,11 @@ function setupUI() {
         sideDock.classList.toggle('open');
         const isOpen = sideDock.classList.contains('open');
         btnDockToggle.textContent = isOpen ? '≫' : '≪';
+        
+        updateReticle();
     });
 
-    const switchTab = (tabName) => {
+    window.switchTab = (tabName) => {
         tabBtnSettings.classList.remove('active');
         tabBtnInfo.classList.remove('active');
         paneSettings.classList.remove('active');
@@ -229,10 +345,12 @@ function setupUI() {
             sideDock.classList.add('open');
             btnDockToggle.textContent = '≫';
         }
+        
+        updateReticle();
     };
 
-    tabBtnSettings.addEventListener('click', () => switchTab('settings'));
-    tabBtnInfo.addEventListener('click', () => switchTab('info'));
+    tabBtnSettings.addEventListener('click', () => window.switchTab('settings'));
+    tabBtnInfo.addEventListener('click', () => window.switchTab('info'));
 
     inputLat.value = state.lat.toFixed(2);
     inputLon.value = state.lon.toFixed(2);
@@ -466,10 +584,11 @@ function setupUI() {
     btnMobileLocation.addEventListener('click', function() { getLocation(this); });
 
     btnMore.addEventListener('click', (e) => {
-        e.stopPropagation();
+        e.stopPropagation(); 
         if (state.selectedObject) {
             showSidePanel(state.selectedObject);
-            switchTab('info');
+            window.switchTab('info');
+            updateReticle();
         }
     });
 
@@ -853,7 +972,6 @@ function createLabelTexture(text, colorStr, fontSize = 32) {
 async function fetchAllData() {
     const loader = document.getElementById('loader');
     const promises = CATALOG_FILES.map(item => 
-        // 修正箇所: カタログファイルのパスを 'assets/catalogs/' に統一
         fetch(`assets/catalogs/${item.file}`)
             .then(res => { if (!res.ok) throw new Error(`${item.file}: ${res.status}`); return res.json(); })
             .then(data => ({ type: item.type, data: data }))
@@ -909,11 +1027,10 @@ function createConstellationLines(data, config, parentGroup) {
     const positions = new Float32Array(data.length * 6); 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     
-    // 変更: 線を太く見せるため不透明度を上げる
     const material = new THREE.LineBasicMaterial({ 
         color: config.color, 
         transparent: true, 
-        opacity: 0.6, // 0.4 -> 0.6
+        opacity: 0.6,
         depthTest: false 
     });
     
@@ -946,9 +1063,9 @@ function createStarPoints(type, data, parentGroup) {
     const sizes = new Float32Array(count);
     const magnitudes = new Float32Array(count);
     
-    // PCとモバイルでサイズ係数を変える
+    // --- 修正: 星のサイズを少し小さく調整 ---
     const isMobile = window.innerWidth <= 900;
-    const sizeBase = isMobile ? 4.0 : 2.0; // PCでは小さくする
+    const sizeBase = isMobile ? 6.0 : 3.0; // 7.0/3.5 -> 6.0/3.0
 
     data.forEach((obj, i) => {
         const spectFirst = obj.spect_type ? obj.spect_type.charAt(0).toUpperCase() : 'A';
@@ -956,9 +1073,7 @@ function createStarPoints(type, data, parentGroup) {
         colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
         let mag = parseFloat(obj.vmag || obj.mag || 6.0); if (isNaN(mag)) mag = 6.0;
         
-        // サイズ計算に sizeBase を使用
         sizes[i] = Math.max(1.0, (8.0 - mag) * sizeBase); 
-        
         magnitudes[i] = mag;
     });
 
@@ -1359,19 +1474,33 @@ function getObjectName(obj) {
     return names.join(' / ');
 }
 
-function onClick(event) {
-    if (event.target.closest('.ui-layer') && !event.target.classList.contains('ui-layer')) return;
-    if (event.target.closest('div[style*="position: absolute"]')) return; 
+// 変更: pointerupで呼び出されるハンドラ
+function onPointerUp(event) {
+    // UIレイヤーやモバイルコントロール上のクリックは無視（通常のclickイベントに任せる）
+    if (event.target.closest('.ui-layer') || 
+        event.target.closest('#mobile-controls') || 
+        event.target.closest('#star-reticle')) {
+        return; 
+    }
 
-    // スマホのコントロールバー上でのクリックを無視
-    if (event.target.closest('#mobile-controls')) return;
-
+    // ドラッグ判定: タップ開始位置と終了位置の差を計算
     const diffX = Math.abs(event.clientX - state.dragStartX);
     const diffY = Math.abs(event.clientY - state.dragStartY);
-    if (diffX > 5 || diffY > 5) return;
+    
+    // モバイルでは許容値を大きく、PCでは小さく
+    const isMobile = window.innerWidth <= 900;
+    const dragThreshold = isMobile ? 20 : 5; 
 
+    // しきい値を超えていたら「ドラッグ（視点移動）」とみなして処理終了
+    if (diffX > dragThreshold || diffY > dragThreshold) return;
+
+    // --- ここから選択判定ロジック ---
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // --- 修正: 判定閾値を以前の固定ロジックに戻す ---
+    // 動的計算はズーム時に範囲が狭くなりすぎ、近くの天体を拾えなくなるため
+    raycaster.params.Points.threshold = isMobile ? 30 : 15;
 
     let intersectTargets = [];
     if (layers['star'] && layers['star'].visible) {
@@ -1401,6 +1530,7 @@ function onClick(event) {
 
         intersects.forEach(hit => {
             let candidateObj = null;
+            let distToRay = 0; // レイ（タップ位置）からの距離
 
             if (hit.object.isPoints) {
                 const data = layers['star'].data[hit.index];
@@ -1410,6 +1540,8 @@ function onClick(event) {
                         index: hit.index, 
                         isStarPoint: true 
                     };
+                    // Pointsの場合、Three.jsが distanceToRay を計算してくれている
+                    distToRay = hit.distanceToRay;
                 }
             } else if (hit.object.isSprite) {
                 const userData = hit.object.parent.userData;
@@ -1418,6 +1550,15 @@ function onClick(event) {
                 } else {
                     candidateObj = userData;
                 }
+                
+                // Spriteの場合は中心座標とレイの距離を計算する
+                if (hit.object.position) {
+                    // ワールド座標を取得
+                    const worldPos = new THREE.Vector3();
+                    hit.object.getWorldPosition(worldPos);
+                    // レイとの距離を計算
+                    distToRay = raycaster.ray.distanceToPoint(worldPos);
+                }
             }
             
             let mag = 6.0;
@@ -1425,20 +1566,23 @@ function onClick(event) {
             else if (candidateObj.vmag !== undefined) mag = parseFloat(candidateObj.vmag);
             
             if (mag <= state.magLimit) {
+                // 距離情報を付加してリストに追加
+                candidateObj.distToRay = distToRay;
                 candidates.push(candidateObj);
             }
         });
 
         if (candidates.length > 0) {
+            // --- 修正: レイとの距離（近さ）でソートする ---
             candidates.sort((a, b) => {
-                const magA = (a.mag !== undefined ? a.mag : (a.vmag || 6));
-                const magB = (b.mag !== undefined ? b.mag : (b.vmag || 6));
-                return magA - magB;
+                return a.distToRay - b.distToRay;
             });
 
             const now = Date.now();
             let newIndex = 0;
             
+            // 直近のクリックから時間が経っていない、かつ一番近い候補が変わっていない場合のみ
+            // インデックスを進めて次の候補（少し遠い星）を選択する
             if (state.clickCandidates.length > 0 && 
                 candidates.length > 0 &&
                 candidates[0].name === state.clickCandidates[0].name && 
@@ -1454,42 +1598,25 @@ function onClick(event) {
             const targetObj = candidates[newIndex];
             state.selectedObject = targetObj;
             
-            const reticle = document.getElementById('star-reticle');
-            document.getElementById('reticle-name').textContent = getObjectName(targetObj);
-            reticle.classList.add('visible');
+            // 天体名を画面下部に表示
+            const nameDisplay = document.getElementById('selected-star-name-display');
+            if (nameDisplay) {
+                document.getElementById('display-star-name-text').textContent = '選択天体：' + getObjectName(targetObj);
+                nameDisplay.classList.add('visible');
+            }
             
             showSidePanel(targetObj);
-            
-            // 修正箇所: PCの場合のみ、クリックで即座に情報パネルを開く。
-            // モバイルの場合は「詳しく」ボタンでの遷移とする。
-            const isMobile = window.innerWidth <= 900;
-            
-            if (!isMobile) {
-                const sideDock = document.getElementById('side-dock');
-                const btnDockToggle = document.getElementById('btn-dock-toggle');
-                const tabBtnSettings = document.getElementById('tab-btn-settings');
-                const tabBtnInfo = document.getElementById('tab-btn-info');
-                const paneSettings = document.getElementById('pane-settings');
-                const paneInfo = document.getElementById('pane-info');
-
-                // infoタブをアクティブ化
-                tabBtnSettings.classList.remove('active');
-                paneSettings.classList.remove('active');
-                tabBtnInfo.classList.add('active');
-                paneInfo.classList.add('active');
-
-                // ドックを開く
-                if (!sideDock.classList.contains('open')) {
-                    sideDock.classList.add('open');
-                    btnDockToggle.textContent = '≫';
-                }
-            }
-
             updateReticle(); 
+
+            // PCの場合のみ自動でサイドパネルを開く
+            if (!isMobile) {
+                window.switchTab('info');
+            }
         } else {
             resetSelectionHelper();
         }
     } else {
+        // 何もヒットしなかった場合は選択解除
         resetSelectionHelper();
     }
 }
@@ -1499,6 +1626,16 @@ function resetSelectionHelper() {
     const reticle = document.getElementById('star-reticle');
     reticle.classList.remove('visible');
     reticle.style.display = 'none'; 
+    
+    const nameDisplay = document.getElementById('selected-star-name-display');
+    if (nameDisplay) {
+        nameDisplay.classList.remove('visible');
+        setTimeout(() => {
+            if(!nameDisplay.classList.contains('visible')) {
+                document.getElementById('display-star-name-text').textContent = '';
+            }
+        }, 300);
+    }
 }
 
 function showSidePanel(obj) {
@@ -1549,6 +1686,15 @@ function onWindowResize() {
 
 function updateReticle() {
     const reticle = document.getElementById('star-reticle');
+    const sideDock = document.getElementById('side-dock');
+    const isMobile = window.innerWidth <= 900;
+
+    // モバイル表示で、かつサイドドックが開いている場合はレチクル（とボタン）を隠す
+    if (isMobile && sideDock && sideDock.classList.contains('open')) {
+        reticle.classList.remove('visible');
+        reticle.style.display = 'none'; 
+        return;
+    }
     
     if (!state.selectedObject || state.shuttleValue !== 0 || state.isDragging) {
         reticle.classList.remove('visible');
@@ -1608,7 +1754,12 @@ function updateReticle() {
     const sy = -(targetVec.y - 1) * window.innerHeight / 2;
     
     reticle.style.display = 'block';
-    reticle.style.transform = `translate(${sx}px, ${sy}px)`;
+    // 星の座標を基準位置とする（オフセットはCSSクラスで制御）
+    reticle.style.left = sx + 'px';
+    reticle.style.top = sy + 'px';
+    // 既存のインラインtransformを消去
+    reticle.style.transform = '';
+    
     reticle.classList.add('visible');
 }
 

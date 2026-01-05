@@ -222,8 +222,32 @@ input[type="range"]::-webkit-slider-thumb {
 .reticle-line.bottom { bottom: 0; left: 50%; width: 1px; height: 10px; transform: translateX(-50%); }
 .reticle-line.left { top: 50%; left: 0; width: 10px; height: 1px; transform: translateY(-50%); }
 .reticle-line.right { top: 50%; right: 0; width: 10px; height: 1px; transform: translateY(-50%); }
-.reticle-info { position: absolute; top: 50%; left: 30px; transform: translateY(-50%); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.reticle-name-text { font-size: 1.2rem; color: var(--text-white); text-shadow: 0 0 5px #000; font-weight: 500; }
+
+/* Reticle Info Positioning 
+   JSで style-right / style-left クラスを切り替えて表示位置を制御する
+*/
+.reticle-info { 
+    position: absolute; top: 50%; transform: translateY(-50%); 
+    display: flex; align-items: center; gap: 10px; white-space: nowrap; 
+    transition: all 0.1s ease;
+}
+
+/* 右側に表示（デフォルト） */
+.reticle-info.style-right {
+    left: 30px; right: auto; 
+    flex-direction: row; /* [名前] [ボタン] の順 */
+    text-align: left;
+}
+
+/* 左側に表示（画面右端に星があるとき） */
+.reticle-info.style-left {
+    left: auto; right: 30px; 
+    flex-direction: row-reverse; /* [ボタン] [名前] の順になり、名前が星に近くなる */
+    text-align: right;
+}
+
+/* フォントサイズを縮小: 1.2rem -> 0.9rem */
+.reticle-name-text { font-size: 0.9rem; color: var(--text-white); text-shadow: 0 0 5px #000; font-weight: 500; }
 .btn-more { background: transparent; border: 1px solid var(--accent-gold); color: var(--accent-gold); font-size: 0.7rem; padding: 2px 8px; cursor: pointer; pointer-events: auto; opacity: 0.8; transition: all 0.2s; }
 .btn-more:hover { background: var(--accent-gold); color: var(--bg-dark); opacity: 1; }
 #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent-gold); font-size: 1.2rem; letter-spacing: 0.2em; text-align: center; }
@@ -235,20 +259,17 @@ input[type="range"]::-webkit-slider-thumb {
     bottom: 0; left: 0; width: 100%;
     background: linear-gradient(to top, rgba(5, 10, 20, 0.98), rgba(5, 10, 20, 0.9) 85%, transparent);
     
-    /* 変更点: 上左右のパディングを詰め、下はセーフエリア + 少量の余白のみ確保 */
     padding: 10px 16px calc(5px + env(safe-area-inset-bottom));
     z-index: 140; 
     box-sizing: border-box;
     pointer-events: auto;
     flex-direction: column;
-    /* 変更点: 要素間の隙間を圧縮 */
     gap: 5px; 
 }
 
 /* モバイル用レイアウト調整 */
 .mobile-info-header {
     display: flex; justify-content: center; align-items: center;
-    /* 変更点: マージンとパディングを極小化 */
     margin-bottom: 0px; 
     padding-bottom: 2px;
     border-bottom: 1px solid rgba(212, 175, 55, 0.1);
@@ -259,14 +280,12 @@ input[type="range"]::-webkit-slider-thumb {
     font-size: 1.3rem;
     letter-spacing: 0.05em;
     font-weight: 500; text-shadow: 0 0 5px rgba(0,0,0,0.5);
-    /* 変更点: 行間を詰める */
     line-height: 1.1; 
 }
 
 .mobile-location-row-compact {
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
     width: 100%; color: rgba(255, 255, 255, 0.6); 
-    /* 変更点: 全体的に小さく */
     font-family: sans-serif; font-size: 0.8rem;
     background: rgba(255, 255, 255, 0.05);
     padding: 2px 8px;
@@ -308,13 +327,12 @@ input[type="range"]::-webkit-slider-thumb {
     border-color: var(--accent-gold); 
 }
 
-/* スライダーラッパー: 中央線を表示するためにrelativeにする */
+/* スライダーラッパー */
 .mobile-slider-wrapper {
     display: flex; align-items: center; gap: 4px; flex-grow: 1;
     position: relative; 
 }
 
-/* 中央線 (スライダーの上に描画) */
 .mobile-slider-wrapper::after {
     content: "";
     position: absolute;
@@ -329,7 +347,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .mobile-dir-label { font-size: 0.6rem; color: var(--accent-gold); opacity: 0.7; white-space: nowrap; }
 
-/* 時間スライダー (標準スタイルで統一) */
+/* 時間スライダー */
 #mobile-time-shuttle {
     flex: 1;
     background: rgba(255,255,255,0.1); 
@@ -372,11 +390,6 @@ input[type="range"]::-webkit-slider-thumb {
         width: 100%; max-width: 300px; 
         transform: translateX(100%); 
         background: rgba(13, 18, 28, 0.95);
-        /* モバイル時の横スクロール対策:
-           閉じているときは visibility: hidden にする。
-           transitionで visibility の変化を遅延させることで、
-           スライドイン中は可視状態を保ち、完全に閉じた後に隠す。
-        */
         visibility: hidden; 
         transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s 0.5s;
     }
@@ -384,16 +397,13 @@ input[type="range"]::-webkit-slider-thumb {
     #side-dock.open { 
         transform: translateX(0); 
         visibility: visible;
-        /* 開くときは即座に可視化する */
         transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
     }
 
-    /* ストリップ部分は親がhiddenでも常に表示させる */
     .dock-strip {
         padding-top: 10px; background: rgba(5,10,20,0.95); height: auto;
         border-radius: 8px 0 0 8px; top: 60px; bottom: auto;
         width: 44px;
-        /* 隙間をなくすための修正: width分だけ左にずらす */
         left: -44px;
         box-shadow: -2px 2px 10px rgba(0,0,0,0.3);
         visibility: visible;
@@ -410,6 +420,9 @@ input[type="range"]::-webkit-slider-thumb {
     .glass-back-btn::before { margin: 0; font-size: 1.2rem; }
     #canvas-container { height: 100dvh; }
 
-    /* 変更点: モバイルでのタップしやすさを向上させるためボタンサイズ拡大 */
-    .btn-more { padding: 6px 12px; font-size: 0.9rem; background: rgba(5,10,20,0.6); }
+    .btn-more {
+        font-size: 0.85rem;
+        padding: 6px 12px;
+        background: rgba(5, 10, 20, 0.6); 
+    }
 }
