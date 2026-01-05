@@ -88,7 +88,11 @@ const state = {
     
     clickCandidates: [],
     clickCandidateIndex: 0,
-    lastClickTime: 0
+    lastClickTime: 0,
+
+    // ピンチズーム用
+    pinchStartDist: 0,
+    pinchStartFov: 0
 };
 
 function init() {
@@ -147,8 +151,11 @@ function init() {
     
     // タップ/クリック開始位置の記録
     window.addEventListener('pointerdown', (e) => {
-        state.dragStartX = e.clientX;
-        state.dragStartY = e.clientY;
+        // 2本指でない場合のみ座標記録（ピンチ操作と区別）
+        if (e.isPrimary) {
+            state.dragStartX = e.clientX;
+            state.dragStartY = e.clientY;
+        }
     });
     
     // clickイベントの代わりにpointerupを使用し、独自にタップ判定を行う
@@ -156,7 +163,51 @@ function init() {
 
     container.addEventListener('wheel', onMouseWheel, { passive: false });
 
+    // --- モバイル用ピンチズームイベントの追加 ---
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd, { passive: false });
+
     animate();
+}
+
+// --- ピンチズーム関連の関数 ---
+function onTouchStart(e) {
+    if (e.touches.length === 2) {
+        const dx = e.touches[0].pageX - e.touches[1].pageX;
+        const dy = e.touches[0].pageY - e.touches[1].pageY;
+        state.pinchStartDist = Math.sqrt(dx * dx + dy * dy);
+        state.pinchStartFov = camera.fov;
+    }
+}
+
+function onTouchMove(e) {
+    if (e.touches.length === 2 && state.pinchStartDist > 0) {
+        // デフォルトのブラウザズームなどを抑制
+        e.preventDefault();
+        e.stopPropagation();
+
+        const dx = e.touches[0].pageX - e.touches[1].pageX;
+        const dy = e.touches[0].pageY - e.touches[1].pageY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // 倍率計算 (初期距離 / 現在距離)
+        // 指を広げる(dist大) -> scale小 -> FOV小 -> ズームイン
+        // 指を狭める(dist小) -> scale大 -> FOV大 -> ズームアウト
+        const scale = state.pinchStartDist / dist;
+        let newFov = state.pinchStartFov * scale;
+
+        newFov = Math.max(CONFIG.minFov, Math.min(CONFIG.maxFov, newFov));
+        
+        camera.fov = newFov;
+        camera.updateProjectionMatrix();
+    }
+}
+
+function onTouchEnd(e) {
+    if (e.touches.length < 2) {
+        state.pinchStartDist = 0;
+    }
 }
 
 // 画面下部に天体名を表示する要素を作成
@@ -1063,9 +1114,9 @@ function createStarPoints(type, data, parentGroup) {
     const sizes = new Float32Array(count);
     const magnitudes = new Float32Array(count);
     
-    // --- 修正: 星のサイズを少し小さく調整 ---
+    // --- 修正: 星のサイズを微調整 (前回より少し小さく) ---
     const isMobile = window.innerWidth <= 900;
-    const sizeBase = isMobile ? 6.0 : 3.0; // 7.0/3.5 -> 6.0/3.0
+    const sizeBase = isMobile ? 6.0 : 3.0; // 5.0 -> 6.0, 2.5 -> 3.0 (中間より少し大きめに)
 
     data.forEach((obj, i) => {
         const spectFirst = obj.spect_type ? obj.spect_type.charAt(0).toUpperCase() : 'A';
