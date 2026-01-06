@@ -342,7 +342,6 @@ function setupUI() {
         });
     }
 
-    // --- PCの場合: 設定画面を初期状態で開く ---
     if (isMobile) {
         sideDock.classList.remove('open');
         btnDockToggle.textContent = '≪';
@@ -351,8 +350,6 @@ function setupUI() {
         sideDock.classList.add('open');
         btnDockToggle.textContent = '≫';
         document.body.classList.add('dock-open');
-        // 初期タブ設定（設定タブをアクティブにする）
-        window.switchTab('settings');
     }
 
     btnDockToggle.addEventListener('click', () => {
@@ -380,8 +377,6 @@ function setupUI() {
             tabBtnInfo.classList.add('active');
             paneInfo.classList.add('active');
         }
-        
-        // タブ切り替え時は強制的にドックを開く
         if (!sideDock.classList.contains('open')) {
             sideDock.classList.add('open');
             btnDockToggle.textContent = '≫';
