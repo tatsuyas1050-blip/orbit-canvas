@@ -192,8 +192,6 @@ function onTouchMove(e) {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         // 倍率計算 (初期距離 / 現在距離)
-        // 指を広げる(dist大) -> scale小 -> FOV小 -> ズームイン
-        // 指を狭める(dist小) -> scale大 -> FOV大 -> ズームアウト
         const scale = state.pinchStartDist / dist;
         let newFov = state.pinchStartFov * scale;
 
@@ -231,23 +229,39 @@ function injectCustomStyles() {
         /* 天体名表示エリア */
         #selected-star-name-display {
             position: absolute;
-            bottom: 230px; 
-            left: 0;
-            width: 100%;
+            
+            /* 位置調整: PC版の日時表示(bottom:30px)のすぐ上に配置 */
+            bottom: 70px; 
+            
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            /* グラデーションが切れないよう、少し広めに幅を確保 */
+            min-width: 300px;
+            
             text-align: center;
-            pointer-events: none; /* クリック透過 */
-            z-index: 990;
-            padding: 0 20px;
-            box-sizing: border-box;
+            pointer-events: none;
+            
+            /* UIレイヤー(10)やドック(150)より奥(背面)に表示 */
+            z-index: 5;
+            
+            /* 変更: 枠線なし、放射状グラデーションで外側へフェードアウト */
+            padding: 15px 50px;
+            background: radial-gradient(ellipse at center, rgba(5, 10, 20, 0.9) 0%, rgba(5, 10, 20, 0.5) 40%, rgba(5, 10, 20, 0) 80%);
+            border: none;
+            border-radius: 0;
+            
+            /* 文字設定 */
+            font-family: 'Shippori Mincho', serif;
+            font-size: 1.1rem;
+            color: #fff;
+            /* 文字が背景に溶け込みすぎないよう、光彩(text-shadow)を少し強めに */
+            text-shadow: 0 0 5px rgba(0,0,0,1), 0 0 8px var(--accent-gold);
+            letter-spacing: 0.1em;
+            white-space: nowrap;
             
             opacity: 0;
             transition: opacity 0.3s ease;
-            
-            font-family: 'Shippori Mincho', serif;
-            font-size: 0.9rem;
-            color: #fff;
-            text-shadow: 0 0 5px rgba(0,0,0,0.9), 0 0 2px var(--accent-gold);
-            letter-spacing: 0.05em;
         }
         
         #selected-star-name-display.visible {
@@ -307,7 +321,12 @@ function injectCustomStyles() {
         /* モバイル調整 */
         @media (max-width: 900px) {
             #selected-star-name-display {
-                bottom: 210px; /* モバイルでの位置調整 */
+                /* モバイルコントロールパネル（時計含む）を避けた位置 */
+                bottom: 200px; 
+                font-size: 1.0rem;
+                padding: 10px 40px;
+                /* モバイルは見やすさ重視で少し濃いめ・範囲狭めに調整 */
+                background: radial-gradient(ellipse at center, rgba(5, 10, 20, 0.95) 0%, rgba(5, 10, 20, 0.6) 30%, rgba(5, 10, 20, 0) 70%);
             }
         }
     `;
@@ -362,12 +381,50 @@ function setupUI() {
     const btnMobileTonight = document.getElementById('btn-mobile-tonight');
     const btnMobileLocation = document.getElementById('btn-mobile-location'); 
 
+    // --- ブラウザのリロードによるスライダー位置のズレ修正 ---
+    // JavaScriptの初期値(state.magLimit)とスライダーのツマミ位置を強制的に同期させる
+    if (magSlider) magSlider.value = state.magLimit;
+    if (mobileMagSlider) mobileMagSlider.value = state.magLimit;
+
+    // --- バーガーメニューの開閉処理 ---
+    const menuToggle = document.getElementById('menu-toggle');
+    const navOverlay = document.getElementById('nav-overlay');
+    
+    if (menuToggle && navOverlay) {
+        menuToggle.addEventListener('click', () => {
+            menuToggle.classList.toggle('active');
+            navOverlay.classList.toggle('open');
+            
+            // メニューが開いているときは、背後のCanvas操作（OrbitControls）を無効化
+            if (navOverlay.classList.contains('open')) {
+                controls.enabled = false;
+            } else {
+                controls.enabled = true;
+            }
+        });
+
+        // リンクをクリックしたらメニューを閉じる
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                menuToggle.classList.remove('active');
+                navOverlay.classList.remove('open');
+                controls.enabled = true;
+            });
+        });
+    }
+
+    // --- サイドドックの初期化とバーガーメニュー制御 ---
     if (isMobile) {
         sideDock.classList.remove('open');
         btnDockToggle.textContent = '≪';
+        // ドックが閉じているので、メニューは表示(dock-openクラスを外す)
+        document.body.classList.remove('dock-open');
     } else {
         sideDock.classList.add('open');
         btnDockToggle.textContent = '≫';
+        // ドックが開いているので、メニューは隠す(dock-openクラスを付ける)
+        document.body.classList.add('dock-open');
     }
 
     btnDockToggle.addEventListener('click', () => {
@@ -375,6 +432,13 @@ function setupUI() {
         const isOpen = sideDock.classList.contains('open');
         btnDockToggle.textContent = isOpen ? '≫' : '≪';
         
+        // CSSでバーガーメニューを消すためのクラス制御
+        if (isOpen) {
+            document.body.classList.add('dock-open');
+        } else {
+            document.body.classList.remove('dock-open');
+        }
+
         updateReticle();
     });
 
@@ -392,9 +456,12 @@ function setupUI() {
             paneInfo.classList.add('active');
         }
 
+        // タブ切り替え時にドックが閉じていたら強制的に開く
         if (!sideDock.classList.contains('open')) {
             sideDock.classList.add('open');
             btnDockToggle.textContent = '≫';
+            // ドックが開くのでメニューを隠す
+            document.body.classList.add('dock-open');
         }
         
         updateReticle();
@@ -1114,12 +1181,13 @@ function createStarPoints(type, data, parentGroup) {
     const sizes = new Float32Array(count);
     const magnitudes = new Float32Array(count);
     
-    // --- 修正: 星のサイズを微調整 (前回よりさらに少し小さく) ---
+    // --- 修正: 星のサイズ計算（全体的にサイズアップ） ---
     const isMobile = window.innerWidth <= 900;
-    const sizeBase = isMobile ? 5.5 : 2.8; // 6.0/3.0 -> 5.5/2.8
-
-    // --- 追加: モバイル時の最小サイズを大きめに設定し、暗い星の視認性を確保 ---
-    const minSize = isMobile ? 5.0 : 2.5; 
+    
+    // sizeBase: 全体のスケール係数 (大きくする)
+    const sizeBase = isMobile ? 6.0 : 3.5; 
+    // minSize: 最小サイズの保証値 (大きくする)
+    const minSize = isMobile ? 12.0 : 6.0; 
 
     data.forEach((obj, i) => {
         const spectFirst = obj.spect_type ? obj.spect_type.charAt(0).toUpperCase() : 'A';
@@ -1127,8 +1195,11 @@ function createStarPoints(type, data, parentGroup) {
         colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
         let mag = parseFloat(obj.vmag || obj.mag || 6.0); if (isNaN(mag)) mag = 6.0;
         
-        // --- 修正: 最小サイズ(minSize)を下回らないように計算 ---
-        sizes[i] = Math.max(minSize, (8.0 - mag) * sizeBase); 
+        // サイズ計算（最小値保証と倍率アップ）
+        let rawSize = Math.max(minSize, (8.0 - mag) * sizeBase);
+        // 上限も緩和
+        sizes[i] = Math.min(rawSize, isMobile ? 40.0 : 25.0); 
+
         magnitudes[i] = mag;
     });
 
@@ -1157,7 +1228,8 @@ function createStarPoints(type, data, parentGroup) {
                 float altitudeFactor = 1.0 - smoothstep(0.0, 500.0, abs(position.y));
                 twinkle += altitudeFactor * 0.2 * sin(uTime * speed * 2.0);
                 vColor = color * twinkle;
-                // --- 修正: 係数を 0.4 -> 0.25 に変更し、暗い星表示時の肥大化を抑制 ---
+                
+                // 露出補正のような係数
                 float exposureScale = 0.5 + max(0.0, magLimit) * 0.25; 
                 
                 float fovFactor = 50.0 / uFov;
@@ -1535,7 +1607,8 @@ function onPointerUp(event) {
     // UIレイヤーやモバイルコントロール上のクリックは無視（通常のclickイベントに任せる）
     if (event.target.closest('.ui-layer') || 
         event.target.closest('#mobile-controls') || 
-        event.target.closest('#star-reticle')) {
+        event.target.closest('#star-reticle') ||
+        event.target.closest('.menu-container')) { // メニュー上のタップも無視
         return; 
     }
 
@@ -1815,6 +1888,18 @@ function updateReticle() {
     reticle.style.top = sy + 'px';
     // 既存のインラインtransformを消去
     reticle.style.transform = '';
+
+    // --- 追加: 画面の左右どちらにあるかで情報表示位置クラスを切り替え ---
+    const reticleInfo = document.querySelector('.reticle-info');
+    if (reticleInfo) {
+        if (targetVec.x > 0) { // 右半分にある場合
+            reticleInfo.classList.add('style-left');
+            reticleInfo.classList.remove('style-right');
+        } else { // 左半分にある場合
+            reticleInfo.classList.add('style-right');
+            reticleInfo.classList.remove('style-left');
+        }
+    }
     
     reticle.classList.add('visible');
 }

@@ -73,14 +73,21 @@ input[type="datetime-local"] {
 }
 .glass-back-btn:hover::before { transform: translateX(-4px); }
 
-/* Screen Clock (PC) */
+/* Screen Clock (PC) - 画面中央下部へ移動 */
 #screen-clock {
-    position: absolute; top: 1.5rem; right: 70px;
+    position: absolute; 
+    bottom: 30px; 
+    left: 50%;    
+    transform: translateX(-50%); 
+    top: auto;   
+    right: auto; 
+    
     color: var(--accent-gold); font-size: 1.1rem; font-weight: 500; letter-spacing: 0.1em;
     background: rgba(5, 10, 20, 0.6); padding: 5px 15px;
     border-radius: 4px; border: 1px solid var(--accent-gold);
     backdrop-filter: blur(4px); pointer-events: auto;
     text-shadow: 0 0 5px rgba(0,0,0,0.5);
+    z-index: 50; 
 }
 
 /* --- Side Dock (Refined Design) --- */
@@ -181,14 +188,24 @@ input[type="datetime-local"] {
 .coord-label { font-size: 0.75rem; opacity: 0.7; }
 .coord-input { width: 70px; padding: 0.2rem; text-align: right; font-family: sans-serif; background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.2); }
 
-/* スライダー共通 (CSSでの背景指定は必要最小限にし、JSでの操作を可能にする) */
+/* スライダー共通 */
 input[type="range"] { 
     width: 100%; cursor: pointer; accent-color: var(--accent-gold); margin: 2px 0; height: 6px; 
-    background: rgba(255,255,255,0.1); /* JSが無効な場合のデフォルト */
+    background: rgba(255,255,255,0.1);
     border-radius: 3px; -webkit-appearance: none; appearance: none;
 }
+
+/* 修正: スライダーのつまみ（丸）の設定 */
 input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 12px; height: 12px; background: var(--accent-gold); border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    -webkit-appearance: none;
+    width: 18px; /* 少し大きくして操作しやすく */
+    height: 18px;
+    background: var(--accent-gold); /* 色を戻す */
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    position: relative;
+    z-index: 2;
 }
 
 .shuttle-container { 
@@ -216,16 +233,22 @@ input[type="range"]::-webkit-slider-thumb {
 /* Reticle & Loader */
 #star-reticle { position: absolute; width: 0; height: 0; pointer-events: none; display: none; z-index: 100; }
 #star-reticle.visible { display: block; }
-.reticle-cross { position: absolute; transform: translate(-50%, -50%); width: 40px; height: 40px; }
+.reticle-cross { 
+    position: absolute; transform: translate(-50%, -50%); width: 40px; height: 40px; 
+    animation: reticle-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes reticle-pop {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
 .reticle-line { position: absolute; background: var(--accent-gold); opacity: 0.8; }
 .reticle-line.top { top: 0; left: 50%; width: 1px; height: 10px; transform: translateX(-50%); }
 .reticle-line.bottom { bottom: 0; left: 50%; width: 1px; height: 10px; transform: translateX(-50%); }
 .reticle-line.left { top: 50%; left: 0; width: 10px; height: 1px; transform: translateY(-50%); }
 .reticle-line.right { top: 50%; right: 0; width: 10px; height: 1px; transform: translateY(-50%); }
 
-/* Reticle Info Positioning 
-   JSで style-right / style-left クラスを切り替えて表示位置を制御する
-*/
+/* Reticle Info Positioning */
 .reticle-info { 
     position: absolute; top: 50%; transform: translateY(-50%); 
     display: flex; align-items: center; gap: 10px; white-space: nowrap; 
@@ -235,18 +258,17 @@ input[type="range"]::-webkit-slider-thumb {
 /* 右側に表示（デフォルト） */
 .reticle-info.style-right {
     left: 30px; right: auto; 
-    flex-direction: row; /* [名前] [ボタン] の順 */
+    flex-direction: row; 
     text-align: left;
 }
 
 /* 左側に表示（画面右端に星があるとき） */
 .reticle-info.style-left {
     left: auto; right: 30px; 
-    flex-direction: row-reverse; /* [ボタン] [名前] の順になり、名前が星に近くなる */
+    flex-direction: row-reverse; 
     text-align: right;
 }
 
-/* フォントサイズを縮小: 1.2rem -> 0.9rem */
 .reticle-name-text { font-size: 0.9rem; color: var(--text-white); text-shadow: 0 0 5px #000; font-weight: 500; }
 .btn-more { background: transparent; border: 1px solid var(--accent-gold); color: var(--accent-gold); font-size: 0.7rem; padding: 2px 8px; cursor: pointer; pointer-events: auto; opacity: 0.8; transition: all 0.2s; }
 .btn-more:hover { background: var(--accent-gold); color: var(--bg-dark); opacity: 1; }
@@ -267,7 +289,6 @@ input[type="range"]::-webkit-slider-thumb {
     gap: 5px; 
 }
 
-/* モバイル用レイアウト調整 */
 .mobile-info-header {
     display: flex; justify-content: center; align-items: center;
     margin-bottom: 0px; 
@@ -424,5 +445,38 @@ input[type="range"]::-webkit-slider-thumb {
         font-size: 0.85rem;
         padding: 6px 12px;
         background: rgba(5, 10, 20, 0.6); 
+    }
+}
+
+/* --- バーガーメニューの制御 --- */
+
+.menu-container,
+.menu-toggle {
+    z-index: 6000 !important;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+.nav-overlay {
+    z-index: 5900 !important;
+}
+
+/* ドック展開時（body.dock-open）はメニューを隠す */
+body.dock-open .menu-toggle {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+/* ドック収納時は、ストリップ(50px)と重ならない位置に表示 */
+.menu-container .menu-toggle {
+    right: 90px !important; 
+    top: 1.5rem !important;
+}
+
+/* モバイル表示時は通常の右端へ */
+@media (max-width: 900px) {
+    .menu-container .menu-toggle {
+        right: 15px !important;
+        top: 15px !important;
     }
 }
