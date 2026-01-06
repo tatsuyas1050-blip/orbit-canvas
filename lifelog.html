@@ -382,11 +382,10 @@
         .modal-box.plan-theme .modal-h { color: #00d2ff; border-bottom-color: rgba(0, 210, 255, 0.3); }
 
         .form-grp { margin-bottom: 1.5rem; }
-        /* 削除: 2列レイアウト用のスタイルを削除して1列にする */
-        /* .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; } */
         
         label { display: block; font-size: 0.85rem; color: #ccc; margin-bottom: 0.5rem; font-family: var(--font-tech); }
         
+        /* 汎用inputスタイル。詳細度を上げるため列挙していますが、auth-inputクラスを優先させます */
         input[type="text"], input[type="date"], input[type="password"], input[type="email"], select, textarea {
             width: 100%; 
             max-width: 100%; 
@@ -398,6 +397,14 @@
             padding: 0.8rem; 
             border-radius: 6px;
             font-family: var(--font-body);
+        }
+
+        /* --- 修正: パスワード入力欄などの揺れを防ぐための固定スタイルクラス --- */
+        .auth-input {
+            height: 48px; /* 高さを固定 */
+            font-size: 1rem !important; /* フォントサイズ固定 */
+            font-family: var(--font-body) !important; /* フォントファミリー固定 */
+            line-height: normal;
         }
 
         /* カレンダーアイコンを非表示にする */
@@ -420,7 +427,62 @@
             font-family: var(--font-body);
         }
         .btn-modal-action.plan-mode { background: linear-gradient(135deg, #00d2ff, #0077ff); box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3); color: #fff; }
-        .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-top: 10px; cursor: pointer; }
+        
+        /* --- 修正: チェックボックスのレイアウトとデザイン --- */
+        .checkbox-wrapper { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; /* アイコンとテキストの間隔 */
+            margin-bottom: 1.5rem; 
+            cursor: pointer;
+            white-space: nowrap; 
+            justify-content: flex-start; /* 左寄せ */
+            color: #ccc;
+            font-size: 0.9rem;
+            width: 100%;
+            user-select: none;
+            
+            /* --- 修正: 左側に1文字分の余白 --- */
+            padding-left: 1em;
+        }
+        
+        /* オリジナルチェックボックス */
+        .custom-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            position: relative;
+            transition: 0.3s;
+            flex-shrink: 0; /* 潰れないように */
+            margin: 0;
+        }
+        
+        /* チェック状態: 背景色をゴールドに */
+        .custom-checkbox:checked {
+            background: var(--accent-gold);
+            border-color: var(--accent-gold);
+        }
+        
+        /* チェックマークを描画 */
+        .custom-checkbox:checked::after {
+            content: '';
+            position: absolute;
+            top: 45%; left: 50%;
+            width: 5px; height: 9px;
+            border: solid #000;
+            border-width: 0 2px 2px 0;
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+        
+        /* ホバー時に少し明るく */
+        .custom-checkbox:hover {
+            border-color: var(--accent-gold);
+        }
         
         .user-list-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .user-list-icon { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #555; }
@@ -430,8 +492,27 @@
         .auth-container, .auth-features-unified { background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:1rem; margin-bottom:1rem; }
         .login-box-deco { border: 1px solid rgba(212, 175, 55, 0.5) !important; box-shadow: 0 0 60px rgba(0,0,0,0.9); background: rgba(15,20,30,0.98); }
         .input-group { position:relative; margin-bottom:1rem; }
-        .input-group input { padding-left:2.5rem; }
-        .input-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#aaa; }
+        
+        /* 入力欄のパディング調整：絵文字削除のため左パディングは標準に戻し、右はアイコン用にあける */
+        .input-group input { padding-left: 0.8rem; padding-right: 3rem; } 
+
+        /* パスワード表示トグル画像 */
+        .toggle-pass-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            opacity: 0.7;
+            user-select: none;
+            z-index: 5;
+            object-fit: contain;
+            transition: opacity 0.3s;
+        }
+        .toggle-pass-icon:hover { opacity: 1; }
+
         .error-msg { color:#ff6b6b; font-size:0.8rem; display:none; background:rgba(255,0,0,0.1); padding:5px; }
         .error-msg.show { display:block; }
         .auth-links { margin-top:1rem; text-align:center; font-size:0.8rem; color:#aaa; }
@@ -1119,7 +1200,7 @@
         <a href="index.html" class="header-back-btn auth-back-pos">トップへ戻る</a>
         <div id="view-login" class="modal-box login-box-deco">
             <div style="text-align:center; margin-bottom:1.5rem;">
-                <div style="font-size:3rem; margin-bottom:0.5rem;">🔭</div>
+                <div style="margin-bottom:0.5rem;"><img src="assets/img/lifelog_mark.png" alt="Logo" style="width: 80px; height: auto;"></div>
                 <h2 class="modal-h" style="border:none; padding:0; margin:0; font-size:1.8rem; text-shadow:0 0 10px rgba(212,175,55,0.5); font-family:var(--font-main); color:#fff !important;">星空ライフログ</h2>
                 <p style="font-size:0.8rem; color:#d4af37; letter-spacing:0.1em; margin-top:5px; font-family:var(--font-tech);">My Starry Sky Log</p>
                 <div style="margin-top:1.5rem; font-size:1rem; font-weight:bold; border-bottom:1px solid rgba(255,255,255,0.2); display:inline-block; padding:0 1rem 0.5rem;">ログイン</div>
@@ -1132,8 +1213,15 @@
             </div>
             <p id="login-error" class="error-msg"></p>
             <form id="login-form" onsubmit="event.preventDefault(); signIn();">
-                <div class="input-group"><span class="input-icon">✉️</span><input type="email" id="login-email" placeholder="メールアドレス" autocomplete="username" required></div>
-                <div class="input-group"><span class="input-icon">🔑</span><input type="password" id="login-pass" placeholder="パスワード" autocomplete="current-password" required></div>
+                <div class="input-group"><input type="email" id="login-email" class="auth-input" placeholder="メールアドレス" autocomplete="username" required></div>
+                <div class="input-group">
+                    <input type="password" id="login-pass" class="auth-input" placeholder="パスワード" autocomplete="current-password" required>
+                    <img src="assets/img/visible.png" class="toggle-pass-icon" onclick="togglePassword('login-pass', this)" alt="パスワードを表示">
+                </div>
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="remember-me" class="custom-checkbox">
+                    <span>ログイン情報を保存する</span>
+                </label>
                 <button type="submit" class="btn-modal-action">ログインして始める</button>
             </form>
             <div class="auth-links">
@@ -1145,28 +1233,34 @@
         <div id="view-signup" style="display:none;" class="modal-box login-box-deco">
             <h2 class="modal-h" style="color:var(--accent-gold) !important;">SIGN UP</h2><p id="signup-error" class="error-msg"></p>
             <form onsubmit="event.preventDefault(); signUp();">
-                <div class="input-group"><span class="input-icon">✉️</span><input type="email" id="signup-email" placeholder="メールアドレス" autocomplete="email" required></div>
-                <div class="input-group"><span class="input-icon">🔑</span><input type="password" id="signup-pass" placeholder="パスワード" autocomplete="new-password" required></div>
+                <div class="input-group"><input type="email" id="signup-email" class="auth-input" placeholder="メールアドレス" autocomplete="email" required></div>
+                <div class="input-group">
+                    <input type="password" id="signup-pass" class="auth-input" placeholder="パスワード" autocomplete="new-password" required>
+                    <img src="assets/img/visible.png" class="toggle-pass-icon" onclick="togglePassword('signup-pass', this)" alt="パスワードを表示">
+                </div>
                 <button type="submit" class="btn-modal-action">認証コードを送信</button>
             </form>
             <div class="auth-links"><span onclick="switchView('login')">ログイン画面へ戻る</span></div>
         </div>
         <div id="view-verify" style="display:none;" class="modal-box login-box-deco">
             <h2 class="modal-h" style="color:var(--accent-gold) !important;">VERIFY</h2><p id="verify-error" class="error-msg"></p>
-            <div class="input-group"><span class="input-icon">🔢</span><input type="text" id="verify-code" placeholder="認証コード" autocomplete="one-time-code"></div>
+            <div class="input-group"><input type="text" id="verify-code" class="auth-input" placeholder="認証コード" autocomplete="one-time-code"></div>
             <button onclick="verifyCode()" class="btn-modal-action">認証して完了</button>
             <div class="auth-links"><span onclick="switchView('signup')">戻る</span></div>
         </div>
         <div id="view-forgot" style="display:none;" class="modal-box login-box-deco">
             <h2 class="modal-h" style="color:var(--accent-gold) !important;">RESET PASSWORD</h2><p id="forgot-error" class="error-msg"></p>
-            <div class="input-group"><span class="input-icon">✉️</span><input type="email" id="forgot-email" placeholder="登録メールアドレス" autocomplete="email"></div>
+            <div class="input-group"><input type="email" id="forgot-email" class="auth-input" placeholder="登録メールアドレス" autocomplete="email"></div>
             <button onclick="sendResetCode()" class="btn-modal-action">コードを送信</button>
             <div class="auth-links"><span onclick="switchView('login')">戻る</span></div>
         </div>
         <div id="view-reset-submit" style="display:none;" class="modal-box login-box-deco">
             <h2 class="modal-h" style="color:var(--accent-gold) !important;">NEW PASSWORD</h2><p id="reset-error" class="error-msg"></p>
-            <div class="input-group"><span class="input-icon">🔢</span><input type="text" id="reset-code" placeholder="認証コード" autocomplete="one-time-code"></div>
-            <div class="input-group"><span class="input-icon">🔑</span><input type="password" id="reset-new-pass" placeholder="新しいパスワード" autocomplete="new-password"></div>
+            <div class="input-group"><input type="text" id="reset-code" class="auth-input" placeholder="認証コード" autocomplete="one-time-code"></div>
+            <div class="input-group">
+                <input type="password" id="reset-new-pass" class="auth-input" placeholder="新しいパスワード" autocomplete="new-password">
+                <img src="assets/img/visible.png" class="toggle-pass-icon" onclick="togglePassword('reset-new-pass', this)" alt="パスワードを表示">
+            </div>
             <button onclick="submitResetPassword()" class="btn-modal-action">変更を保存</button>
         </div>
     </div>
@@ -1313,6 +1407,15 @@
             lastWidth = newWidth;
             isMobile = window.innerWidth <= 900;
             updateViewLayout();
+        });
+
+        // ページロード時に保存されたメールアドレスがあればセットする
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedEmail = localStorage.getItem('starry_login_email');
+            if (savedEmail) {
+                document.getElementById('login-email').value = savedEmail;
+                document.getElementById('remember-me').checked = true;
+            }
         });
 
         checkUser();
@@ -2168,13 +2271,37 @@
             });
         }
 
+        // パスワード表示切替機能 (画像アイコン版)
+        function togglePassword(inputId, iconImg) {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") {
+                input.type = "text";
+                iconImg.src = "assets/img/hidden.png"; // パスワードが見えている状態なので「隠す」アイコンへ
+                iconImg.alt = "パスワードを隠す";
+            } else {
+                input.type = "password";
+                iconImg.src = "assets/img/visible.png"; // パスワードが隠れている状態なので「表示する」アイコンへ
+                iconImg.alt = "パスワードを表示";
+            }
+        }
+
         async function signIn() {
             const e = document.getElementById('login-email').value;
             const p = document.getElementById('login-pass').value;
+            const remember = document.getElementById('remember-me').checked;
+
             if(!p) {
                 showError('login-error', 'パスワードを入力してください。');
                 return;
             }
+            
+            // ログイン情報の保存処理
+            if(remember) {
+                localStorage.setItem('starry_login_email', e);
+            } else {
+                localStorage.removeItem('starry_login_email');
+            }
+
             try {
                 await Auth.signIn(e, p);
                 checkUser();
