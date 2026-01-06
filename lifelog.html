@@ -5,7 +5,7 @@
     <title>星空ライフログ - My Starry Sky Log</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&family=Jura:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho:wght@400;500;700&family=Jura:wght@400;600&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
@@ -17,8 +17,11 @@
             --bg-deep: #080c15; 
             --card-bg: rgba(30, 40, 60, 0.5);
             --card-border: rgba(255, 255, 255, 0.2);
-            --font-tech: 'Jura', sans-serif;
-            --font-main: 'Shippori Mincho', serif;
+            /* フォント定義 */
+            --font-tech: 'Jura', sans-serif;           /* 数字・英語用 */
+            --font-main: 'Shippori Mincho', serif;     /* タイトル・見出し用（明朝） */
+            --font-body: 'Noto Sans JP', sans-serif;   /* 本文・UI用（ゴシック） */
+            
             --accent-gold: #d4af37;
             --accent-blue: #00d2ff;
             --header-height: 80px;
@@ -33,7 +36,8 @@
             overflow: hidden; 
             color: var(--text-main);
             margin: 0;
-            position: relative; 
+            position: relative;
+            font-family: var(--font-body); /* 基本はゴシック */
         }
 
         /* --- 背景固定用の擬似要素 --- */
@@ -70,6 +74,28 @@
             top: 50%;
             transform: translateY(-50%);
             z-index: 21;
+            transition: color 0.3s;
+        }
+        .header-back-btn:hover {
+            transform: translateY(-50%);
+        }
+        
+        /* タイトルスタイルの修正: 白とゴールドの組み合わせ */
+        .page-title {
+            font-family: var(--font-main);
+            color: #fff; /* 日本語は白 */
+            font-size: 1.5rem;
+            display: flex;
+            flex-direction: column; /* 上下に並べる */
+            align-items: center;
+            line-height: 1.1;
+        }
+        .page-title span {
+            color: var(--accent-gold); /* 英語はゴールド */
+            font-family: var(--font-tech);
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+            margin-top: 2px;
         }
 
         /* --- PCレイアウト --- */
@@ -146,7 +172,7 @@
         .avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
         .avatar-default { font-size: 2.5rem; opacity: 0.8; }
         
-        .user-name { font-size: 1.3rem; margin-bottom: 0.2rem; font-weight: 500; font-family: var(--font-main); }
+        .user-name { font-size: 1.3rem; margin-bottom: 0.2rem; font-weight: 500; font-family: var(--font-body); }
         .user-email { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 1.5rem; font-family: var(--font-tech); }
 
         .profile-controls { position: relative; height: 30px; margin-bottom: 10px; }
@@ -191,12 +217,13 @@
         .btn-plan {
             width: 100%; background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(0, 100, 200, 0.4));
             border: 1px solid rgba(0, 210, 255, 0.5); color: #d0f0ff; padding: 1.2rem; border-radius: 12px;
-            font-family: 'Shippori Mincho', serif; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+            font-family: var(--font-body);
+            font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
         }
         .btn-plan:hover { background: linear-gradient(135deg, rgba(0, 210, 255, 0.4), rgba(0, 100, 200, 0.6)); border-color: #fff; }
 
         .panel-header { padding: 1.2rem 1.2rem 0.5rem; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 0.5rem; flex-shrink: 0; }
-        .panel-title { font-size: 1rem; color: #70d6ff; font-weight: bold; margin: 0; font-family: 'Shippori Mincho', serif; }
+        .panel-title { font-size: 1rem; color: #70d6ff; font-weight: bold; margin: 0; font-family: var(--font-main); }
         
         .wishlist-container { 
             flex: 1; overflow-y: auto; padding: 0.5rem 0.5rem 1rem 1rem; 
@@ -223,7 +250,7 @@
         .plan-body { display: none; padding-top: 0.8rem; margin-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.2); }
         .plan-item.active .plan-body { display: block; }
         .plan-btns { display: flex; gap: 8px; justify-content: flex-end; }
-        .p-btn { border: none; font-size: 0.75rem; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .p-btn { border: none; font-size: 0.75rem; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-family: var(--font-body); }
         .p-btn-edit { background: rgba(255, 255, 255, 0.1); color: #ddd; border: 1px solid rgba(255, 255, 255, 0.3); }
         .p-btn-rec { background: rgba(0, 210, 255, 0.15); color: #b3f0ff; border: 1px solid rgba(0, 210, 255, 0.4); }
         .p-btn-del { background: rgba(255, 94, 94, 0.15); color: #ff8888; border: 1px solid rgba(255, 94, 94, 0.4); }
@@ -245,7 +272,8 @@
         .tab-btn {
             background: transparent; border: none; color: #ffffff;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); 
-            font-family: 'Shippori Mincho', serif; font-size: 0.95rem; font-weight: 700;
+            font-family: var(--font-body); 
+            font-size: 0.95rem; font-weight: 700;
             cursor: pointer; padding: 10px 20px; border-radius: 25px;
             transition: all 0.3s ease; flex: 1; white-space: nowrap; position: relative; z-index: 5;
         }
@@ -265,7 +293,8 @@
             background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(180, 140, 30, 0.4));
             border: 1px solid var(--accent-gold); color: #ffe; 
             padding: 0.7rem 1.5rem; border-radius: 30px; font-size: 0.95rem; font-weight: bold; 
-            cursor: pointer; font-family: var(--font-main);
+            cursor: pointer; 
+            font-family: var(--font-body); 
         }
         .btn-add-log:hover { background: linear-gradient(135deg, rgba(212, 175, 55, 0.4), rgba(180, 140, 30, 0.6)); }
 
@@ -286,7 +315,7 @@
         .feed-user-icon { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-gold); }
         
         .feed-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
-        .feed-title { font-size: 1.5rem; margin: 0; font-weight: 500; font-family: 'Shippori Mincho'; color: #fff; }
+        .feed-title { font-size: 1.5rem; margin: 0; font-weight: 500; font-family: var(--font-main); color: #fff; }
         .feed-stars { color: var(--accent-gold); letter-spacing: 2px; }
         .feed-meta { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 1rem; display: flex; gap: 10px; align-items: center; }
         .meta-tag { color: var(--accent-gold); border: 1px solid rgba(212,175,55,0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; background: rgba(212,175,55,0.05); }
@@ -294,14 +323,14 @@
         .feed-foot { text-align: right; margin-top: 1rem; display: flex; justify-content: flex-end; gap: 10px; align-items: center; }
         
         /* 削除・編集ボタンの共通スタイル */
-        .btn-del-log, .btn-edit-log { padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .btn-del-log, .btn-edit-log { padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-family: var(--font-body); }
         .btn-del-log { background: rgba(255, 94, 94, 0.15); border: 1px solid rgba(255, 94, 94, 0.4); color: #ff8888; }
         .btn-edit-log { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: #ddd; }
         
         .reaction-group { display: flex; gap: 8px; margin-right: auto; }
         .btn-reaction {
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #ccc;
-            padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 5px;
+            padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 5px; font-family: var(--font-body);
         }
         .btn-reaction:hover { background: rgba(255,255,255,0.1); }
         .btn-reaction.liked { border-color: #ff5577; color: #ff5577; background: rgba(255, 85, 119, 0.1); }
@@ -311,6 +340,7 @@
             background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(0, 100, 200, 0.3));
             border: 1px solid rgba(0, 210, 255, 0.5); color: #d0f0ff;
             padding: 6px 15px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; transition: 0.3s;
+            font-family: var(--font-body);
         }
         .btn-ref-plan:hover { background: rgba(0, 210, 255, 0.4); text-shadow: 0 0 8px #fff; }
         .ref-count { font-size: 0.75rem; color: #aaa; cursor: pointer; text-decoration: underline; margin-right: 10px; align-self: center; }
@@ -318,7 +348,6 @@
         .feed-card.plan-type {
             border-left: 4px solid rgba(0, 210, 255, 0.5); 
             background: linear-gradient(90deg, rgba(0, 40, 60, 0.6), rgba(30, 40, 60, 0.5));
-            /* プランタイプはブロック表示（画像カラム無し） */
             display: block !important; 
         }
         .feed-card.plan-type:hover { border-left-color: #00d2ff; border-color: rgba(0, 210, 255, 0.4); }
@@ -327,7 +356,6 @@
         .private-mark { color: #aaa; border: 1px solid #555; font-size: 0.6rem; padding: 1px 4px; border-radius: 3px; margin-left: 5px; vertical-align: middle; }
         .feed-card.clickable { cursor: pointer; transition: transform 0.3s, box-shadow 0.3s; }
         
-        /* プラン用のトグルヒント文言変更 */
         .feed-card.plan-type .mobile-toggle-hint::before {
             content: "▼ メモを表示";
         }
@@ -347,16 +375,18 @@
             max-height: 80vh; overflow-y: auto; 
         }
         .modal-close { position: absolute; top: 1rem; right: 1rem; background:none; border:none; color: #fff; font-size: 1.8rem; cursor: pointer; }
-        .modal-h { text-align: center; color: var(--accent-gold); margin-bottom: 2rem; font-size: 1.5rem; border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 1rem; font-family: 'Shippori Mincho'; }
+        /* モーダル見出しはゴシック体へ変更（明朝体指定を削除） */
+        .modal-h { text-align: center; color: var(--accent-gold); margin-bottom: 2rem; font-size: 1.5rem; border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 1rem; }
         
         .modal-box.plan-theme { border-color: #00d2ff; box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 15px rgba(0, 210, 255, 0.2); }
         .modal-box.plan-theme .modal-h { color: #00d2ff; border-bottom-color: rgba(0, 210, 255, 0.3); }
 
         .form-grp { margin-bottom: 1.5rem; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        /* 削除: 2列レイアウト用のスタイルを削除して1列にする */
+        /* .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; } */
+        
         label { display: block; font-size: 0.85rem; color: #ccc; margin-bottom: 0.5rem; font-family: var(--font-tech); }
         
-        /* 修正: 日付入力欄の幅・スタイル調整 (カレンダーアイコン非表示含む) */
         input[type="text"], input[type="date"], input[type="password"], input[type="email"], select, textarea {
             width: 100%; 
             max-width: 100%; 
@@ -367,6 +397,7 @@
             color: #fff; 
             padding: 0.8rem; 
             border-radius: 6px;
+            font-family: var(--font-body);
         }
 
         /* カレンダーアイコンを非表示にする */
@@ -386,6 +417,7 @@
             width: 100%; padding: 12px; border-radius: 30px; border: none;
             background: linear-gradient(135deg, var(--accent-gold), #b8860b);
             color: #000; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+            font-family: var(--font-body);
         }
         .btn-modal-action.plan-mode { background: linear-gradient(135deg, #00d2ff, #0077ff); box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3); color: #fff; }
         .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-top: 10px; cursor: pointer; }
@@ -409,7 +441,6 @@
         .mobile-toggle-hint { display: none; }
         .log-collapsible-area { display: block; } /* PCでは常に表示 */
 
-        /* ▼▼▼ 公開設定セレクタ (チェックボックス代替) ▼▼▼ */
         .vis-selector {
             display: flex;
             background: rgba(255,255,255,0.1);
@@ -436,16 +467,14 @@
             font-weight: bold;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
-        /* Plan Theme */
         .modal-box.plan-theme .vis-btn.active {
             background: #00d2ff;
             color: #000;
         }
 
-        /* ▼▼▼ 機材選択セレクタ (ボタン式・複数選択・アイコン無し) ▼▼▼ */
         .tool-selector {
             display: flex; gap: 5px; overflow-x: auto;
-            padding-bottom: 5px; /* スクロールバー余白 */
+            padding-bottom: 5px; 
         }
         .tool-btn {
             flex: 1;
@@ -453,14 +482,14 @@
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.2);
             color: #ccc;
-            padding: 12px 5px; /* パディング調整 */
+            padding: 12px 5px; 
             border-radius: 8px;
             cursor: pointer;
             transition: 0.3s;
-            font-size: 0.85rem; /* 文字サイズ少し大きく */
+            font-size: 0.85rem; 
             font-weight: 500;
-            display: flex; align-items: center; justify-content: center; /* 中央揃え */
-            font-family: var(--font-main); /* フォント合わせる */
+            display: flex; align-items: center; justify-content: center; 
+            font-family: var(--font-body); 
         }
         .tool-btn.active {
             background: rgba(212, 175, 55, 0.2);
@@ -470,7 +499,6 @@
             box-shadow: 0 0 10px rgba(212, 175, 55, 0.1) inset;
         }
         
-        /* ▼▼▼ 評価スライダー (目盛り付き) ▼▼▼ */
         .rating-wrapper {
             background: rgba(255,255,255,0.05);
             padding: 15px; border-radius: 8px;
@@ -484,7 +512,6 @@
             font-size: 0.8rem; color: #bbb; margin-bottom: 15px;
         }
         
-        /* 目盛り付きスライダーコンテナ */
         .slider-container {
             position: relative;
             height: 30px;
@@ -494,7 +521,7 @@
         }
         .slider-track-bg {
             position: absolute;
-            top: 50%; left: 10px; right: 10px; /* inputのpadding等を考慮 */
+            top: 50%; left: 10px; right: 10px; 
             height: 4px;
             background: rgba(255,255,255,0.1);
             transform: translateY(-50%);
@@ -520,7 +547,7 @@
             -webkit-appearance: none; appearance: none;
             width: 100%; 
             margin: 0;
-            background: transparent; /* 背景透明 */
+            background: transparent; 
             position: relative;
             z-index: 1;
             outline: none; border: none; padding: 0;
@@ -530,9 +557,8 @@
             width: 24px; height: 24px; border-radius: 50%;
             background: var(--accent-gold);
             cursor: pointer; box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            margin-top: -10px; /* トラックに対する位置調整 */
+            margin-top: -10px; 
         }
-        /* トラック（操作線）も透明にして自前の線を見せる */
         input[type="range"]::-webkit-slider-runnable-track {
             width: 100%; height: 4px;
             background: transparent;
@@ -544,8 +570,77 @@
             font-size: 0.7rem; color: #888; margin-top: 8px;
         }
 
+        .auth-back-pos {
+            position: absolute;
+            top: 1.5rem !important; 
+            left: 2rem !important;
+            transform: none !important; 
+        }
+        
+        .menu-container, .menu-toggle { z-index: 2100 !important; }
+        .nav-overlay { z-index: 2050 !important; }
+
+        .nav-link {
+            font-family: var(--font-main);
+        }
+
+        /* --- 新規追加: ボトムナビゲーション画像のスタイル --- */
+        .nav-icon-img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            margin-bottom: 4px;
+            transition: 0.3s;
+        }
+        
+        /* 修正: アクティブ時のスタイル強化 */
+        /* アイコン自体の変化 */
+        .nav-item.active .nav-icon-img {
+            filter: drop-shadow(0 0 5px var(--accent-gold)); /* 光彩 */
+            transform: translateY(-2px) scale(1.1); /* 少し拡大して浮く */
+        }
+        .nav-item.active.plan-mode .nav-icon-img {
+            filter: drop-shadow(0 0 5px #00d2ff);
+        }
+        
+        /* .nav-item 自体の装飾 */
+        .nav-item {
+            position: relative; /* 疑似要素の位置基準 */
+            overflow: hidden; /* エフェクトのはみ出し防止 */
+        }
+        
+        /* 背景の発光エフェクト */
+        .nav-item.active {
+            background: linear-gradient(to top, rgba(212, 175, 55, 0.15), transparent);
+        }
+        .nav-item.active.plan-mode {
+            background: linear-gradient(to top, rgba(0, 210, 255, 0.15), transparent);
+        }
+        
+        /* 上部の光るライン */
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0%;
+            width: 100%;
+            height: 3px;
+            background: var(--accent-gold);
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 0 8px var(--accent-gold);
+        }
+        .nav-item.active.plan-mode::after {
+            background: #00d2ff;
+            box-shadow: 0 0 8px #00d2ff;
+        }
+
         /* ▼▼▼ MOBILE OPTIMIZATION ▼▼▼ */
         @media (max-width: 900px) {
+            .auth-back-pos {
+                top: 1rem !important;
+                left: 1rem !important;
+            }
+
             body { 
                 overflow: auto; 
                 height: 100%; 
@@ -568,7 +663,6 @@
                 overflow: visible; 
             }
 
-            /* 左カラムのレイアウト (Sticky動作のためcontents) */
             .left-column { 
                 height: auto; 
                 margin-bottom: 0; 
@@ -576,7 +670,6 @@
                 display: contents !important; 
             }
             
-            /* プロフィールパネル (固定・コンパクト化) */
             .profile-panel { 
                 display: flex; 
                 align-items: center; 
@@ -609,9 +702,8 @@
             .user-name { font-size: 0.95rem; margin-bottom: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
             .user-email { margin-bottom: 0; font-size: 0.6rem; opacity: 0.7; line-height: 1.2; }
             
-            /* モバイル用統計表示 (コンパクト) */
             .mobile-stats-row {
-                display: block !important; /* モバイルでのみ表示 */
+                display: block !important;
                 font-size: 0.75rem;
                 font-family: var(--font-tech);
                 margin-top: 2px;
@@ -633,7 +725,7 @@
             }
 
             .stats-row { display: none; }
-            .profile-tabs-mobile { display: none; } /* タブ削除 */
+            .profile-tabs-mobile { display: none; }
 
             .action-panel { display: none; }
 
@@ -650,48 +742,40 @@
             }
             .page-heading { display: none; }
 
-            /* Feed Card (Mobile Optimized) */
             .feed-card { 
                 display: flex !important; 
                 flex-direction: column !important; 
                 grid-template-columns: 1fr !important;
                 margin-bottom: 1.5rem; 
                 height: auto !important;
-                padding: 0 !important; /* コンテンツエリアいっぱいに広げるためゼロ */
+                padding: 0 !important; 
                 position: relative;
             }
             
-            /* モバイル用：折りたたみ式スタイル */
-            /* 共通：画像がある場合 */
             .feed-card.has-image {
                 overflow: hidden;
             }
 
-            /* --- 閉じた状態 (画像あり) --- */
             .feed-card:not(.open).has-image .feed-img-col {
                 display: block;
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%;
                 z-index: 0; border: none; margin: 0;
             }
-            /* 背景暗化フィルター */
             .feed-card:not(.open).has-image .feed-img-col::after {
                 content: '';
                 position: absolute; top:0; left:0; width:100%; height:100%;
                 background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.8));
                 pointer-events: none;
             }
-            /* テキストを浮き上がらせる */
             .feed-card:not(.open).has-image .feed-content {
                 position: relative; z-index: 1;
                 background: transparent;
                 text-shadow: 0 1px 4px rgba(0,0,0,0.8);
             }
-            /* 重なり防止 */
             .feed-card:not(.open).has-image .feed-user-info {
-                margin-top: 25px; /* 日付バッジ(約30px)を避ける */
+                margin-top: 25px; 
             }
 
-            /* 閉じた状態 (画像なし) -> 通常通り画像エリア非表示 */
             .feed-card:not(.open):not(.has-image) .feed-img-col {
                 display: none;
             }
@@ -699,11 +783,9 @@
                 width: 100%;
             }
             
-            /* --- 開いた状態 (画像あり) --- */
             .feed-card.open.has-image .feed-img-col {
                 display: block;
                 position: relative;
-                /* 高さを250pxに固定してoverflow制御 */
                 height: 250px;
                 width: 100% !important;
                 margin: 0;
@@ -711,10 +793,9 @@
                 border-bottom: 1px solid rgba(255,255,255,0.1);
                 overflow: hidden;
             }
-            /* ヘッダー情報（アイコン・名前・タイトル）を画像の上にオーバーレイ固定 */
             .feed-card.open.has-image .feed-user-info {
                 position: absolute;
-                top: 35px; /* 日付バッジの下 */
+                top: 35px; 
                 left: 15px;
                 z-index: 10;
                 margin-top: 0;
@@ -722,27 +803,23 @@
             }
             .feed-card.open.has-image .feed-head {
                 position: absolute;
-                top: 60px; /* ユーザー情報の下 */
+                top: 60px; 
                 left: 15px;
                 right: 15px;
                 z-index: 10;
                 text-shadow: 0 1px 4px rgba(0,0,0,0.8);
             }
-            /* 画像クリックで拡大できるようにポインターを表示 */
             .feed-card.open.has-image .feed-img {
                 cursor: zoom-in;
-                /* 枠に合わせてトリミング表示 */
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
             }
 
-            /* 開いた状態 (画像なし) -> 画像エリア非表示のまま */
             .feed-card.open:not(.has-image) .feed-img-col {
                 display: none;
             }
             
-            /* 詳細エリアのアコーディオンアニメーション */
             .log-collapsible-area {
                 max-height: 0;
                 overflow: hidden;
@@ -750,22 +827,20 @@
                 transition: max-height 0.4s ease, opacity 0.3s ease;
             }
             .feed-card.open .log-collapsible-area {
-                max-height: 1000px; /* 十分な高さ */
+                max-height: 1000px;
                 opacity: 1;
                 margin-top: 0;
                 padding: 15px;
             }
             
-            /* モバイル向けコンテンツパディング調整 */
             .feed-content {
-                padding: 15px !important; /* 広げた分、内部に適度な余白 */
+                padding: 15px !important;
             }
             
             .feed-card.open .feed-head { margin-bottom: 0.2rem; }
             .feed-card.open .feed-meta { font-size: 0.75rem; opacity: 0.8; margin-bottom: 0.5rem; }
             .feed-card.open .feed-text { margin-top: 0; padding-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.1); }
 
-            /* フッターの最適化 */
             .feed-foot-mobile {
                 display: flex;
                 justify-content: space-between;
@@ -775,7 +850,6 @@
                 border-top: 1px solid rgba(255,255,255,0.1);
             }
 
-            /* 開閉ヒントボタン */
             .mobile-toggle-hint {
                 display: block;
                 margin-top: 0.5rem;
@@ -787,7 +861,6 @@
             .mobile-toggle-hint::before { content: "▼ 詳細を見る"; }
             .feed-card.open .mobile-toggle-hint::before { content: "▲ 閉じる"; }
             
-            /* 画像バッジ */
             .img-badge {
                 position: absolute; bottom: 10px; right: 10px;
                 background: rgba(0,0,0,0.6); color: #fff;
@@ -795,7 +868,6 @@
                 display: flex; align-items: center; gap: 4px; pointer-events: none;
                 z-index: 2;
             }
-            /* 閉じた状態ではバッジを隠す */
             .feed-card:not(.open) .img-badge { display: none; }
 
             .mobile-bottom-nav {
@@ -818,7 +890,7 @@
                 color: #888; 
                 font-size: 0.65rem; 
                 gap: 4px; 
-                width: 25%; /* 4つ並べるので25% */
+                width: 25%;
                 height: 100%; 
                 cursor: pointer; 
                 transition: 0.3s; 
@@ -827,7 +899,6 @@
             .nav-item.active.plan-mode { color: #00d2ff; }
             .nav-icon { font-size: 1.5rem; margin-bottom: 2px; }
 
-            /* フローティングボタン共通スタイル */
             .floating-action-btn {
                 position: fixed; 
                 bottom: calc(var(--footer-height) + 15px); 
@@ -835,7 +906,6 @@
                 z-index: 90;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
                 
-                /* 横長・カプセル型にする */
                 width: auto; 
                 height: auto; 
                 padding: 12px 20px;
@@ -843,7 +913,7 @@
                 
                 font-size: 0.9rem; 
                 font-weight: bold;
-                font-family: var(--font-main);
+                font-family: var(--font-body); 
                 
                 display: flex; 
                 align-items: center; 
@@ -853,20 +923,16 @@
                 border: 1px solid rgba(255,255,255,0.3);
             }
 
-            /* Log用 (Gold) */
             .floating-action-btn.log-btn {
                 background: linear-gradient(135deg, rgba(212, 175, 55, 0.9), rgba(180, 140, 30, 0.9));
                 border-color: var(--accent-gold);
             }
             
-            /* Plan用 (Blue) */
             .floating-action-btn.plan-btn {
                 background: linear-gradient(135deg, rgba(0, 210, 255, 0.9), rgba(0, 100, 200, 0.9));
                 border-color: #00d2ff;
             }
             
-            /* ▼▼▼ モバイル・フルスクリーンモーダル設定 ▼▼▼ */
-            /* 狭い画面 (600px以下) でモーダルをフルスクリーン化 */
             @media (max-width: 600px) {
                 .modal-box {
                     width: 100% !important;
@@ -877,10 +943,13 @@
                     padding: 20px !important;
                     display: flex;
                     flex-direction: column;
-                    background: #080c15 !important; /* 背景色を濃く */
+                    background: #080c15 !important;
                 }
                 
-                /* タイトルを左寄せにしてSNS風に */
+                #view-login .modal-h, #view-signup .modal-h, #view-verify .modal-h, #view-forgot .modal-h, #view-reset-submit .modal-h {
+                    text-align: center;
+                }
+
                 .modal-h {
                     text-align: left;
                     margin-top: 20px;
@@ -889,7 +958,6 @@
                     font-size: 1.8rem;
                 }
                 
-                /* 閉じるボタンを大きく、押しやすく */
                 .modal-close {
                     top: 15px;
                     right: 15px;
@@ -903,46 +971,39 @@
                     z-index: 100;
                 }
                 
-                /* フォームの2列表示を解除して1列にする (ここが重要) */
                 .form-row {
                     grid-template-columns: 1fr !important;
                     gap: 1.2rem !important;
                 }
                 
-                /* 入力エリアを広げてタップしやすく */
                 input[type="text"], input[type="date"], select, textarea {
                     font-size: 1rem;
                     padding: 14px;
                     background: rgba(255,255,255,0.05);
                 }
                 
-                /* コメント欄を広げる */
                 textarea {
                     min-height: 150px;
                 }
                 
-                /* ボタンを画面下部に配置 */
                 .btn-modal-action {
                     margin-top: auto;
                     padding: 16px;
                     font-size: 1.1rem;
-                    border-radius: 8px; /* 丸みを少し抑える */
+                    border-radius: 8px; 
                 }
                 
-                /* フォーム全体を縦に伸ばす */
                 #unified-form {
                     flex: 1;
                     display: flex;
                     flex-direction: column;
                 }
-                /* 最後のグループ以外は通常通り */
                 .form-grp:last-of-type {
                     margin-bottom: 20px;
                 }
             }
         }
         
-        /* 画像拡大モーダル用 */
         #img-modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 3000;
@@ -1037,16 +1098,16 @@
 
     <nav class="mobile-bottom-nav">
         <div class="nav-item active" id="nav-my-log" onclick="switchBottomTab('my-log')">
-            <div class="nav-icon">📖</div><span>ログ</span>
+            <img src="assets/img/log.png" class="nav-icon-img" alt="ログ"><span>ログ</span>
         </div>
         <div class="nav-item" id="nav-my-plan" onclick="switchBottomTab('my-plan')">
-            <div class="nav-icon">📅</div><span>プラン</span>
+            <img src="assets/img/plan.png" class="nav-icon-img" alt="プラン"><span>プラン</span>
         </div>
         <div class="nav-item" id="nav-global-log" onclick="switchBottomTab('global-log')">
-            <div class="nav-icon">🌏</div><span>フィード</span>
+            <img src="assets/img/feed.png" class="nav-icon-img" alt="フィード"><span>フィード</span>
         </div>
         <div class="nav-item" id="nav-global-plan" onclick="switchBottomTab('global-plan')">
-            <div class="nav-icon">🔭</div><span>ジョイン</span>
+            <img src="assets/img/join.png" class="nav-icon-img" alt="ジョイン"><span>ジョイン</span>
         </div>
     </nav>
     
@@ -1059,8 +1120,9 @@
         <div id="view-login" class="modal-box login-box-deco">
             <div style="text-align:center; margin-bottom:1.5rem;">
                 <div style="font-size:3rem; margin-bottom:0.5rem;">🔭</div>
-                <h2 class="modal-h" style="border:none; padding:0; margin:0; text-shadow:0 0 10px rgba(212,175,55,0.5);">ログイン</h2>
-                <p style="font-size:0.8rem; color:#888; letter-spacing:0.1em;">Starry Sky Log</p>
+                <h2 class="modal-h" style="border:none; padding:0; margin:0; font-size:1.8rem; text-shadow:0 0 10px rgba(212,175,55,0.5); font-family:var(--font-main); color:#fff !important;">星空ライフログ</h2>
+                <p style="font-size:0.8rem; color:#d4af37; letter-spacing:0.1em; margin-top:5px; font-family:var(--font-tech);">My Starry Sky Log</p>
+                <div style="margin-top:1.5rem; font-size:1rem; font-weight:bold; border-bottom:1px solid rgba(255,255,255,0.2); display:inline-block; padding:0 1rem 0.5rem;">ログイン</div>
             </div>
             <p class="auth-desc">ログインすると以下の機能が使えます</p>
             <div class="auth-features-unified">
@@ -1069,9 +1131,11 @@
                 <div class="feat-row"><span class="feat-icon-small">📅</span><span>プランを立てる</span></div>
             </div>
             <p id="login-error" class="error-msg"></p>
-            <div class="input-group"><span class="input-icon">✉️</span><input type="email" id="login-email" placeholder="メールアドレス"></div>
-            <div class="input-group"><span class="input-icon">🔑</span><input type="password" id="login-pass" placeholder="パスワード"></div>
-            <button onclick="signIn()" class="btn-modal-action">ログインして始める</button>
+            <form id="login-form" onsubmit="event.preventDefault(); signIn();">
+                <div class="input-group"><span class="input-icon">✉️</span><input type="email" id="login-email" placeholder="メールアドレス" autocomplete="username" required></div>
+                <div class="input-group"><span class="input-icon">🔑</span><input type="password" id="login-pass" placeholder="パスワード" autocomplete="current-password" required></div>
+                <button type="submit" class="btn-modal-action">ログインして始める</button>
+            </form>
             <div class="auth-links">
                 <span onclick="switchView('forgot')">パスワードを忘れた場合</span>
                 <span style="border-left:1px solid #555; margin:0 15px; height:12px; display:inline-block;"></span>
@@ -1079,28 +1143,30 @@
             </div>
         </div>
         <div id="view-signup" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h">SIGN UP</h2><p id="signup-error" class="error-msg"></p>
-            <div class="input-group"><span class="input-icon">✉️</span><input type="email" id="signup-email" placeholder="メールアドレス"></div>
-            <div class="input-group"><span class="input-icon">🔑</span><input type="password" id="signup-pass" placeholder="パスワード"></div>
-            <button onclick="signUp()" class="btn-modal-action">認証コードを送信</button>
+            <h2 class="modal-h" style="color:var(--accent-gold) !important;">SIGN UP</h2><p id="signup-error" class="error-msg"></p>
+            <form onsubmit="event.preventDefault(); signUp();">
+                <div class="input-group"><span class="input-icon">✉️</span><input type="email" id="signup-email" placeholder="メールアドレス" autocomplete="email" required></div>
+                <div class="input-group"><span class="input-icon">🔑</span><input type="password" id="signup-pass" placeholder="パスワード" autocomplete="new-password" required></div>
+                <button type="submit" class="btn-modal-action">認証コードを送信</button>
+            </form>
             <div class="auth-links"><span onclick="switchView('login')">ログイン画面へ戻る</span></div>
         </div>
         <div id="view-verify" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h">VERIFY</h2><p id="verify-error" class="error-msg"></p>
-            <div class="input-group"><span class="input-icon">🔢</span><input type="text" id="verify-code" placeholder="認証コード"></div>
+            <h2 class="modal-h" style="color:var(--accent-gold) !important;">VERIFY</h2><p id="verify-error" class="error-msg"></p>
+            <div class="input-group"><span class="input-icon">🔢</span><input type="text" id="verify-code" placeholder="認証コード" autocomplete="one-time-code"></div>
             <button onclick="verifyCode()" class="btn-modal-action">認証して完了</button>
             <div class="auth-links"><span onclick="switchView('signup')">戻る</span></div>
         </div>
         <div id="view-forgot" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h">RESET PASSWORD</h2><p id="forgot-error" class="error-msg"></p>
-            <div class="input-group"><span class="input-icon">✉️</span><input type="email" id="forgot-email" placeholder="登録メールアドレス"></div>
+            <h2 class="modal-h" style="color:var(--accent-gold) !important;">RESET PASSWORD</h2><p id="forgot-error" class="error-msg"></p>
+            <div class="input-group"><span class="input-icon">✉️</span><input type="email" id="forgot-email" placeholder="登録メールアドレス" autocomplete="email"></div>
             <button onclick="sendResetCode()" class="btn-modal-action">コードを送信</button>
             <div class="auth-links"><span onclick="switchView('login')">戻る</span></div>
         </div>
         <div id="view-reset-submit" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h">NEW PASSWORD</h2><p id="reset-error" class="error-msg"></p>
-            <div class="input-group"><span class="input-icon">🔢</span><input type="text" id="reset-code" placeholder="認証コード"></div>
-            <div class="input-group"><span class="input-icon">🔑</span><input type="password" id="reset-new-pass" placeholder="新しいパスワード"></div>
+            <h2 class="modal-h" style="color:var(--accent-gold) !important;">NEW PASSWORD</h2><p id="reset-error" class="error-msg"></p>
+            <div class="input-group"><span class="input-icon">🔢</span><input type="text" id="reset-code" placeholder="認証コード" autocomplete="one-time-code"></div>
+            <div class="input-group"><span class="input-icon">🔑</span><input type="password" id="reset-new-pass" placeholder="新しいパスワード" autocomplete="new-password"></div>
             <button onclick="submitResetPassword()" class="btn-modal-action">変更を保存</button>
         </div>
     </div>
@@ -1111,39 +1177,39 @@
             <h3 class="modal-h" id="modal-heading">ログを作成</h3>
             <form id="unified-form">
                 <input type="hidden" id="input-type" value="log">
-                <div class="form-row form-grp">
-                    <div><label>日付</label><input type="date" id="input-date" required></div>
-                    <div><label>対象 / タイトル</label><input type="text" id="input-target" placeholder="例: オリオン座" required></div>
+                <div class="form-grp">
+                    <label>日付</label><input type="date" id="input-date" required>
+                </div>
+                <div class="form-grp">
+                    <label>対象 / タイトル</label><input type="text" id="input-target" placeholder="例: オリオン座" required>
                 </div>
                 <div id="log-fields">
-                    <div class="form-row form-grp">
-                        <div>
-                            <label>機材 (複数選択可)</label>
-                            <div class="tool-selector">
-                                <input type="hidden" id="input-tool" value="肉眼">
-                                <button type="button" class="tool-btn active" onclick="setTool('肉眼', this)"><span>肉眼</span></button>
-                                <button type="button" class="tool-btn" onclick="setTool('双眼鏡', this)"><span>双眼鏡</span></button>
-                                <button type="button" class="tool-btn" onclick="setTool('天体望遠鏡', this)"><span>望遠鏡</span></button>
-                                <button type="button" class="tool-btn" onclick="setTool('カメラ', this)"><span>カメラ</span></button>
-                            </div>
+                    <div class="form-grp">
+                        <label>機材 (複数選択可)</label>
+                        <div class="tool-selector">
+                            <input type="hidden" id="input-tool" value="肉眼">
+                            <button type="button" class="tool-btn active" onclick="setTool('肉眼', this)"><span>肉眼</span></button>
+                            <button type="button" class="tool-btn" onclick="setTool('双眼鏡', this)"><span>双眼鏡</span></button>
+                            <button type="button" class="tool-btn" onclick="setTool('天体望遠鏡', this)"><span>望遠鏡</span></button>
+                            <button type="button" class="tool-btn" onclick="setTool('カメラ', this)"><span>カメラ</span></button>
                         </div>
-                        <div>
-                            <label>評価</label>
-                            <div class="rating-wrapper">
-                                <div class="rating-value" id="rating-display">★★★☆☆</div>
-                                <div class="rating-desc" id="rating-text">普通に見えた</div>
-                                <div class="slider-container">
-                                    <div class="slider-track-bg"></div>
-                                    <div class="slider-ticks">
-                                        <span class="tick"></span><span class="tick"></span><span class="tick"></span><span class="tick"></span><span class="tick"></span>
-                                    </div>
-                                    <input type="range" id="input-rating-range" min="1" max="5" value="3" step="1" oninput="updateRating(this.value)">
+                    </div>
+                    <div class="form-grp">
+                        <label>評価</label>
+                        <div class="rating-wrapper">
+                            <div class="rating-value" id="rating-display">★★★☆☆</div>
+                            <div class="rating-desc" id="rating-text">普通に見えた</div>
+                            <div class="slider-container">
+                                <div class="slider-track-bg"></div>
+                                <div class="slider-ticks">
+                                    <span class="tick"></span><span class="tick"></span><span class="tick"></span><span class="tick"></span><span class="tick"></span>
                                 </div>
-                                <input type="hidden" id="input-rating" value="3">
-                                <div class="rating-labels">
-                                    <span>見えない</span>
-                                    <span>よく見えた</span>
-                                </div>
+                                <input type="range" id="input-rating-range" min="1" max="5" value="3" step="1" oninput="updateRating(this.value)">
+                            </div>
+                            <input type="hidden" id="input-rating" value="3">
+                            <div class="rating-labels">
+                                <span>見えない</span>
+                                <span>よく見えた</span>
                             </div>
                         </div>
                     </div>
@@ -1620,7 +1686,6 @@
                             }
                         }
 
-                        // 修正: "機材:"のラベルを復活
                         const html = `
                             <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
                                 <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
@@ -2033,7 +2098,7 @@
         }
 
         function initiateConvert(planId) {
-            const plan = myDataCache.find(d => d.logId === planId);
+            let plan = myDataCache.find(d => d.logId === planId);
             if(!plan) return;
             convertingPlanId = planId;
             editingLog = null;
@@ -2236,9 +2301,6 @@
             const author = target.authorName || 'Guest User';
             document.getElementById('input-comment').value = `${author}さんの予定を参考にしました`;
         }
-
-        // 古い関数は使わないため削除または無効化
-        // async function referencePlan(targetUserId, targetLogId) { ... } 
     </script>
 </body>
 </html>
