@@ -231,12 +231,13 @@
                 transform: translateX(-1px);
             }
             .page-title {
-                font-size: 1.1rem;
+                font-size: 1.5rem; /* base.css と合わせました */
                 width: auto;
                 left: 50%; transform: translateX(-50%);
             }
             .page-title span {
-                font-size: 0.65rem; margin-top: 2px;
+                font-size: 0.85rem; /* base.css と合わせました */
+                margin-top: 2px;
             }
             .menu-toggle {
                 top: 5px; right: 10px; transform: scale(0.8);
@@ -501,7 +502,7 @@
                     <div class="astro-title">天文暦<span class="astro-date-sub" id="astro-date-display">--/--</span></div>
                     <div class="location-control">
                         <span id="geo-display" class="geo-info">📍 東京</span>
-                        <button id="btn-geo" class="btn-geo">更新</button>
+                        <button id="btn-geo" class="btn-geo">現在地取得</button>
                     </div>
                 </div>
                 
@@ -888,7 +889,7 @@
             navigator.geolocation.getCurrentPosition(p=>{
                 observerLat=p.coords.latitude; observerLon=p.coords.longitude;
                 document.getElementById('geo-display').textContent=`📍 N${observerLat.toFixed(1)} / E${observerLon.toFixed(1)}`;
-                document.getElementById('btn-geo').textContent="更新";
+                document.getElementById('btn-geo').textContent="現在地取得";
                 if(selectedDate) updateAstroData(new Date(selectedDate));
             });
         });
