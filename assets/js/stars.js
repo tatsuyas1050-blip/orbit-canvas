@@ -14,17 +14,21 @@ const CONFIG = {
         SolarSystem: { label: '太陽系', color: '#ffd700', type: 'solar_body' }, 
         star: { label: '恒星', color: '#ffffff', type: 'point' }, 
         
-        ConstellationLines: { label: '星座線', color: '#e0f0ff', type: 'line' },
-        ConstellationLabels: { label: '星座名', color: '#a0d9ff', type: 'label_only' },
+        // --- カテゴリ定義 ---
+        StarLabels: { label: '恒星名', color: '#eeeeee', type: 'label_only', isLabelGroup: true },
 
-        MultipleStar: { label: '重星', color: '#dcd0ff', type: 'double_circle' },
-        Galaxy: { label: '銀河', color: '#ffffdd', type: 'ellipse' },
-        GlobularCluster: { label: '球状星団', color: '#ffcc66', type: 'circle_plus' },
-        OpenCluster: { label: '散開星団', color: '#aaccff', type: 'circle_dotted' },
-        EmissionNebula: { label: '散光星雲', color: '#ff9999', type: 'square' },
-        ReflectionNebula: { label: '反射星雲', color: '#99ccff', type: 'square_stroke' },
-        PlanetaryNebula: { label: '惑星状星雲', color: '#88ffcc', type: 'circle_cross' },
-        SupernovaRemnant: { label: '超新星残骸', color: '#cc99ff', type: 'diamond' }
+        ConstellationLines: { label: '星座線', color: '#e0f0ff', type: 'line', isConstellationGroup: true },
+        ConstellationLabels: { label: '星座名', color: '#a0d9ff', type: 'label_only', isConstellationGroup: true },
+
+        // DSO（星雲・星団など）はラベルグループに含める（マークごと消す対象）
+        MultipleStar: { label: '重星', color: '#dcd0ff', type: 'double_circle', isLabelGroup: true },
+        Galaxy: { label: '銀河', color: '#ffffdd', type: 'ellipse', isLabelGroup: true },
+        GlobularCluster: { label: '球状星団', color: '#ffcc66', type: 'circle_plus', isLabelGroup: true },
+        OpenCluster: { label: '散開星団', color: '#aaccff', type: 'circle_dotted', isLabelGroup: true },
+        EmissionNebula: { label: '散光星雲', color: '#ff9999', type: 'square', isLabelGroup: true },
+        ReflectionNebula: { label: '反射星雲', color: '#99ccff', type: 'square_stroke', isLabelGroup: true },
+        PlanetaryNebula: { label: '惑星状星雲', color: '#88ffcc', type: 'circle_cross', isLabelGroup: true },
+        SupernovaRemnant: { label: '超新星残骸', color: '#cc99ff', type: 'diamond', isLabelGroup: true }
     },
 
     starColors: {
@@ -69,6 +73,9 @@ let raycaster, mouse;
 let layers = {}; 
 let allCelestialObjects = []; 
 
+// UIボタン管理用
+let filterButtons = {};
+
 const state = {
     lat: 35.6895, 
     lon: 139.6917,
@@ -83,9 +90,6 @@ const state = {
     dragStartX: 0,
     dragStartY: 0,
     
-    // ラベル表示状態管理
-    labelsVisible: true, 
-    
     clickCandidates: [],
     clickCandidateIndex: 0,
     lastClickTime: 0,
@@ -96,7 +100,6 @@ const state = {
 };
 
 function init() {
-    // カスタムUI要素とスタイルの注入
     createStarNameDisplay();
     injectCustomStyles();
 
@@ -134,8 +137,6 @@ function init() {
     createCompass();
 
     raycaster = new THREE.Raycaster();
-    
-    // 初期値設定
     raycaster.params.Points.threshold = 15; 
     
     mouse = new THREE.Vector2();
@@ -149,21 +150,16 @@ function init() {
     window.addEventListener('resize', onWindowResize);
     window.addEventListener('pointermove', onPointerMove);
     
-    // タップ/クリック開始位置の記録
     window.addEventListener('pointerdown', (e) => {
-        // 2本指でない場合のみ座標記録（ピンチ操作と区別）
         if (e.isPrimary) {
             state.dragStartX = e.clientX;
             state.dragStartY = e.clientY;
         }
     });
     
-    // clickイベントの代わりにpointerupを使用し、独自にタップ判定を行う
     window.addEventListener('pointerup', onPointerUp);
 
     container.addEventListener('wheel', onMouseWheel, { passive: false });
-
-    // --- モバイル用ピンチズームイベントの追加 ---
     container.addEventListener('touchstart', onTouchStart, { passive: false });
     container.addEventListener('touchmove', onTouchMove, { passive: false });
     container.addEventListener('touchend', onTouchEnd, { passive: false });
@@ -183,7 +179,6 @@ function onTouchStart(e) {
 
 function onTouchMove(e) {
     if (e.touches.length === 2 && state.pinchStartDist > 0) {
-        // デフォルトのブラウザズームなどを抑制
         e.preventDefault();
         e.stopPropagation();
 
@@ -191,10 +186,8 @@ function onTouchMove(e) {
         const dy = e.touches[0].pageY - e.touches[1].pageY;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // 倍率計算 (初期距離 / 現在距離)
         const scale = state.pinchStartDist / dist;
         let newFov = state.pinchStartFov * scale;
-
         newFov = Math.max(CONFIG.minFov, Math.min(CONFIG.maxFov, newFov));
         
         camera.fov = newFov;
@@ -208,124 +201,65 @@ function onTouchEnd(e) {
     }
 }
 
-// 画面下部に天体名を表示する要素を作成
 function createStarNameDisplay() {
     if (document.getElementById('selected-star-name-display')) return;
-
     const container = document.createElement('div');
     container.id = 'selected-star-name-display';
-    
     const textSpan = document.createElement('span');
     textSpan.id = 'display-star-name-text';
-    
     container.appendChild(textSpan);
     document.body.appendChild(container);
 }
 
-// レチクルとUI調整用のスタイル定義
 function injectCustomStyles() {
     const style = document.createElement('style');
     style.innerHTML = `
-        /* 天体名表示エリア */
         #selected-star-name-display {
             position: absolute;
-            
-            /* 位置調整: PC版の日時表示(bottom:30px)のすぐ上に配置 */
             bottom: 70px; 
-            
             left: 50%;
             transform: translateX(-50%);
             width: auto;
-            /* グラデーションが切れないよう、少し広めに幅を確保 */
             min-width: 300px;
-            
             text-align: center;
             pointer-events: none;
-            
-            /* UIレイヤー(10)やドック(150)より奥(背面)に表示 */
             z-index: 5;
-            
-            /* 変更: 枠線なし、放射状グラデーションで外側へフェードアウト */
             padding: 15px 50px;
             background: radial-gradient(ellipse at center, rgba(5, 10, 20, 0.9) 0%, rgba(5, 10, 20, 0.5) 40%, rgba(5, 10, 20, 0) 80%);
-            border: none;
-            border-radius: 0;
-            
-            /* 文字設定 */
             font-family: 'Shippori Mincho', serif;
             font-size: 1.1rem;
             color: #fff;
-            /* 文字が背景に溶け込みすぎないよう、光彩(text-shadow)を少し強めに */
             text-shadow: 0 0 5px rgba(0,0,0,1), 0 0 8px var(--accent-gold);
             letter-spacing: 0.1em;
             white-space: nowrap;
-            
             opacity: 0;
             transition: opacity 0.3s ease;
         }
-        
-        #selected-star-name-display.visible {
-            opacity: 1;
-        }
-
-        /* レチクル（詳細ボタンのみを含むコンテナ） */
+        #selected-star-name-display.visible { opacity: 1; }
         #star-reticle {
-            position: absolute;
-            z-index: 1000;
-            display: none;
-            /* コンテナ自体はクリックを透過させる */
-            pointer-events: none !important;
+            position: absolute; z-index: 1000; display: none; pointer-events: none !important;
         }
-        
-        #star-reticle.visible {
-            display: block;
-        }
-
-        /* レチクル内の既存の名前表示を非表示にする */
-        #reticle-name {
-            display: none !important;
-        }
-
-        /* 詳細ボタンのスタイル調整 */
+        #star-reticle.visible { display: block; }
+        #reticle-name { display: none !important; }
         #btn-more {
-            display: block;
-            font-family: 'Shippori Mincho', serif;
-            font-size: 0.85rem !important;
-            padding: 6px 14px !important;
-            color: #d4af37 !important;
+            display: block; font-family: 'Shippori Mincho', serif; font-size: 0.85rem !important;
+            padding: 6px 14px !important; color: #d4af37 !important;
             border: 1px solid rgba(212, 175, 55, 0.8) !important;
             background: rgba(5, 10, 20, 0.85) !important;
-            border-radius: 20px;
-            cursor: pointer;
+            border-radius: 20px; cursor: pointer;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px);
-            white-space: nowrap;
-            transition: all 0.2s;
-            
-            /* ボタンだけはクリックを有効にする */
+            backdrop-filter: blur(4px); white-space: nowrap; transition: all 0.2s;
             pointer-events: auto !important;
-            
-            /* 常にレチクル中心の右下に配置 */
             transform: translate(25px, 25px); 
         }
         #btn-more:active {
             background: rgba(212, 175, 55, 0.3) !important;
             transform: translate(25px, 25px) scale(0.95);
         }
-
-        /* サイドドック（情報ウィンドウ）のz-indexを非常に大きくして最前面にする */
-        #side-dock {
-            z-index: 5000 !important; 
-        }
-        
-        /* モバイル調整 */
+        #side-dock { z-index: 5000 !important; }
         @media (max-width: 900px) {
             #selected-star-name-display {
-                /* モバイルコントロールパネル（時計含む）を避けた位置 */
-                bottom: 200px; 
-                font-size: 1.0rem;
-                padding: 10px 40px;
-                /* モバイルは見やすさ重視で少し濃いめ・範囲狭めに調整 */
+                bottom: 200px; font-size: 1.0rem; padding: 10px 40px;
                 background: radial-gradient(ellipse at center, rgba(5, 10, 20, 0.95) 0%, rgba(5, 10, 20, 0.6) 30%, rgba(5, 10, 20, 0) 70%);
             }
         }
@@ -381,12 +315,10 @@ function setupUI() {
     const btnMobileTonight = document.getElementById('btn-mobile-tonight');
     const btnMobileLocation = document.getElementById('btn-mobile-location'); 
 
-    // --- ブラウザのリロードによるスライダー位置のズレ修正 ---
-    // JavaScriptの初期値(state.magLimit)とスライダーのツマミ位置を強制的に同期させる
     if (magSlider) magSlider.value = state.magLimit;
     if (mobileMagSlider) mobileMagSlider.value = state.magLimit;
 
-    // --- バーガーメニューの開閉処理 ---
+    // --- バーガーメニュー制御 ---
     const menuToggle = document.getElementById('menu-toggle');
     const navOverlay = document.getElementById('nav-overlay');
     
@@ -394,16 +326,12 @@ function setupUI() {
         menuToggle.addEventListener('click', () => {
             menuToggle.classList.toggle('active');
             navOverlay.classList.toggle('open');
-            
-            // メニューが開いているときは、背後のCanvas操作（OrbitControls）を無効化
             if (navOverlay.classList.contains('open')) {
                 controls.enabled = false;
             } else {
                 controls.enabled = true;
             }
         });
-
-        // リンクをクリックしたらメニューを閉じる
         const navLinks = document.querySelectorAll('.nav-link');
         navLinks.forEach(link => {
             link.addEventListener('click', () => {
@@ -414,31 +342,28 @@ function setupUI() {
         });
     }
 
-    // --- サイドドックの初期化とバーガーメニュー制御 ---
+    // --- PCの場合: 設定画面を初期状態で開く ---
     if (isMobile) {
         sideDock.classList.remove('open');
         btnDockToggle.textContent = '≪';
-        // ドックが閉じているので、メニューは表示(dock-openクラスを外す)
         document.body.classList.remove('dock-open');
     } else {
         sideDock.classList.add('open');
         btnDockToggle.textContent = '≫';
-        // ドックが開いているので、メニューは隠す(dock-openクラスを付ける)
         document.body.classList.add('dock-open');
+        // 初期タブ設定（設定タブをアクティブにする）
+        window.switchTab('settings');
     }
 
     btnDockToggle.addEventListener('click', () => {
         sideDock.classList.toggle('open');
         const isOpen = sideDock.classList.contains('open');
         btnDockToggle.textContent = isOpen ? '≫' : '≪';
-        
-        // CSSでバーガーメニューを消すためのクラス制御
         if (isOpen) {
             document.body.classList.add('dock-open');
         } else {
             document.body.classList.remove('dock-open');
         }
-
         updateReticle();
     });
 
@@ -455,15 +380,13 @@ function setupUI() {
             tabBtnInfo.classList.add('active');
             paneInfo.classList.add('active');
         }
-
-        // タブ切り替え時にドックが閉じていたら強制的に開く
+        
+        // タブ切り替え時は強制的にドックを開く
         if (!sideDock.classList.contains('open')) {
             sideDock.classList.add('open');
             btnDockToggle.textContent = '≫';
-            // ドックが開くのでメニューを隠す
             document.body.classList.add('dock-open');
         }
-        
         updateReticle();
     };
 
@@ -485,7 +408,6 @@ function setupUI() {
         const day = d.getDate().toString().padStart(2, '0');
         const hour = d.getHours().toString().padStart(2, '0');
         const min = d.getMinutes().toString().padStart(2, '0');
-        
         const dateStr = `${year}/${month}/${day} ${hour}:${min}`;
         
         if(screenClock) screenClock.textContent = dateStr;
@@ -528,11 +450,9 @@ function setupUI() {
         state.magLimit = parseFloat(val);
         magSlider.value = val;
         mobileMagSlider.value = val;
-        
         const text = `${state.magLimit.toFixed(1)}等`;
         document.getElementById('mag-label').textContent = text + 'まで';
         if(mobileMagValue) mobileMagValue.textContent = text; 
-
         if (layers['star']) {
             layers['star'].mesh.children[0].material.uniforms.magLimit.value = state.magLimit;
         }
@@ -580,7 +500,6 @@ function setupUI() {
 
     document.getElementById('btn-tonight').addEventListener('click', setTonight);
     document.getElementById('btn-now').addEventListener('click', setNow);
-    
     btnMobileTonight.addEventListener('click', setTonight);
     btnMobileNow.addEventListener('click', setNow);
 
@@ -595,42 +514,146 @@ function setupUI() {
     btnMobileGrid.addEventListener('click', toggleGrid);
     btnMobileGrid.classList.add('active');
 
-    const toggleConstellation = () => {
-        let visible = false;
-        if(layers['ConstellationLines']) {
-            visible = !layers['ConstellationLines'].visible; 
-            layers['ConstellationLines'].visible = visible;
-            layers['ConstellationLines'].mesh.visible = visible;
+    // --- ヘルパー関数: ボタンスタイルの適用 ---
+    const setButtonStyle = (btn, color, isActive) => {
+        if (isActive) {
+            btn.style.background = hexToRgba(color, 0.3);
+            btn.style.border = `1px solid ${color}`;
+            btn.style.color = color;
+            btn.style.boxShadow = `0 0 8px ${color}, inset 0 0 5px ${hexToRgba(color, 0.2)}`;
+            btn.style.textShadow = `0 0 3px ${color}`;
+            btn.style.opacity = '1.0';
+        } else {
+            btn.style.background = 'transparent';
+            btn.style.border = '1px solid rgba(255, 255, 255, 0.15)';
+            btn.style.color = 'rgba(255, 255, 255, 0.4)';
+            btn.style.boxShadow = 'none';
+            btn.style.textShadow = 'none';
+            btn.style.opacity = '0.7';
         }
-        if(layers['ConstellationLabels']) {
-            layers['ConstellationLabels'].visible = visible;
-            layers['ConstellationLabels'].mesh.visible = visible;
-        }
-        btnMobileConstellation.classList.toggle('active', visible);
     };
-    btnMobileConstellation.addEventListener('click', toggleConstellation);
+
+    // --- カテゴリフィルターボタンの生成とイベント登録 ---
+    Object.keys(CONFIG.categories).forEach(key => {
+        if (key === 'star' || key === 'SolarSystem') return; // 個別ボタンなし
+
+        const cat = CONFIG.categories[key];
+        const btn = document.createElement('button');
+        btn.textContent = cat.label;
+        btn.style.padding = '5px 4px';
+        btn.style.fontSize = '0.75rem';
+        btn.style.cursor = 'pointer';
+        btn.style.borderRadius = '4px';
+        btn.style.transition = 'all 0.3s ease';
+        btn.style.fontFamily = "'Shippori Mincho', serif";
+        btn.style.width = '100%'; 
+
+        // 初期状態ON
+        btn.classList.add('active');
+        setButtonStyle(btn, cat.color, true);
+        
+        // ボタン管理用オブジェクトに保存
+        filterButtons[key] = btn;
+
+        btn.addEventListener('click', () => {
+            const isActive = btn.classList.toggle('active');
+            if (layers[key]) {
+                layers[key].visible = isActive;
+                layers[key].mesh.visible = isActive;
+            }
+            setButtonStyle(btn, cat.color, isActive);
+            
+            // 個別ボタン操作時にスマホボタンの状態を更新
+            updateMobileButtonStates();
+            updatePositions(); // ラベル再描画(SolarSystem連動のため)
+        });
+        
+        filterContainer.appendChild(btn);
+    });
+
+    // --- スマホ「星座」ボタン (一括制御) ---
+    const toggleMobileConstellation = () => {
+        // 現在の状態（両方ONならONとみなす）
+        const isCurrentlyActive = btnMobileConstellation.classList.contains('active');
+        const newState = !isCurrentlyActive; // トグル
+
+        // 対象カテゴリ: 星座線、星座名
+        const targets = ['ConstellationLines', 'ConstellationLabels'];
+        
+        targets.forEach(key => {
+            if(layers[key]) {
+                layers[key].visible = newState;
+                layers[key].mesh.visible = newState;
+                // 個別ボタンの見た目も更新
+                if(filterButtons[key]) {
+                    if(newState) filterButtons[key].classList.add('active');
+                    else filterButtons[key].classList.remove('active');
+                    setButtonStyle(filterButtons[key], CONFIG.categories[key].color, newState);
+                }
+            }
+        });
+        
+        btnMobileConstellation.classList.toggle('active', newState);
+    };
+    btnMobileConstellation.addEventListener('click', toggleMobileConstellation);
     btnMobileConstellation.classList.add('active');
 
-    const toggleStarLabels = () => {
-        state.labelsVisible = !state.labelsVisible;
-        updatePositions(); 
-        Object.keys(layers).forEach(key => {
-             if (key === 'star' || key === 'ConstellationLines' || key === 'ConstellationLabels') return;
-             const group = layers[key].mesh;
-             group.children.forEach(child => {
-                 if (child.userData.hasLabel) {
-                     child.children.forEach(grandChild => {
-                         if (grandChild.userData.isLabel) {
-                             grandChild.visible = state.labelsVisible;
-                         }
-                     });
-                 }
-             });
+    // --- スマホ「天体名」ボタン (一括制御) ---
+    const toggleMobileLabels = () => {
+        const isCurrentlyActive = btnMobileLabels.classList.contains('active');
+        const newState = !isCurrentlyActive;
+
+        // 対象: ラベルグループに属するもの全て (StarLabels, DSO全般)
+        Object.keys(CONFIG.categories).forEach(key => {
+            if(CONFIG.categories[key].isLabelGroup) {
+                if(layers[key]) {
+                    layers[key].visible = newState;
+                    layers[key].mesh.visible = newState;
+                    // 個別ボタン更新
+                    if(filterButtons[key]) {
+                        if(newState) filterButtons[key].classList.add('active');
+                        else filterButtons[key].classList.remove('active');
+                        setButtonStyle(filterButtons[key], CONFIG.categories[key].color, newState);
+                    }
+                }
+            }
         });
-        btnMobileLabels.classList.toggle('active', state.labelsVisible);
+        
+        btnMobileLabels.classList.toggle('active', newState);
+        updatePositions(); // 太陽系のラベル連動のため
     };
-    btnMobileLabels.addEventListener('click', toggleStarLabels);
+    btnMobileLabels.addEventListener('click', toggleMobileLabels);
     btnMobileLabels.classList.add('active');
+
+    // --- 個別操作があった時にスマホボタンの状態を整合させる関数 ---
+    function updateMobileButtonStates() {
+        // 1. 星座ボタンのチェック
+        // 星座線と星座名の両方がONなら点灯、そうでなければ消灯
+        const cLines = layers['ConstellationLines']?.visible;
+        const cLabels = layers['ConstellationLabels']?.visible;
+        if(cLines && cLabels) {
+            btnMobileConstellation.classList.add('active');
+        } else {
+            btnMobileConstellation.classList.remove('active');
+        }
+
+        // 2. 天体名ボタンのチェック
+        // ラベルグループのすべてがONなら点灯、一つでもOFFなら消灯
+        let allLabelsOn = true;
+        Object.keys(CONFIG.categories).forEach(key => {
+            if(CONFIG.categories[key].isLabelGroup) {
+                if(layers[key] && !layers[key].visible) {
+                    allLabelsOn = false;
+                }
+            }
+        });
+
+        if(allLabelsOn) {
+            btnMobileLabels.classList.add('active');
+        } else {
+            btnMobileLabels.classList.remove('active');
+        }
+    }
 
     const pcSunlightBtn = document.getElementById('btn-sunlight');
     const toggleSunlight = () => {
@@ -639,9 +662,7 @@ function setupUI() {
         btnMobileSunlight.classList.toggle('active', state.sunlightVisible);
         updateSolarSystemData();
     };
-
     if(pcSunlightBtn) pcSunlightBtn.addEventListener('click', toggleSunlight);
-    
     btnMobileSunlight.addEventListener('click', toggleSunlight);
     btnMobileSunlight.classList.add('active');
 
@@ -662,7 +683,6 @@ function setupUI() {
         if(mobileLocationDisplay) {
             mobileLocationDisplay.textContent = `N ${state.lat.toFixed(2)}° / E ${state.lon.toFixed(2)}°`;
         }
-
         updatePositions();
         updateSolarSystemData(); 
     };
@@ -710,54 +730,6 @@ function setupUI() {
         }
     });
 
-    Object.keys(CONFIG.categories).forEach(key => {
-        if (key === 'star' || key === 'SolarSystem') return;
-
-        const cat = CONFIG.categories[key];
-        const btn = document.createElement('button');
-        btn.textContent = cat.label;
-        
-        btn.style.padding = '5px 4px';
-        btn.style.fontSize = '0.75rem';
-        btn.style.cursor = 'pointer';
-        btn.style.borderRadius = '4px';
-        btn.style.transition = 'all 0.3s ease';
-        btn.style.fontFamily = "'Shippori Mincho', serif";
-        btn.style.width = '100%'; 
-
-        const setButtonStyle = (isActive) => {
-            if (isActive) {
-                btn.style.background = hexToRgba(cat.color, 0.3);
-                btn.style.border = `1px solid ${cat.color}`;
-                btn.style.color = cat.color;
-                btn.style.boxShadow = `0 0 8px ${cat.color}, inset 0 0 5px ${hexToRgba(cat.color, 0.2)}`;
-                btn.style.textShadow = `0 0 3px ${cat.color}`;
-                btn.style.opacity = '1.0';
-            } else {
-                btn.style.background = 'transparent';
-                btn.style.border = '1px solid rgba(255, 255, 255, 0.15)';
-                btn.style.color = 'rgba(255, 255, 255, 0.4)';
-                btn.style.boxShadow = 'none';
-                btn.style.textShadow = 'none';
-                btn.style.opacity = '0.7';
-            }
-        };
-
-        btn.classList.add('active');
-        setButtonStyle(true);
-
-        btn.addEventListener('click', () => {
-            const isActive = btn.classList.toggle('active');
-            if (layers[key]) {
-                layers[key].visible = isActive;
-                layers[key].mesh.visible = isActive;
-            }
-            setButtonStyle(isActive);
-        });
-        
-        filterContainer.appendChild(btn);
-    });
-
     updateSliderBackground(magSlider, 'left');
     updateSliderBackground(mobileMagSlider, 'left');
     updateSliderBackground(timeShuttle, 'center');
@@ -768,23 +740,17 @@ function setupUI() {
 
 function updateSliderBackground(slider, type) {
     if (!slider) return;
-    
     const min = parseFloat(slider.min);
     const max = parseFloat(slider.max);
     const val = parseFloat(slider.value);
-    
     const percent = ((val - min) / (max - min)) * 100;
     const baseColor = 'rgba(255, 255, 255, 0.1)';
     const activeColor = '#d4af37'; 
-
     if (type === 'left') {
         slider.style.background = `linear-gradient(to right, ${activeColor} 0%, ${activeColor} ${percent}%, ${baseColor} ${percent}%, ${baseColor} 100%)`;
     } else if (type === 'center') {
         let zeroPercent = 50;
-        if (min <= 0 && max >= 0) {
-            zeroPercent = ((0 - min) / (max - min)) * 100;
-        }
-
+        if (min <= 0 && max >= 0) zeroPercent = ((0 - min) / (max - min)) * 100;
         if (val >= 0) {
             slider.style.background = `linear-gradient(to right, ${baseColor} 0%, ${baseColor} ${zeroPercent}%, ${activeColor} ${zeroPercent}%, ${activeColor} ${percent}%, ${baseColor} ${percent}%, ${baseColor} 100%)`;
         } else {
@@ -799,7 +765,6 @@ function updateSolarSystemData() {
         console.warn("Astronomy Engine not loaded yet.");
         return;
     }
-
     try {
         const date = state.date;
         const observer = new Astronomy.Observer(state.lat, state.lon, 0);
@@ -823,36 +788,23 @@ function updateSolarSystemData() {
         const sunHor = Astronomy.Horizon(date, observer, sunEqu.ra, sunEqu.dec, Astronomy.Refraction.Normal);
         sunAz = sunHor.azimuth;
         sunAlt = sunHor.altitude;
-
         updateSky(sunAlt, sunAz);
 
         bodies.forEach(body => {
             const equ = Astronomy.Equator(body.id, date, observer, true, true);
             const hor = Astronomy.Horizon(date, observer, equ.ra, equ.dec, Astronomy.Refraction.Normal);
-            
             const illum = Astronomy.Illumination(body.id, date);
-
             results.push({
-                name: body.name,
-                alt: hor.altitude,
-                az: hor.azimuth,
-                distance_au: equ.dist,
-                mag: illum.mag,           
-                phase_frac: illum.phase_fraction, 
-                type: 'SolarSystem',
-                sunAz: sunAz,   
-                sunAlt: sunAlt
+                name: body.name, alt: hor.altitude, az: hor.azimuth, distance_au: equ.dist,
+                mag: illum.mag, phase_frac: illum.phase_fraction, type: 'SolarSystem',
+                sunAz: sunAz, sunAlt: sunAlt
             });
         });
 
         const group = layers['SolarSystem'].mesh;
-        while(group.children.length > 0){ 
-            group.remove(group.children[0]); 
-        }
-        
+        while(group.children.length > 0){ group.remove(group.children[0]); }
         layers['SolarSystem'].data = results;
         createSolarSystemSprites(results, group);
-
     } catch (e) {
         console.warn("Solar System Calculation Error:", e);
     }
@@ -860,17 +812,13 @@ function updateSolarSystemData() {
 
 function createSolarSystemSprites(data, parentGroup) {
     const r = CONFIG.radius;
-
     data.forEach(obj => {
         if(obj.alt < -5) return;
-
-        let texture;
-        let scale;
-        let rotation = 0;
+        let texture, scale, rotation = 0;
 
         if (obj.name === '月') {
             texture = createMoonPhaseTexture(obj.phase_frac);
-            scale = 45 
+            scale = 45; 
             const azDiff = (obj.sunAz - obj.az) * (Math.PI/180);
             const altDiff = (obj.sunAlt - obj.alt) * (Math.PI/180);
             const dx = azDiff * Math.cos(obj.alt * (Math.PI/180));
@@ -892,42 +840,26 @@ function createSolarSystemSprites(data, parentGroup) {
             scale = Math.max(2, (8.0 - obj.mag) * 2.5);
         }
 
-        const material = new THREE.SpriteMaterial({ 
-            map: texture, 
-            depthTest: false,
-            rotation: rotation,
-            fog: false 
-        });
+        const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, rotation: rotation, fog: false });
         const sprite = new THREE.Sprite(material);
         sprite.scale.set(scale, scale, 1);
-
         const altRad = obj.alt * (Math.PI / 180);
         const azRad = obj.az * (Math.PI / 180);
         const x = r * Math.cos(altRad) * Math.sin(azRad);
         const y = r * Math.sin(altRad);
         const z = -r * Math.cos(altRad) * Math.cos(azRad);
-        
         sprite.position.set(x, y, z);
 
         const labelMap = createLabelTexture(obj.name, obj.name==='太陽'?'#ffaa00':'#ffffff', 32);
-        const labelMat = new THREE.SpriteMaterial({ 
-            map: labelMap, 
-            depthTest: false, 
-            transparent: true,
-            fog: false
-        });
+        const labelMat = new THREE.SpriteMaterial({ map: labelMap, depthTest: false, transparent: true, fog: false });
         const labelSprite = new THREE.Sprite(labelMat);
         const aspect = labelMap.image.width / labelMap.image.height;
-        
         const baseH = 12; 
         const baseW = baseH * aspect;
         labelSprite.scale.set(baseW, baseH, 1);
         
-        if (obj.name === '太陽') {
-            labelSprite.position.set(40, 0, 0); 
-        } else {
-            labelSprite.position.set(scale/2 + 5, -scale/2, 0);
-        }
+        if (obj.name === '太陽') labelSprite.position.set(40, 0, 0); 
+        else labelSprite.position.set(scale/2 + 5, -scale/2, 0);
         
         const wrapper = new THREE.Group();
         wrapper.add(sprite);
@@ -935,98 +867,53 @@ function createSolarSystemSprites(data, parentGroup) {
         wrapper.position.set(x, y, z);
         
         wrapper.userData = {
-            name: obj.name,
-            alt: obj.alt,
-            az: obj.az,
-            dist: obj.distance_au,
-            mag: obj.mag,
-            objType: 'SolarSystem',
-            typeLabel: '太陽系天体',
-            meshReference: wrapper,
-            hasLabel: true
+            name: obj.name, alt: obj.alt, az: obj.az, dist: obj.distance_au, mag: obj.mag,
+            objType: 'SolarSystem', typeLabel: '太陽系天体', meshReference: wrapper, hasLabel: true
         };
         labelSprite.userData.baseScale = { x: baseW, y: baseH };
         labelSprite.userData.isLabel = true;
-        
         wrapper.userData.meshReference = wrapper;
-
         parentGroup.add(wrapper);
     });
 }
 
 function createPlanetTexture(colorStr, hasSpikes, isSun = false) {
     const canvas = document.createElement('canvas');
-    const size = 150; 
-    canvas.width = size; canvas.height = size;
+    const size = 150; canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
     const center = size / 2;
-
     ctx.clearRect(0, 0, size, size);
 
     if (!isSun) {
         const grd = ctx.createRadialGradient(center, center, size/20, center, center, size/2);
-        grd.addColorStop(0, colorStr); 
-        grd.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = grd;
-        ctx.beginPath();
-        ctx.arc(center, center, size/2, 0, Math.PI*2);
-        ctx.fill();
+        grd.addColorStop(0, colorStr); grd.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(center, center, size/2, 0, Math.PI*2); ctx.fill();
     }
-
     if (hasSpikes) {
-        ctx.strokeStyle = colorStr;
-        ctx.lineWidth = 1.5; 
-        ctx.globalAlpha = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(center, 15);
-        ctx.lineTo(center, size - 15);
-        ctx.moveTo(15, center);
-        ctx.lineTo(size - 15, center);
-        ctx.stroke();
+        ctx.strokeStyle = colorStr; ctx.lineWidth = 1.5; ctx.globalAlpha = 1.5;
+        ctx.beginPath(); ctx.moveTo(center, 15); ctx.lineTo(center, size - 15);
+        ctx.moveTo(15, center); ctx.lineTo(size - 15, center); ctx.stroke();
     }
-
-    ctx.globalAlpha = 1.0; 
-    ctx.fillStyle = '#ffffff'; 
-    ctx.beginPath();
-    ctx.arc(center, center, size/16, 0, Math.PI*2); 
-    ctx.fill();
+    ctx.globalAlpha = 1.0; ctx.fillStyle = '#ffffff'; 
+    ctx.beginPath(); ctx.arc(center, center, size/16, 0, Math.PI*2); ctx.fill();
     return new THREE.CanvasTexture(canvas);
 }
 
 function createMoonPhaseTexture(fraction) {
     const canvas = document.createElement('canvas');
-    const size = 128;
-    canvas.width = size; canvas.height = size;
+    const size = 128; canvas.width = size; canvas.height = size;
     const ctx = canvas.getContext('2d');
-    const center = size / 2;
-    const radius = size * 0.4;
-
+    const center = size / 2; const radius = size * 0.4;
     ctx.clearRect(0, 0, size, size);
-
-    ctx.fillStyle = '#111111';
-    ctx.beginPath();
-    ctx.arc(center, center, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff'; 
-    ctx.shadowBlur = 15; 
-    ctx.shadowColor = '#ffffaa'; 
-    ctx.beginPath();
-    ctx.arc(center, center, radius, -Math.PI / 2, Math.PI / 2, false);
-
+    ctx.fillStyle = '#111111'; ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 15; ctx.shadowColor = '#ffffaa'; 
+    ctx.beginPath(); ctx.arc(center, center, radius, -Math.PI / 2, Math.PI / 2, false);
     const ellipseWidth = Math.abs((2 * fraction - 1) * radius);
     const isCrescent = fraction < 0.5;
-    try {
-        ctx.ellipse(center, center, ellipseWidth, radius, 0, Math.PI/2, -Math.PI/2, isCrescent);
-    } catch(e) {
-        ctx.lineTo(center, center - radius);
-    }
+    try { ctx.ellipse(center, center, ellipseWidth, radius, 0, Math.PI/2, -Math.PI/2, isCrescent); } 
+    catch(e) { ctx.lineTo(center, center - radius); }
     ctx.fill();
-    
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke();
     return new THREE.CanvasTexture(canvas);
 }
 
@@ -1044,21 +931,17 @@ function createSymbolTexture(type, colorStr) {
     ctx.strokeStyle = colorStr; ctx.fillStyle = colorStr; ctx.lineWidth = 3;
 
     switch (type) {
-        case 'solar_body': 
-            ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.fill(); break;
-        case 'ellipse':
-            ctx.beginPath(); ctx.ellipse(center, center, radius, radius * 0.6, Math.PI / 4, 0, Math.PI * 2); ctx.stroke(); break;
+        case 'solar_body': ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.fill(); break;
+        case 'ellipse': ctx.beginPath(); ctx.ellipse(center, center, radius, radius * 0.6, Math.PI / 4, 0, Math.PI * 2); ctx.stroke(); break;
         case 'circle_plus':
             ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(center - radius, center); ctx.lineTo(center + radius, center);
             ctx.moveTo(center, center - radius); ctx.lineTo(center, center + radius); ctx.stroke(); break;
-        case 'circle_dotted':
-            ctx.beginPath(); ctx.setLineDash([4, 4]); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); break;
+        case 'circle_dotted': ctx.beginPath(); ctx.setLineDash([4, 4]); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); break;
         case 'square':
             ctx.globalAlpha = 0.3; ctx.fillRect(center - radius, center - radius, radius * 2, radius * 2);
             ctx.globalAlpha = 1.0; ctx.strokeRect(center - radius, center - radius, radius * 2, radius * 2); break;
-        case 'square_stroke':
-            ctx.strokeRect(center - radius, center - radius, radius * 2, radius * 2); break;
+        case 'square_stroke': ctx.strokeRect(center - radius, center - radius, radius * 2, radius * 2); break;
         case 'circle_cross':
             ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(center - radius - 5, center); ctx.lineTo(center + radius + 5, center); ctx.stroke(); break;
@@ -1068,8 +951,7 @@ function createSymbolTexture(type, colorStr) {
             ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke();
             ctx.beginPath(); ctx.arc(center, center, 2, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.moveTo(center - radius - 5, center); ctx.lineTo(center + radius + 5, center); ctx.stroke(); break;
-        default:
-            ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke();
+        default: ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke();
     }
     return new THREE.CanvasTexture(canvas);
 }
@@ -1112,7 +994,6 @@ async function fetchAllData() {
                 allCelestialObjects = allCelestialObjects.concat(layers[type].data.map(d => ({...d, objType: type})));
             }
         });
-
         updatePositions();
         loader.style.display = 'none';
     } catch (error) { 
@@ -1131,9 +1012,13 @@ function createLayer(type, dataList) {
         createConstellationLabels(dataList, config, layers[type].mesh);
     } else if (type === 'star') { 
         createStarPoints(type, dataList, layers[type].mesh); 
-        createStarLabels(dataList, layers[type].mesh);
+        // 恒星名は独立レイヤー
+        if (!layers['StarLabels']) {
+            layers['StarLabels'] = { data: dataList, mesh: new THREE.Group(), visible: true };
+            scene.add(layers['StarLabels'].mesh);
+            createStarLabels(dataList, layers['StarLabels'].mesh);
+        }
     } else if (type === 'SolarSystem') {
-        // 初期状態は空
     } else { 
         createDSOSprites(type, dataList, config, layers[type].mesh); 
     }
@@ -1144,14 +1029,7 @@ function createConstellationLines(data, config, parentGroup) {
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(data.length * 6); 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    
-    const material = new THREE.LineBasicMaterial({ 
-        color: config.color, 
-        transparent: true, 
-        opacity: 0.6,
-        depthTest: false 
-    });
-    
+    const material = new THREE.LineBasicMaterial({ color: config.color, transparent: true, opacity: 0.6, depthTest: false });
     const lineSegments = new THREE.LineSegments(geometry, material);
     lineSegments.frustumCulled = false; 
     parentGroup.add(lineSegments);
@@ -1163,12 +1041,9 @@ function createConstellationLabels(data, config, parentGroup) {
         const material = new THREE.SpriteMaterial({ map: labelMap, transparent: true, depthTest: false, depthWrite: false, opacity: 0.7 });
         const sprite = new THREE.Sprite(material);
         const aspect = labelMap.image.width / labelMap.image.height;
-        
-        const baseH = 12; 
-        const baseW = baseH * aspect;
+        const baseH = 12; const baseW = baseH * aspect;
         sprite.scale.set(baseW, baseH, 1);
         sprite.userData = { ra: obj.ra, dec: obj.dec, isLabelOnly: true, baseScale: {x:baseW, y:baseH}, isLabel: true };
-        
         parentGroup.add(sprite);
     });
 }
@@ -1180,13 +1055,8 @@ function createStarPoints(type, data, parentGroup) {
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
     const magnitudes = new Float32Array(count);
-    
-    // --- 修正: 星のサイズ計算（全体的にサイズアップ） ---
     const isMobile = window.innerWidth <= 900;
-    
-    // sizeBase: 全体のスケール係数 (大きくする)
     const sizeBase = isMobile ? 6.0 : 3.5; 
-    // minSize: 最小サイズの保証値 (大きくする)
     const minSize = isMobile ? 12.0 : 6.0; 
 
     data.forEach((obj, i) => {
@@ -1194,12 +1064,8 @@ function createStarPoints(type, data, parentGroup) {
         const color = CONFIG.starColors[spectFirst] || CONFIG.starColors.default;
         colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
         let mag = parseFloat(obj.vmag || obj.mag || 6.0); if (isNaN(mag)) mag = 6.0;
-        
-        // サイズ計算（最小値保証と倍率アップ）
         let rawSize = Math.max(minSize, (8.0 - mag) * sizeBase);
-        // 上限も緩和
         sizes[i] = Math.min(rawSize, isMobile ? 40.0 : 25.0); 
-
         magnitudes[i] = mag;
     });
 
@@ -1212,14 +1078,12 @@ function createStarPoints(type, data, parentGroup) {
         uniforms: {
             pointTexture: { value: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/spark1.png') },
             magLimit: { value: state.magLimit }, 
-            uTime: { value: 0.0 },
-            uFov: { value: CONFIG.cameraFov } 
+            uTime: { value: 0.0 }, uFov: { value: CONFIG.cameraFov } 
         },
         vertexShader: `
             attribute float size; attribute vec3 color; attribute float aMagnitude;
             varying vec3 vColor; varying float vMag;
-            uniform float magLimit; uniform float uTime;
-            uniform float uFov; 
+            uniform float magLimit; uniform float uTime; uniform float uFov; 
             float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
             void main() {
                 vMag = aMagnitude; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
@@ -1228,12 +1092,8 @@ function createStarPoints(type, data, parentGroup) {
                 float altitudeFactor = 1.0 - smoothstep(0.0, 500.0, abs(position.y));
                 twinkle += altitudeFactor * 0.2 * sin(uTime * speed * 2.0);
                 vColor = color * twinkle;
-                
-                // 露出補正のような係数
                 float exposureScale = 0.5 + max(0.0, magLimit) * 0.15; 
-                
                 float fovFactor = 50.0 / uFov;
-                
                 gl_PointSize = size * exposureScale * fovFactor * (300.0 / -mvPosition.z);
                 gl_Position = projectionMatrix * mvPosition;
             }
@@ -1244,16 +1104,12 @@ function createStarPoints(type, data, parentGroup) {
                 float fadeRange = 1.0; float delta = magLimit - vMag;
                 float opacity = clamp(delta / fadeRange, 0.0, 1.0);
                 if (opacity <= 0.0) discard;
-                
                 vec2 coord = gl_PointCoord - vec2(0.5);
-                float dist = length(coord) * 2.0; // 0.0 ~ 1.0
+                float dist = length(coord) * 2.0; 
                 if (dist > 1.0) discard;
-                
                 float core = exp(-dist * dist * 10.0);
                 float glow = exp(-dist * 2.5);
-                
                 float intensity = core * 1.8 + glow * 0.4;
-                
                 gl_FragColor = vec4(vColor, intensity * opacity);
             }
         `,
@@ -1270,24 +1126,17 @@ function createStarLabels(data, parentGroup) {
         const labelMat = new THREE.SpriteMaterial({ map: labelMap, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
         const labelSprite = new THREE.Sprite(labelMat);
         const aspect = labelMap.image.width / labelMap.image.height;
-        
-        const baseH = 8; 
-        const baseW = baseH * aspect;
+        const baseH = 8; const baseW = baseH * aspect;
         labelSprite.scale.set(baseW, baseH, 1);
-        
         const wrapper = new THREE.Group();
         wrapper.add(labelSprite);
         labelSprite.position.set((baseW) / 2 + 2, 2, 0);
-        
         labelSprite.userData.baseScale = { x: baseW, y: baseH };
         labelSprite.userData.isLabel = true;
-
         wrapper.userData = { 
             ra: obj.ra_deg !== undefined ? obj.ra_deg : (obj.ra !== undefined ? obj.ra : 0),
             dec: obj.dec_deg !== undefined ? obj.dec_deg : (obj.dec !== undefined ? obj.dec : 0),
-            mag: parseFloat(obj.vmag || obj.mag || 6.0),
-            isLabel: true,
-            meshReference: wrapper 
+            mag: parseFloat(obj.vmag || obj.mag || 6.0), isLabel: true, meshReference: wrapper 
         };
         parentGroup.add(wrapper);
     });
@@ -1306,13 +1155,10 @@ function createDSOSprites(type, data, config, parentGroup) {
             const labelMat = new THREE.SpriteMaterial({ map: labelMap, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
             const labelSprite = new THREE.Sprite(labelMat);
             const aspect = labelMap.image.width / labelMap.image.height;
-            
-            const baseH = 10; 
-            const baseW = baseH * aspect;
+            const baseH = 10; const baseW = baseH * aspect;
             labelSprite.scale.set(baseW, baseH, 1);
             labelSprite.userData.baseScale = { x: baseW, y: baseH };
             labelSprite.userData.isLabel = true;
-
             labelSprite.position.set(baseW / 2 + 8, 0, 0); wrapper.add(labelSprite);
         }
         wrapper.userData = { 
@@ -1320,8 +1166,7 @@ function createDSOSprites(type, data, config, parentGroup) {
             dec: obj.dec_deg !== undefined ? obj.dec_deg : (obj.dec !== undefined ? obj.dec : 0),
             mag: parseFloat(obj.vmag || obj.mag || 6.0),
             originalData: { ...obj, objType: type, typeLabel: config.label },
-            meshReference: wrapper,
-            hasLabel: true
+            meshReference: wrapper, hasLabel: true
         };
         parentGroup.add(wrapper);
     });
@@ -1375,15 +1220,28 @@ function updatePositions() {
             const coord = calcHorizontalCoord(ra, dec, lstRad, sinLat, cosLat, r);
             child.position.set(coord.x, coord.y, coord.z);
             if (!d.isLabelOnly && d.mag !== undefined) {
-                if (d.isLabel) {
-                     child.visible = (d.mag <= state.magLimit) && state.labelsVisible;
-                } else {
-                     child.visible = (d.mag <= state.magLimit);
-                }
+                 // StarLabelsレイヤー内の制御など
+                 // ここではレイヤーのvisibleがtrueの場合のみ来るので、等級判定のみ
+                 child.visible = (d.mag <= state.magLimit);
             }
         });
     });
     
+    // SolarSystemのラベル制御（恒星名の表示状態と連動）
+    // 太陽系レイヤー自体は常に表示されているが、ラベルだけ制御する
+    if(layers['SolarSystem']) {
+        const showSolarLabels = layers['StarLabels'] ? layers['StarLabels'].visible : true;
+        
+        layers['SolarSystem'].mesh.children.forEach(wrapper => {
+            if(wrapper.children.length >= 2) {
+                const label = wrapper.children[1];
+                if(label.userData.isLabel) {
+                    label.visible = showSolarLabels;
+                }
+            }
+        });
+    }
+
     if(state.shuttleValue !== 0) {
         updateSolarSystemData();
     }
@@ -1417,10 +1275,8 @@ function calculateLST(date, longitude) {
     return (LST % 360) * (Math.PI / 180);
 }
 
-// --- スカイドームとシェーダー (ON/OFF対応) ---
 function createSkyDome() {
     const geometry = new THREE.SphereGeometry(900, 64, 64);
-    
     const vertexShader = `
         varying vec3 vWorldPosition;
         void main() {
@@ -1429,42 +1285,28 @@ function createSkyDome() {
             gl_Position = projectionMatrix * viewMatrix * worldPosition;
         }
     `;
-
     const fragmentShader = `
-        uniform vec3 baseColor;
-        uniform vec3 sunDirection;
-        uniform float sunAlt;
-        uniform float uSunlightEnabled; 
-
+        uniform vec3 baseColor; uniform vec3 sunDirection; uniform float sunAlt; uniform float uSunlightEnabled; 
         varying vec3 vWorldPosition;
-
         void main() {
             vec3 viewDir = normalize(vWorldPosition);
             vec3 color = baseColor;
             float dotP = dot(viewDir, normalize(sunDirection));
-            
             if (dotP > 0.0) {
-                float glowSize = 14.0;
-                float glowIntensity = pow(dotP, glowSize);
-                vec3 sunsetColor = vec3(1.0, 0.35, 0.05); 
-                vec3 dayColor = vec3(0.8, 0.9, 1.0);     
-                
+                float glowSize = 14.0; float glowIntensity = pow(dotP, glowSize);
+                vec3 sunsetColor = vec3(1.0, 0.35, 0.05); vec3 dayColor = vec3(0.8, 0.9, 1.0);     
                 float dayStrength = smoothstep(0.0, 25.0, sunAlt);
                 float totalPower = smoothstep(-20.0, -5.0, sunAlt);
                 vec3 glowColor = mix(sunsetColor, dayColor, dayStrength);
                 float brightness = mix(0.8, 0.4, dayStrength);
-
                 color += glowColor * glowIntensity * totalPower * brightness * uSunlightEnabled;
             }
-            
             float horizon = 1.0 - abs(viewDir.y);
             float horizonGlow = pow(horizon, 5.0);
             color += vec3(0.1, 0.15, 0.25) * horizonGlow * 0.25;
-
             gl_FragColor = vec4(color, 1.0);
         }
     `;
-
     const material = new THREE.ShaderMaterial({
         uniforms: {
             baseColor: { value: new THREE.Color(0x050a14) },
@@ -1472,53 +1314,39 @@ function createSkyDome() {
             sunAlt: { value: 0 },
             uSunlightEnabled: { value: 1.0 }
         },
-        vertexShader: vertexShader,
-        fragmentShader: fragmentShader,
-        side: THREE.BackSide,
-        depthWrite: false
+        vertexShader: vertexShader, fragmentShader: fragmentShader, side: THREE.BackSide, depthWrite: false
     });
-
     skyMesh = new THREE.Mesh(geometry, material);
-    skyMesh.renderOrder = -100; 
-    scene.add(skyMesh);
+    skyMesh.renderOrder = -100; scene.add(skyMesh);
 }
 
 function updateSky(sunAlt, sunAz) {
     if (!skyMesh) return;
-
     let targetColor;
-
     if (state.sunlightVisible) {
-        if (sunAlt <= SKY_GRADIENT[0].alt) {
-            targetColor = SKY_GRADIENT[0].color;
-        } else if (sunAlt >= SKY_GRADIENT[SKY_GRADIENT.length - 1].alt) {
-            targetColor = SKY_GRADIENT[SKY_GRADIENT.length - 1].color;
-        } else {
+        if (sunAlt <= SKY_GRADIENT[0].alt) targetColor = SKY_GRADIENT[0].color;
+        else if (sunAlt >= SKY_GRADIENT[SKY_GRADIENT.length - 1].alt) targetColor = SKY_GRADIENT[SKY_GRADIENT.length - 1].color;
+        else {
             for (let i = 0; i < SKY_GRADIENT.length - 1; i++) {
-                const lower = SKY_GRADIENT[i];
-                const upper = SKY_GRADIENT[i + 1];
+                const lower = SKY_GRADIENT[i]; const upper = SKY_GRADIENT[i + 1];
                 if (sunAlt >= lower.alt && sunAlt < upper.alt) {
                     const t = (sunAlt - lower.alt) / (upper.alt - lower.alt);
-                    targetColor = lower.color.clone().lerp(upper.color, t);
-                    break;
+                    targetColor = lower.color.clone().lerp(upper.color, t); break;
                 }
             }
         }
     } else {
         targetColor = new THREE.Color(0x050a14);
     }
-
     if (targetColor) {
         skyMesh.material.uniforms.baseColor.value.copy(targetColor);
         scene.fog.color.copy(targetColor);
     }
-
     const altRad = sunAlt * (Math.PI / 180);
     const azRad = sunAz * (Math.PI / 180);
     const x = Math.cos(altRad) * Math.sin(azRad);
     const y = Math.sin(altRad);
     const z = -Math.cos(altRad) * Math.cos(azRad);
-
     skyMesh.material.uniforms.sunDirection.value.set(x, y, z);
     skyMesh.material.uniforms.sunAlt.value = sunAlt;
     skyMesh.material.uniforms.uSunlightEnabled.value = state.sunlightVisible ? 1.0 : 0.0;
@@ -1564,13 +1392,7 @@ function createGrid() {
         gridHelper.traverse(c => { if(c.geometry)c.geometry.dispose(); if(c.material)c.material.dispose(); }); 
     }
     gridHelper = new THREE.Group();
-    
-    // 変更: 座標線を少し明るく、くっきりと
-    const material = new THREE.LineBasicMaterial({ 
-        color: 0x708090, // 0x445566 -> 0x708090
-        transparent: true, 
-        opacity: 0.5 // 0.3 -> 0.5
-    });
+    const material = new THREE.LineBasicMaterial({ color: 0x708090, transparent: true, opacity: 0.5 });
     
     for (let i = 0; i < 12; i++) {
         const theta = (i / 12) * Math.PI * 2; const pts = [];
@@ -1602,33 +1424,23 @@ function getObjectName(obj) {
     return names.join(' / ');
 }
 
-// 変更: pointerupで呼び出されるハンドラ
 function onPointerUp(event) {
-    // UIレイヤーやモバイルコントロール上のクリックは無視（通常のclickイベントに任せる）
     if (event.target.closest('.ui-layer') || 
         event.target.closest('#mobile-controls') || 
         event.target.closest('#star-reticle') ||
-        event.target.closest('.menu-container')) { // メニュー上のタップも無視
+        event.target.closest('.menu-container')) {
         return; 
     }
 
-    // ドラッグ判定: タップ開始位置と終了位置の差を計算
     const diffX = Math.abs(event.clientX - state.dragStartX);
     const diffY = Math.abs(event.clientY - state.dragStartY);
-    
-    // モバイルでは許容値を大きく、PCでは小さく
     const isMobile = window.innerWidth <= 900;
     const dragThreshold = isMobile ? 20 : 5; 
 
-    // しきい値を超えていたら「ドラッグ（視点移動）」とみなして処理終了
     if (diffX > dragThreshold || diffY > dragThreshold) return;
 
-    // --- ここから選択判定ロジック ---
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    // --- 修正: 判定閾値を以前の固定ロジックに戻す ---
-    // 動的計算はズーム時に範囲が狭くなりすぎ、近くの天体を拾えなくなるため
     raycaster.params.Points.threshold = isMobile ? 30 : 15;
 
     let intersectTargets = [];
@@ -1639,7 +1451,6 @@ function onPointerUp(event) {
     
     Object.keys(layers).forEach(type => {
         if (type === 'ConstellationLines' || type === 'ConstellationLabels') return;
-
         if (layers[type].visible) {
             layers[type].mesh.children.forEach(child => {
                 if (child.visible && child.isGroup) { 
@@ -1656,20 +1467,13 @@ function onPointerUp(event) {
 
     if (intersects.length > 0) {
         const candidates = [];
-
         intersects.forEach(hit => {
             let candidateObj = null;
-            let distToRay = 0; // レイ（タップ位置）からの距離
-
+            let distToRay = 0; 
             if (hit.object.isPoints) {
                 const data = layers['star'].data[hit.index];
                 if (data) {
-                    candidateObj = { 
-                        ...data, 
-                        index: hit.index, 
-                        isStarPoint: true 
-                    };
-                    // Pointsの場合、Three.jsが distanceToRay を計算してくれている
+                    candidateObj = { ...data, index: hit.index, isStarPoint: true };
                     distToRay = hit.distanceToRay;
                 }
             } else if (hit.object.isSprite) {
@@ -1679,47 +1483,32 @@ function onPointerUp(event) {
                 } else {
                     candidateObj = userData;
                 }
-                
-                // Spriteの場合は中心座標とレイの距離を計算する
                 if (hit.object.position) {
-                    // ワールド座標を取得
                     const worldPos = new THREE.Vector3();
                     hit.object.getWorldPosition(worldPos);
-                    // レイとの距離を計算
                     distToRay = raycaster.ray.distanceToPoint(worldPos);
                 }
             }
-            
             let mag = 6.0;
             if (candidateObj.mag !== undefined) mag = parseFloat(candidateObj.mag);
             else if (candidateObj.vmag !== undefined) mag = parseFloat(candidateObj.vmag);
             
             if (mag <= state.magLimit) {
-                // 距離情報を付加してリストに追加
                 candidateObj.distToRay = distToRay;
                 candidates.push(candidateObj);
             }
         });
 
         if (candidates.length > 0) {
-            // --- 修正: レイとの距離（近さ）でソートする ---
-            candidates.sort((a, b) => {
-                return a.distToRay - b.distToRay;
-            });
-
+            candidates.sort((a, b) => a.distToRay - b.distToRay);
             const now = Date.now();
             let newIndex = 0;
-            
-            // 直近のクリックから時間が経っていない、かつ一番近い候補が変わっていない場合のみ
-            // インデックスを進めて次の候補（少し遠い星）を選択する
             if (state.clickCandidates.length > 0 && 
                 candidates.length > 0 &&
                 candidates[0].name === state.clickCandidates[0].name && 
                 (now - state.lastClickTime < 2000)) {
-                
                 newIndex = (state.clickCandidateIndex + 1) % candidates.length;
             }
-
             state.clickCandidates = candidates;
             state.clickCandidateIndex = newIndex;
             state.lastClickTime = now;
@@ -1727,7 +1516,6 @@ function onPointerUp(event) {
             const targetObj = candidates[newIndex];
             state.selectedObject = targetObj;
             
-            // 天体名を画面下部に表示
             const nameDisplay = document.getElementById('selected-star-name-display');
             if (nameDisplay) {
                 document.getElementById('display-star-name-text').textContent = '選択天体：' + getObjectName(targetObj);
@@ -1736,16 +1524,11 @@ function onPointerUp(event) {
             
             showSidePanel(targetObj);
             updateReticle(); 
-
-            // PCの場合のみ自動でサイドパネルを開く
-            if (!isMobile) {
-                window.switchTab('info');
-            }
+            if (!isMobile) window.switchTab('info');
         } else {
             resetSelectionHelper();
         }
     } else {
-        // 何もヒットしなかった場合は選択解除
         resetSelectionHelper();
     }
 }
@@ -1755,7 +1538,6 @@ function resetSelectionHelper() {
     const reticle = document.getElementById('star-reticle');
     reticle.classList.remove('visible');
     reticle.style.display = 'none'; 
-    
     const nameDisplay = document.getElementById('selected-star-name-display');
     if (nameDisplay) {
         nameDisplay.classList.remove('visible');
@@ -1772,29 +1554,19 @@ function showSidePanel(obj) {
     if (obj.vmag !== undefined) magText = parseFloat(obj.vmag).toFixed(2);
     else if (obj.mag !== undefined) magText = parseFloat(obj.mag).toFixed(2);
     
-    let distText = "-";
-    let distUnit = "";
-    if (obj.distance_au !== undefined) { 
-        distText = parseFloat(obj.distance_au).toFixed(3);
-        distUnit = " AU";
-    } else if (obj.distance_pc) { 
-        distText = (obj.distance_pc * 3.26156).toFixed(1);
-        distUnit = " 光年";
-    }
+    let distText = "-"; let distUnit = "";
+    if (obj.distance_au !== undefined) { distText = parseFloat(obj.distance_au).toFixed(3); distUnit = " AU"; }
+    else if (obj.distance_pc) { distText = (obj.distance_pc * 3.26156).toFixed(1); distUnit = " 光年"; }
 
     let altAzText = "-";
     if (obj.alt !== undefined && obj.az !== undefined) {
         altAzText = `H:${obj.alt.toFixed(1)}° A:${obj.az.toFixed(1)}°`;
     }
-    
     document.getElementById('star-name').textContent = getObjectName(obj);
     document.getElementById('star-altaz').textContent = altAzText; 
-    
     const distEl = document.getElementById('star-dist');
     distEl.textContent = distText;
-    if (distEl.nextSibling && distEl.nextSibling.nodeType === 3) {
-        distEl.nextSibling.textContent = distUnit; 
-    }
+    if (distEl.nextSibling && distEl.nextSibling.nodeType === 3) distEl.nextSibling.textContent = distUnit; 
     let typeText = obj.spect_type || obj.typeLabel || "Unknown";
     document.getElementById('star-type').textContent = typeText;
 }
@@ -1807,8 +1579,6 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    
-    // レイキャスター閾値のレスポンシブ更新
     const isMobile = window.innerWidth <= 900;
     raycaster.params.Points.threshold = isMobile ? 30 : 15;
 }
@@ -1818,21 +1588,14 @@ function updateReticle() {
     const sideDock = document.getElementById('side-dock');
     const isMobile = window.innerWidth <= 900;
 
-    // モバイル表示で、かつサイドドックが開いている場合はレチクル（とボタン）を隠す
     if (isMobile && sideDock && sideDock.classList.contains('open')) {
-        reticle.classList.remove('visible');
-        reticle.style.display = 'none'; 
-        return;
+        reticle.classList.remove('visible'); reticle.style.display = 'none'; return;
     }
-    
     if (!state.selectedObject || state.shuttleValue !== 0 || state.isDragging) {
-        reticle.classList.remove('visible');
-        reticle.style.display = 'none'; 
-        return;
+        reticle.classList.remove('visible'); reticle.style.display = 'none'; return;
     }
 
     camera.updateMatrixWorld();
-
     let targetVec = new THREE.Vector3();
 
     if (state.selectedObject.isStarPoint) {
@@ -1841,15 +1604,11 @@ function updateReticle() {
             const index = state.selectedObject.index;
             targetVec.fromBufferAttribute(points.geometry.attributes.position, index);
             targetVec.applyMatrix4(points.matrixWorld);
-        } else {
-            return;
-        }
-    } 
-    else if (state.selectedObject.meshReference) {
+        } else { return; }
+    } else if (state.selectedObject.meshReference) {
         state.selectedObject.meshReference.updateMatrixWorld();
         targetVec.setFromMatrixPosition(state.selectedObject.meshReference.matrixWorld);
-    }
-    else {
+    } else {
         const r = CONFIG.radius;
         let ra = state.selectedObject.ra_deg || state.selectedObject.ra || 0;
         let dec = state.selectedObject.dec_deg || state.selectedObject.dec || 0;
@@ -1857,11 +1616,7 @@ function updateReticle() {
         if (state.selectedObject.objType === 'SolarSystem') {
              const altRad = state.selectedObject.alt * (Math.PI / 180);
              const azRad = state.selectedObject.az * (Math.PI / 180);
-             targetVec.set(
-                 r * Math.cos(altRad) * Math.sin(azRad),
-                 r * Math.sin(altRad),
-                 -r * Math.cos(altRad) * Math.cos(azRad)
-             );
+             targetVec.set(r * Math.cos(altRad) * Math.sin(azRad), r * Math.sin(altRad), -r * Math.cos(altRad) * Math.cos(azRad));
         } else {
              const lstRad = calculateLST(state.date, state.lon);
              const latRad = state.lat * Math.PI / 180;
@@ -1872,80 +1627,50 @@ function updateReticle() {
     }
     
     targetVec.project(camera);
-
     if (targetVec.z > 1 || Math.abs(targetVec.x) > 1 || Math.abs(targetVec.y) > 1) {
-        reticle.classList.remove('visible');
-        reticle.style.display = 'none'; 
-        return;
+        reticle.classList.remove('visible'); reticle.style.display = 'none'; return;
     }
-
     const sx = (targetVec.x + 1) * window.innerWidth / 2;
     const sy = -(targetVec.y - 1) * window.innerHeight / 2;
-    
     reticle.style.display = 'block';
-    // 星の座標を基準位置とする（オフセットはCSSクラスで制御）
-    reticle.style.left = sx + 'px';
-    reticle.style.top = sy + 'px';
-    // 既存のインラインtransformを消去
+    reticle.style.left = sx + 'px'; reticle.style.top = sy + 'px';
     reticle.style.transform = '';
 
-    // --- 追加: 画面の左右どちらにあるかで情報表示位置クラスを切り替え ---
     const reticleInfo = document.querySelector('.reticle-info');
     if (reticleInfo) {
-        if (targetVec.x > 0) { // 右半分にある場合
-            reticleInfo.classList.add('style-left');
-            reticleInfo.classList.remove('style-right');
-        } else { // 左半分にある場合
-            reticleInfo.classList.add('style-right');
-            reticleInfo.classList.remove('style-left');
-        }
+        if (targetVec.x > 0) { reticleInfo.classList.add('style-left'); reticleInfo.classList.remove('style-right'); }
+        else { reticleInfo.classList.add('style-right'); reticleInfo.classList.remove('style-left'); }
     }
-    
     reticle.classList.add('visible');
 }
 
 function updateLabelSizes() {
     const fovFactor = camera.fov / 50.0;
-
     if (layers['ConstellationLabels']) {
         layers['ConstellationLabels'].mesh.children.forEach(sprite => {
             if (sprite.userData.baseScale) {
-                sprite.scale.set(
-                    sprite.userData.baseScale.x * fovFactor,
-                    sprite.userData.baseScale.y * fovFactor,
-                    1
-                );
+                sprite.scale.set(sprite.userData.baseScale.x * fovFactor, sprite.userData.baseScale.y * fovFactor, 1);
             }
         });
     }
-
-    if (layers['star']) {
-        layers['star'].mesh.children.forEach(child => {
+    if (layers['StarLabels']) {
+        layers['StarLabels'].mesh.children.forEach(child => {
             if (child.isGroup && child.children.length > 0) {
                 const label = child.children[0];
                 if (label.userData.isLabel && label.userData.baseScale) {
-                    label.scale.set(
-                        label.userData.baseScale.x * fovFactor,
-                        label.userData.baseScale.y * fovFactor,
-                        1
-                    );
+                    label.scale.set(label.userData.baseScale.x * fovFactor, label.userData.baseScale.y * fovFactor, 1);
                 }
             }
         });
     }
-
     Object.keys(layers).forEach(key => {
-        if (key === 'star' || key === 'ConstellationLines' || key === 'ConstellationLabels') return;
+        if (key === 'star' || key === 'ConstellationLines' || key === 'ConstellationLabels' || key === 'StarLabels') return;
         const group = layers[key].mesh;
         group.children.forEach(wrapper => {
             if (wrapper.children.length >= 2) {
                 const label = wrapper.children[1];
                 if (label.userData.isLabel && label.userData.baseScale) {
-                    label.scale.set(
-                        label.userData.baseScale.x * fovFactor,
-                        label.userData.baseScale.y * fovFactor,
-                        1
-                    );
+                    label.scale.set(label.userData.baseScale.x * fovFactor, label.userData.baseScale.y * fovFactor, 1);
                 }
             }
         });
@@ -1958,9 +1683,7 @@ function animate() {
         const points = layers['star'].mesh.children.find(c => c.isPoints);
         if (points) {
             points.material.uniforms.uTime.value += 0.005;
-            if (points.material.uniforms.uFov) {
-                points.material.uniforms.uFov.value = camera.fov;
-            }
+            if (points.material.uniforms.uFov) points.material.uniforms.uFov.value = camera.fov;
         }
     }
     
@@ -1973,10 +1696,8 @@ function animate() {
         const d = state.date;
         const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
         document.getElementById('date-picker').value = local.toISOString().slice(0, 16);
-        
         const screenClock = document.getElementById('screen-clock');
         const mobileClockDisplay = document.getElementById('mobile-clock-display');
-        
         if(screenClock || mobileClockDisplay){
             const year = d.getFullYear();
             const month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -1984,7 +1705,6 @@ function animate() {
             const hour = d.getHours().toString().padStart(2, '0');
             const min = d.getMinutes().toString().padStart(2, '0');
             const dateStr = `${year}/${month}/${day} ${hour}:${min}`;
-            
             if(screenClock) screenClock.textContent = dateStr;
             if(mobileClockDisplay) mobileClockDisplay.textContent = dateStr;
         }
