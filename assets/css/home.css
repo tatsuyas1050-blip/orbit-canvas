@@ -44,8 +44,11 @@ body {
 
 .circle-container {
     position: relative;
-    width: clamp(300px, 60vw, 500px);
-    height: clamp(300px, 60vw, 500px);
+    /* 修正箇所: PC表示で文字が被らないようにサイズ上限を拡大 
+       500px -> 700px
+    */
+    width: clamp(300px, 60vw, 700px);
+    height: clamp(300px, 60vw, 700px);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -69,7 +72,7 @@ body {
     
     /* 円の描画アニメーション:
        3.5s (タイトル完了) + 0.5s (待機) = 4.0s から開始
-       4.0s かけてゆっくり描画 (完了: 8.0s) ※時間を伸ばしました
+       4.0s かけてゆっくり描画 (完了: 8.0s)
        ease-in-out: 最初と最後がゆっくり
     */
     animation: drawCircle 4.0s ease-in-out forwards 4.0s;
@@ -78,10 +81,16 @@ body {
 .hero-text {
     z-index: 2;
     text-align: center;
+    /* 円の中に確実に収めるためにパディングを少し追加 */
+    padding: 0 20px;
 }
 
 .title {
-    font-size: clamp(2rem, 5vw, 4rem);
+    /* 修正箇所: 円の中に収まるようにフォントサイズを微調整 
+       max: 4rem -> 3.5rem
+       vw: 5vw -> 4.5vw
+    */
+    font-size: clamp(2rem, 4.5vw, 3.5rem);
     font-weight: 500;
     letter-spacing: 0.2em;
     margin-bottom: 1rem;
