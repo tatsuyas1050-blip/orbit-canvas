@@ -370,16 +370,57 @@
         }
         .modal-box {
             background: rgba(20, 25, 35, 0.95); border: 1px solid var(--accent-gold);
-            width: 90%; max-width: 500px; padding: 2.5rem; border-radius: 12px; position: relative; 
+            width: 90%; max-width: 500px; padding: 1.5rem; /* --- 修正: パディングを少し縮小 --- */
+            border-radius: 12px; position: relative; 
             box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 15px rgba(212, 175, 55, 0.2);
             max-height: 80vh; overflow-y: auto; 
         }
         .modal-close { position: absolute; top: 1rem; right: 1rem; background:none; border:none; color: #fff; font-size: 1.8rem; cursor: pointer; }
         /* モーダル見出しはゴシック体へ変更（明朝体指定を削除） */
-        .modal-h { text-align: center; color: var(--accent-gold); margin-bottom: 2rem; font-size: 1.5rem; border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 1rem; }
+        .modal-h { 
+            text-align: center; 
+            color: var(--accent-gold); 
+            margin-bottom: 2rem; 
+            font-size: 1.5rem; 
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3); 
+            padding-bottom: 1rem;
+            
+            /* --- 修正: 上下中央揃えと文字の太さ --- */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: normal; /* 太字解除して少し細く */
+        }
         
+        /* --- 修正: モーダル見出しのアイコン --- */
+        .modal-h-icon {
+            width: 28px; 
+            height: 28px;
+            object-fit: contain;
+            margin-right: 10px; /* 間隔調整 */
+            /* vertical-align: bottom; はFlexboxにするため削除 */
+        }
+
         .modal-box.plan-theme { border-color: #00d2ff; box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 15px rgba(0, 210, 255, 0.2); }
         .modal-box.plan-theme .modal-h { color: #00d2ff; border-bottom-color: rgba(0, 210, 255, 0.3); }
+
+        /* 公開・非公開切り替えボタンのアイコン */
+        .vis-toggle-icon {
+            width: 18px; 
+            height: 18px;
+            object-fit: contain;
+            margin-right: 6px;
+            vertical-align: middle;
+            transition: filter 0.3s;
+            /* デフォルト(非アクティブ)は白っぽい元の画像を使用 */
+            opacity: 0.6; /* 文字色#888に合わせるため少し薄く */
+        }
+
+        /* アクティブ時は文字色が黒になるので、アイコンも黒くする */
+        .vis-btn.active .vis-toggle-icon {
+            filter: brightness(0); /* 黒にする */
+            opacity: 1;
+        }
 
         .form-grp { margin-bottom: 1.5rem; }
         
@@ -399,7 +440,7 @@
             font-family: var(--font-body);
         }
 
-        /* --- 修正: パスワード入力欄などの揺れを防ぐための固定スタイルクラス --- */
+        /* パスワード入力欄などの揺れを防ぐための固定スタイルクラス */
         .auth-input {
             height: 48px; /* 高さを固定 */
             font-size: 1rem !important; /* フォントサイズ固定 */
@@ -428,7 +469,7 @@
         }
         .btn-modal-action.plan-mode { background: linear-gradient(135deg, #00d2ff, #0077ff); box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3); color: #fff; }
         
-        /* --- 修正: チェックボックスのレイアウトとデザイン --- */
+        /* チェックボックスのレイアウトとデザイン */
         .checkbox-wrapper { 
             display: flex; 
             align-items: center; 
@@ -441,9 +482,7 @@
             font-size: 0.9rem;
             width: 100%;
             user-select: none;
-            
-            /* --- 修正: 左側に1文字分の余白 --- */
-            padding-left: 1em;
+            padding-left: 1em; /* 左側に1文字分の余白 */
         }
         
         /* オリジナルチェックボックス */
@@ -489,8 +528,50 @@
         .loading { text-align: center; padding: 3rem; opacity: 0.6; font-family: var(--font-tech); }
         @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
 
-        .auth-container, .auth-features-unified { background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:1rem; margin-bottom:1rem; }
-        .login-box-deco { border: 1px solid rgba(212, 175, 55, 0.5) !important; box-shadow: 0 0 60px rgba(0,0,0,0.9); background: rgba(15,20,30,0.98); }
+        .auth-container { background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:1rem; margin-bottom:1rem; }
+        
+        /* --- 修正: ログイン機能説明エリアのデザイン刷新 --- */
+        .auth-features-unified {
+            display: flex;
+            flex-direction: column;
+            gap: 5px; /* 少し詰める */
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin-bottom: 1.5rem;
+        }
+
+        .feat-item {
+            display: flex;
+            align-items: center;
+            background: transparent; /* 背景なし */
+            border: none; /* 枠なし */
+            padding: 5px 0; /* 少し詰める */
+            /* hover効果は削除 */
+        }
+
+        .feat-icon-img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            margin-right: 15px;
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
+        }
+
+        .feat-text {
+            font-size: 0.95rem;
+            color: #ddd;
+            font-family: var(--font-body);
+        }
+
+        /* --- 修正: ログインボックスのパディングを少し減らす --- */
+        .login-box-deco { 
+            border: 1px solid rgba(212, 175, 55, 0.5) !important; 
+            box-shadow: 0 0 60px rgba(0,0,0,0.9); 
+            background: rgba(15,20,30,0.98); 
+            padding: 1.5rem !important; /* コンパクト化 */
+        }
+        
         .input-group { position:relative; margin-bottom:1rem; }
         
         /* 入力欄のパディング調整：絵文字削除のため左パディングは標準に戻し、右はアイコン用にあける */
@@ -551,6 +632,24 @@
         .modal-box.plan-theme .vis-btn.active {
             background: #00d2ff;
             color: #000;
+        }
+
+        /* --- 新規追加: 公開・非公開切り替えボタンのアイコン --- */
+        .vis-toggle-icon {
+            width: 18px; 
+            height: 18px;
+            object-fit: contain;
+            margin-right: 6px;
+            vertical-align: middle;
+            transition: filter 0.3s;
+            /* デフォルト(非アクティブ)は白っぽい元の画像を使用 */
+            opacity: 0.6; /* 文字色#888に合わせるため少し薄く */
+        }
+
+        /* アクティブ時は文字色が黒になるので、アイコンも黒くする */
+        .vis-btn.active .vis-toggle-icon {
+            filter: brightness(0); /* 黒にする */
+            opacity: 1;
         }
 
         .tool-selector {
@@ -729,6 +828,11 @@
             }
             .common-header { 
                 height: 60px; 
+            }
+            
+            /* --- 修正: モバイル時のタイトルフォントサイズ縮小 --- */
+            .page-title {
+                font-size: 1.2rem;
             }
             
             .header-back-btn {
@@ -1199,18 +1303,27 @@
     <div id="auth-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(2,5,10,0.95); z-index:2000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); overflow-y:auto;">
         <a href="index.html" class="header-back-btn auth-back-pos">トップへ戻る</a>
         <div id="view-login" class="modal-box login-box-deco">
-            <div style="text-align:center; margin-bottom:1.5rem;">
+            <div style="text-align:center; margin-bottom:1rem;">
                 <div style="margin-bottom:0.5rem;"><img src="assets/img/lifelog_mark.png" alt="Logo" style="width: 80px; height: auto;"></div>
-                <h2 class="modal-h" style="border:none; padding:0; margin:0; font-size:1.8rem; text-shadow:0 0 10px rgba(212,175,55,0.5); font-family:var(--font-main); color:#fff !important;">星空ライフログ</h2>
+                <h2 class="modal-h" style="border:none; padding:0; margin:0; font-size:1.8rem; text-shadow:0 0 10px rgba(212,175,55,0.5); font-family:var(--font-main); color:#fff !important; justify-content:center;">星空ライフログ</h2>
                 <p style="font-size:0.8rem; color:#d4af37; letter-spacing:0.1em; margin-top:5px; font-family:var(--font-tech);">My Starry Sky Log</p>
-                <div style="margin-top:1.5rem; font-size:1rem; font-weight:bold; border-bottom:1px solid rgba(255,255,255,0.2); display:inline-block; padding:0 1rem 0.5rem;">ログイン</div>
+                <div style="margin-top:1rem; font-size:1rem; font-weight:bold; border-bottom:1px solid rgba(255,255,255,0.2); display:inline-block; padding:0 1rem 0.5rem;">ログイン</div>
             </div>
-            <p class="auth-desc">ログインすると以下の機能が使えます</p>
             <div class="auth-features-unified">
-                <div class="feat-row"><span class="feat-icon-small">📖</span><span>星を見たログを付ける</span></div>
-                <div class="feat-row"><span class="feat-icon-small">🌏</span><span>誰かのログを見る</span></div>
-                <div class="feat-row"><span class="feat-icon-small">📅</span><span>プランを立てる</span></div>
+                <div class="feat-item">
+                    <img src="assets/img/log.png" class="feat-icon-img" alt="Log">
+                    <span class="feat-text">星を見た記録を付ける</span>
+                </div>
+                <div class="feat-item">
+                    <img src="assets/img/plan.png" class="feat-icon-img" alt="Plan">
+                    <span class="feat-text">観測計画を立てる</span>
+                </div>
+                <div class="feat-item">
+                    <img src="assets/img/feed.png" class="feat-icon-img" alt="Feed">
+                    <span class="feat-text">みんなと共有する</span>
+                </div>
             </div>
+            
             <p id="login-error" class="error-msg"></p>
             <form id="login-form" onsubmit="event.preventDefault(); signIn();">
                 <div class="input-group"><input type="email" id="login-email" class="auth-input" placeholder="メールアドレス" autocomplete="username" required></div>
@@ -1329,13 +1442,13 @@
                     <div class="vis-selector">
                         <input type="checkbox" id="input-public" checked style="display:none">
                         <button type="button" class="vis-btn active" id="vis-btn-public" onclick="setPublicState(true)">
-                            <span style="font-size:1.2rem;">🌏</span> 公開
+                            <img src="assets/img/feed.png" class="vis-toggle-icon" alt="公開"> 公開
                         </button>
                         <button type="button" class="vis-btn" id="vis-btn-private" onclick="setPublicState(false)">
-                            <span style="font-size:1.2rem;">🔒</span> 非公開
+                            <img src="assets/img/lock.png" class="vis-toggle-icon" alt="非公開"> 非公開
                         </button>
                     </div>
-                    <p style="font-size:0.75rem; color:#888; margin-top:5px; margin-left:5px;">※公開するとフィードに表示されます</p>
+                    <p id="vis-hint-text" style="font-size:0.75rem; color:#888; margin-top:5px; margin-left:5px;">※公開するとフィードに表示されます</p>
                 </div>
 
                 <button type="submit" class="btn-modal-action" id="btn-save">保存する</button>
@@ -1832,7 +1945,7 @@
                                 <div class="feed-content">
                                     <div style="display:flex; justify-content:space-between; align-items:center;">
                                         <div style="font-family:var(--font-tech); font-size:1.1rem; color:#00d2ff; font-weight:bold;">
-                                            <span style="font-size:1.2rem;">📅</span> ${dateStr}
+                                            <img src="assets/img/plan.png" style="width:20px; height:20px; margin-right:4px; vertical-align:middle; opacity:1;"> ${dateStr}
                                         </div>
                                         <button class="btn-ref-plan" style="font-size:0.8rem; padding:4px 12px;" onclick="event.stopPropagation(); initiateReference('${item.logId}')">参考にする</button>
                                     </div>
@@ -1892,26 +2005,39 @@
             const btn = document.getElementById('btn-save');
             const lbl = document.getElementById('label-comment');
             const h = document.getElementById('modal-heading');
+            
+            // 公開設定注釈テキストの要素を取得
+            const visHint = document.getElementById('vis-hint-text');
 
             if(type !== 'log') convertingPlanId = null; 
 
             if(type === 'plan') {
                 modalBox.classList.add('plan-theme');
-                h.textContent = "プランを作成";
+                // 修正: 見出しにプランアイコン追加
+                h.innerHTML = `<img src="assets/img/plan.png" class="modal-h-icon"> プランを作成`;
+                
                 lf.style.display = 'none'; 
                 lbl.textContent = "メモ";
                 btn.textContent = "追加";
                 btn.className = "btn-modal-action plan-mode";
                 document.getElementById('input-date').required = false; 
                 setPublicState(true);
+                
+                // プランモード用テキストに変更
+                if(visHint) visHint.textContent = "※公開するとジョインに表示されます";
             } else {
                 modalBox.classList.remove('plan-theme');
-                h.textContent = "ログを作成";
+                // 修正: 見出しにログアイコン追加
+                h.innerHTML = `<img src="assets/img/log.png" class="modal-h-icon"> ログを作成`;
+                
                 lf.style.display = 'block';
                 lbl.textContent = "感想";
                 btn.textContent = "保存";
                 btn.className = "btn-modal-action";
                 document.getElementById('input-date').required = true;
+                
+                // ログモード用テキストに変更
+                if(visHint) visHint.textContent = "※公開するとフィードに表示されます";
                 
                 // デフォルト状態のセット
                 setPublicState(true);
@@ -2206,9 +2332,10 @@
             convertingPlanId = planId;
             editingLog = null;
             openModal('log');
+            // 修正: ログ作成アイコン付き見出し設定
+            document.getElementById('modal-heading').innerHTML = `<img src="assets/img/log.png" class="modal-h-icon"> ログを作成`;
             document.getElementById('input-date').value = plan.date;
             document.getElementById('input-target').value = plan.target;
-            document.getElementById('modal-heading').textContent = "ログを作成";
         }
         
         function editLog(logId) {
@@ -2217,7 +2344,12 @@
             editingLog = target;
             const type = (target.type === 'plan') ? 'plan' : 'log';
             openModal(type);
-            document.getElementById('modal-heading').textContent = (type==='plan')?"プランを編集":"ログを編集";
+            
+            // 修正: アイコン付き見出し設定
+            const titleText = (type==='plan')?"プランを編集":"ログを編集";
+            const iconImg = (type==='plan')?"assets/img/plan.png":"assets/img/log.png";
+            document.getElementById('modal-heading').innerHTML = `<img src="${iconImg}" class="modal-h-icon"> ${titleText}`;
+            
             document.getElementById('btn-save').textContent = "更新";
             document.getElementById('input-date').value = target.date;
             document.getElementById('input-target').value = target.target;
