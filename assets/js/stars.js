@@ -1114,9 +1114,12 @@ function createStarPoints(type, data, parentGroup) {
     const sizes = new Float32Array(count);
     const magnitudes = new Float32Array(count);
     
-    // --- 修正: 星のサイズを微調整 (前回より少し小さく) ---
+    // --- 修正: 星のサイズを微調整 (前回よりさらに少し小さく) ---
     const isMobile = window.innerWidth <= 900;
-    const sizeBase = isMobile ? 6.0 : 3.0; // 5.0 -> 6.0, 2.5 -> 3.0 (中間より少し大きめに)
+    const sizeBase = isMobile ? 5.5 : 2.8; // 6.0/3.0 -> 5.5/2.8
+
+    // --- 追加: モバイル時の最小サイズを大きめに設定し、暗い星の視認性を確保 ---
+    const minSize = isMobile ? 5.0 : 2.5; 
 
     data.forEach((obj, i) => {
         const spectFirst = obj.spect_type ? obj.spect_type.charAt(0).toUpperCase() : 'A';
@@ -1124,7 +1127,8 @@ function createStarPoints(type, data, parentGroup) {
         colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
         let mag = parseFloat(obj.vmag || obj.mag || 6.0); if (isNaN(mag)) mag = 6.0;
         
-        sizes[i] = Math.max(1.0, (8.0 - mag) * sizeBase); 
+        // --- 修正: 最小サイズ(minSize)を下回らないように計算 ---
+        sizes[i] = Math.max(minSize, (8.0 - mag) * sizeBase); 
         magnitudes[i] = mag;
     });
 
@@ -1153,7 +1157,8 @@ function createStarPoints(type, data, parentGroup) {
                 float altitudeFactor = 1.0 - smoothstep(0.0, 500.0, abs(position.y));
                 twinkle += altitudeFactor * 0.2 * sin(uTime * speed * 2.0);
                 vColor = color * twinkle;
-                float exposureScale = 0.5 + max(0.0, magLimit) * 0.4; 
+                // --- 修正: 係数を 0.4 -> 0.25 に変更し、暗い星表示時の肥大化を抑制 ---
+                float exposureScale = 0.5 + max(0.0, magLimit) * 0.25; 
                 
                 float fovFactor = 50.0 / uFov;
                 
