@@ -1230,7 +1230,7 @@ function createStarPoints(type, data, parentGroup) {
                 vColor = color * twinkle;
                 
                 // 露出補正のような係数
-                float exposureScale = 0.5 + max(0.0, magLimit) * 0.25; 
+                float exposureScale = 0.5 + max(0.0, magLimit) * 0.15; 
                 
                 float fovFactor = 50.0 / uFov;
                 
