@@ -164,6 +164,10 @@ function init() {
     container.addEventListener('touchmove', onTouchMove, { passive: false });
     container.addEventListener('touchend', onTouchEnd, { passive: false });
 
+    // レイアウト調整関数の実行（初期化時）
+    setTimeout(updateStarNameLayout, 100);
+    setTimeout(updateStarNameLayout, 1000); // ロード完了後の念押し
+
     animate();
 }
 
@@ -259,7 +263,9 @@ function injectCustomStyles() {
         #side-dock { z-index: 5000 !important; }
         @media (max-width: 900px) {
             #selected-star-name-display {
-                bottom: 200px; font-size: 1.0rem; padding: 10px 40px;
+                /* JS制御になるためCSSでの固定値は補助的なもの */
+                bottom: 200px; 
+                font-size: 1.0rem; padding: 10px 40px;
                 background: radial-gradient(ellipse at center, rgba(5, 10, 20, 0.95) 0%, rgba(5, 10, 20, 0.6) 30%, rgba(5, 10, 20, 0) 70%);
             }
         }
@@ -1576,6 +1582,9 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     const isMobile = window.innerWidth <= 900;
     raycaster.params.Points.threshold = isMobile ? 30 : 15;
+    
+    // レイアウト調整関数の呼び出し
+    updateStarNameLayout();
 }
 
 function updateReticle() {
@@ -1670,6 +1679,24 @@ function updateLabelSizes() {
             }
         });
     });
+}
+
+// 天体名表示の位置をコントロールパネルの高さに合わせて調整する関数
+function updateStarNameLayout() {
+    const display = document.getElementById('selected-star-name-display');
+    const controls = document.getElementById('mobile-controls');
+    
+    if (!display) return;
+
+    // モバイル表示（幅900px以下）かつコントロールパネルが存在する場合
+    if (window.innerWidth <= 900 && controls) {
+        const panelHeight = controls.offsetHeight;
+        // パネルの高さ + 10px の位置に設定
+        display.style.bottom = (panelHeight + 10) + 'px';
+    } else {
+        // PCの場合は元の位置（70px）に戻す
+        display.style.bottom = '70px';
+    }
 }
 
 function animate() {
