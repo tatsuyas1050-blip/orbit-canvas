@@ -4,12 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>イベント管理 - Admin</title>
+    
+    <script>
+        // セッションストレージに認証情報がなければログインページへリダイレクト
+        if (!sessionStorage.getItem('orbit_admin_auth')) {
+            window.location.replace('login.html');
+        }
+    </script>
+    <style>
+        /* 認証チェックが終わるまで画面を一瞬隠す */
+        body { display: none; }
+    </style>
     <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
-        <link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
     <style>
         .admin-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
         .calendar-section { background: rgba(5, 10, 20, 0.6); border: 1px solid var(--accent-gold); border-radius: 8px; padding: 1.5rem; }
@@ -32,6 +43,7 @@
     <header class="common-header">
         <a href="index.html" class="header-back-btn">トップへ戻る</a>
         <h1 class="page-title">管理者コンソール</h1>
+        <button onclick="logout()" style="position:absolute; right:20px; top:20px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; padding:5px 10px; cursor:pointer; border-radius:4px;">ログアウト</button>
     </header>
 
     <div class="container admin-wrapper">
@@ -138,9 +150,24 @@
         const finalImageUrl = document.getElementById('final-image-url');
         const btnClearImg = document.getElementById('btn-clear-img');
 
+        // ▼▼▼ 追加: ログアウト関数 ▼▼▼
+        function logout() {
+            sessionStorage.removeItem('orbit_admin_auth');
+            sessionStorage.removeItem('orbit_admin_pass');
+            window.location.href = 'login.html';
+        }
+
         init();
 
         async function init() {
+            // ▼▼▼ 追加: 画面表示 & パスワード自動入力 ▼▼▼
+            document.body.style.display = 'block'; 
+            const savedPass = sessionStorage.getItem('orbit_admin_pass');
+            if(savedPass) {
+                document.getElementById('input-password').value = savedPass;
+            }
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
             const y = today.getFullYear();
             const m = String(today.getMonth() + 1).padStart(2, '0');
             const d = String(today.getDate()).padStart(2, '0');

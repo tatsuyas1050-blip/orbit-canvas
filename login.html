@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理者ログイン - Admin Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            background: radial-gradient(circle at bottom, #1a2a40 0%, #050a14 100%);
+            margin: 0;
+            color: #fff;
+            font-family: 'Shippori Mincho', serif;
+        }
+        .login-box {
+            background: rgba(5, 10, 20, 0.8);
+            border: 1px solid var(--accent-gold);
+            padding: 2.5rem;
+            border-radius: 8px;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+        }
+        h2 { 
+            color: var(--accent-gold); 
+            margin-bottom: 2rem; 
+            font-weight: 500;
+            letter-spacing: 0.1em;
+        }
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 1.5rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input[type="password"]:focus {
+            border-color: var(--accent-gold);
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent-gold);
+            color: #000;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: opacity 0.3s, transform 0.1s;
+            font-size: 1rem;
+        }
+        button:hover { opacity: 0.9; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background: #555; color: #888; cursor: not-allowed; }
+
+        .error-msg { 
+            color: #ff4444; 
+            font-size: 0.9rem; 
+            margin-top: 15px; 
+            min-height: 1.2em;
+        }
+        .back-link {
+            color: rgba(255,255,255,0.5); 
+            font-size: 0.8rem; 
+            margin-top: 1.5rem; 
+            display: inline-block;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        .back-link:hover { color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <h2>管理者コンソール</h2>
+        <form id="login-form">
+            <input type="password" id="password" placeholder="合言葉を入力" required autofocus>
+            <button type="submit" id="btn-login">ログイン</button>
+        </form>
+        <p class="error-msg" id="msg"></p>
+        <a href="index.html" class="back-link">トップページへ戻る</a>
+    </div>
+
+    <script>
+        // admin.htmlと同じURLを使用
+        const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
+
+        const form = document.getElementById('login-form');
+        const msg = document.getElementById('msg');
+        const btn = document.getElementById('btn-login');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+            
+            msg.textContent = "確認中...";
+            msg.style.color = "var(--accent-gold)";
+            btn.disabled = true;
+
+            try {
+                // 既存のAPIを利用してパスワード検証
+                // getUploadUrlアクションはパスワードが間違っていると403エラー等を返す仕様を利用
+                const res = await fetch(PUT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        password: password,
+                        action: 'getUploadUrl', 
+                        fileName: 'auth_check.png', // ダミーファイル名
+                        fileType: 'image/png'
+                    })
+                });
+
+                if (res.ok) {
+                    // 認証成功
+                    sessionStorage.setItem('orbit_admin_auth', 'true');
+                    sessionStorage.setItem('orbit_admin_pass', password); // admin画面での入力の手間を省くため保存
+                    
+                    msg.style.color = '#4CAF50';
+                    msg.textContent = "認証成功。移動します...";
+                    
+                    setTimeout(() => {
+                        window.location.href = 'admin.html';
+                    }, 500);
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    if(data.message === "合言葉が違います" || res.status === 403 || res.status === 401) {
+                        throw new Error("合言葉が違います");
+                    } else {
+                        throw new Error("エラーが発生しました");
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                msg.style.color = '#ff4444';
+                msg.textContent = err.message || "ログインに失敗しました";
+                btn.disabled = false;
+                document.getElementById('password').value = "";
+                document.getElementById('password').focus();
+            }
+        });
+    </script>
+</body>
+</html>
