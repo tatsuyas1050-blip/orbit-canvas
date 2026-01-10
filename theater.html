@@ -10,9 +10,6 @@
     
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
-    <link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
     
     <style>
          /* Theater specific extra styles */
@@ -47,6 +44,27 @@
             line-height: 1.8;
             margin-bottom: 2rem;
         }
+
+        /* --- タブナビゲーションのスタイル --- */
+        .tab-nav {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            padding: 2rem 0;
+        }
+
+        /* スマートフォン向け調整 */
+        @media (max-width: 900px) {
+            .tab-nav {
+                gap: 0.5rem; /* 間隔を狭くする */
+                padding: 1.5rem 0;
+            }
+            .tab-btn {
+                font-size: 0.85rem !important; /* 文字を少し小さく */
+                white-space: nowrap; /* 改行を禁止して1行に収める */
+                padding: 0 5px; /* 左右の余白を微調整 */
+            }
+        }
     </style>
 </head>
 <body>
@@ -74,7 +92,7 @@
         <h1 class="page-title">宇宙シアター<span>Space Theater</span></h1>
     </header>
 
-    <nav style="display: flex; justify-content: center; gap: 2rem; padding: 2rem 0;">
+    <nav class="tab-nav">
         <button class="tab-btn active" data-target="tab-live">LIVE 配信</button>
         <button class="tab-btn" data-target="tab-archive">動画アーカイブ</button>
         <button class="tab-btn" data-target="tab-gallery">天体写真館</button>
@@ -114,7 +132,7 @@
 
     <script src="assets/js/script.js"></script>
     <script>
-        // タブ切り替え機能のみ残す
+        // タブ切り替え機能
         const tabBtns = document.querySelectorAll('.tab-btn');
         const sections = document.querySelectorAll('.section-content');
 
