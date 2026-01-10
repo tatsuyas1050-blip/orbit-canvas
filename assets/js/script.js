@@ -7,6 +7,21 @@ document.addEventListener('DOMContentLoaded', () => {
         menuToggle.addEventListener('click', () => {
             menuToggle.classList.toggle('active');
             navOverlay.classList.toggle('open');
+            
+            // メニューが開いた状態ではない(=閉じた)時
+            if (!navOverlay.classList.contains('open')) {
+                // トップページのタイトルが消えていたら戻す
+                const hero = document.querySelector('.hero');
+                if (hero && hero.classList.contains('hero-exit')) {
+                    hero.classList.remove('hero-exit');
+                }
+
+                // コンセプトボタンを表示状態にする
+                const conceptBtn = document.getElementById('concept-btn');
+                if (conceptBtn) {
+                    conceptBtn.classList.add('visible');
+                }
+            }
         });
 
         // 現在のページのメニュー項目を非表示にする
@@ -27,39 +42,69 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // --- トップページアニメーション制御 ---
+        // --- トップページアニメーション制御 & コンセプトモーダル ---
         if (currentFile === 'index.html') {
             const hero = document.querySelector('.hero');
+            const conceptBtn = document.getElementById('concept-btn');
+            const conceptModal = document.getElementById('concept-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
             
-            // タイムライン:
+            let autoMenuTimer = null; 
+
+            // モーダル開閉処理
+            const openModal = () => {
+                if(conceptModal) conceptModal.classList.add('active');
+                if(autoMenuTimer) {
+                    clearTimeout(autoMenuTimer);
+                    autoMenuTimer = null;
+                }
+            };
+
+            const closeModal = () => {
+                if(conceptModal) conceptModal.classList.remove('active');
+            };
+
+            if (conceptBtn) conceptBtn.addEventListener('click', openModal);
+            if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+
+            
+            // タイムライン設定:
             // 0.0s : タイトルfadeIn開始
-            // 8.0s : 円描画完了 (CSS animation設定より)
+            // 2.5s : キャッチコピーfadeIn開始
+            // 5.0s : 円描画開始 (6秒かけて描画)
+            // 11.0s : 円描画完了
             
-            // 8.0s後に「縮んで拡大フェードアウト」を開始
+            // 11.0s後に「縮んで拡大フェードアウト」を開始し、すぐにメニューを開く
+            const exitDelay = 11000; 
+
             setTimeout(() => {
+                // もしコンセプトモーダルが開いていたらスキップ
+                if (conceptModal && conceptModal.classList.contains('active')) {
+                    return; 
+                }
+
                 if (hero) {
-                    // CSS animation: heroExitSequence (1.2s)
                     hero.classList.add('hero-exit'); 
                 }
 
-                // フェードアウトアニメーション完了(1.2秒後)に合わせてメニューを開く
-                setTimeout(() => {
+                // フェードアウト開始とほぼ同時にメニューを開く (100msの微小ディレイのみ)
+                autoMenuTimer = setTimeout(() => {
+                    if (conceptModal && conceptModal.classList.contains('active')) return;
+
                     if (!navOverlay.classList.contains('open')) {
                         menuToggle.classList.add('active');
                         navOverlay.classList.add('open');
                         
-                        // メニューが開いた後(少し待ってから)、背後のタイトルを表示状態に戻す
-                        // すぐに戻すとメニューのフェードイン中にタイトルがパッと現れてしまうため、
-                        // メニューが十分に見えてから(0.6秒後くらい)リセットする
+                        // メニューが開いた後、背後のタイトルを表示状態に戻す
                         setTimeout(() => {
                             if (hero) {
                                 hero.classList.remove('hero-exit');
                             }
                         }, 600);
                     }
-                }, 1100); // アニメーション終了直前(1.1s)くらいでメニューを開き始める
+                }, 100); // 描画完了後「すぐ」
 
-            }, 8000); // ページロードから8秒後に終了シーケンス開始
+            }, exitDelay); 
         }
     }
 

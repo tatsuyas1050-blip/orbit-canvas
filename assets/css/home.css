@@ -16,7 +16,7 @@ body {
 .content {
     position: relative; z-index: 1; height: 100vh;
     display: flex; justify-content: center; align-items: center;
-    pointer-events: none;
+    pointer-events: auto; 
     transition: opacity 0.5s;
 }
 
@@ -32,7 +32,6 @@ body {
     justify-content: center;
     align-items: center;
     
-    /* 拡大フェードアウト用トランジション */
     transition: transform 1s ease-in, opacity 1s ease-in;
 }
 
@@ -40,15 +39,13 @@ body {
 .hero.hero-exit {
     transform: scale(1.2);
     opacity: 0;
+    pointer-events: none;
 }
 
 .circle-container {
     position: relative;
-    /* 修正箇所: PC表示で文字が被らないようにサイズ上限を拡大 
-       500px -> 700px
-    */
-    width: clamp(300px, 60vw, 700px);
-    height: clamp(300px, 60vw, 700px);
+    width: clamp(340px, 65vw, 700px);
+    height: clamp(340px, 65vw, 700px);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -71,29 +68,27 @@ body {
     stroke-dashoffset: 616;
     
     /* 円の描画アニメーション:
-       3.5s (タイトル完了) + 0.5s (待機) = 4.0s から開始
-       4.0s かけてゆっくり描画 (完了: 8.0s)
-       ease-in-out: 最初と最後がゆっくり
+       キャッチコピーが表示された後 (5.0s) から開始
+       時間を6.0sに変更 (完了: 11.0s)
     */
-    animation: drawCircle 4.0s ease-in-out forwards 4.0s;
+    animation: drawCircle 6.0s ease-in-out forwards 5.0s;
 }
 
 .hero-text {
     z-index: 2;
     text-align: center;
-    /* 円の中に確実に収めるためにパディングを少し追加 */
     padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .title {
-    /* 修正箇所: 円の中に収まるようにフォントサイズを微調整 
-       max: 4rem -> 3.5rem
-       vw: 5vw -> 4.5vw
-    */
     font-size: clamp(2rem, 4.5vw, 3.5rem);
     font-weight: 500;
     letter-spacing: 0.2em;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     text-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
     white-space: nowrap;
 }
@@ -103,6 +98,128 @@ body {
     letter-spacing: 0.15em;
     color: var(--accent-gold);
     text-transform: uppercase;
+    opacity: 0.8;
+    margin-bottom: 2rem;
+}
+
+/* キャッチコピー */
+.catchphrase-container {
+    margin-bottom: 2rem;
+    opacity: 0;
+    /* タイトル(0.5s開始)より後、2.5s待機 -> 3sかけて表示 (完了: 5.5s) */
+    animation: fadeIn 3s ease-out forwards 2.5s;
+}
+
+.catchphrase {
+    font-size: clamp(1rem, 2.5vw, 1.3rem);
+    letter-spacing: 0.1em;
+    line-height: 1.8;
+    margin: 0;
+    font-family: 'Shippori Mincho', serif;
+    color: #fff;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+}
+
+/* Concept Button */
+.concept-btn {
+    background: transparent;
+    border: 1px solid rgba(212, 175, 55, 0.5);
+    color: var(--accent-gold);
+    padding: 8px 24px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-family: var(--font-main);
+    letter-spacing: 0.1em;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    
+    /* 初期状態は非表示 */
+    opacity: 0;
+    pointer-events: none; 
+    transition: opacity 1.0s ease, background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* メニューを閉じた後にJSで付与されるクラス */
+.concept-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.concept-btn:hover {
+    background: rgba(212, 175, 55, 0.2);
+    border-color: var(--accent-gold);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+}
+
+/* --- Modal Styles --- */
+.concept-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(5, 10, 20, 0.95);
+    backdrop-filter: blur(8px);
+    z-index: 150;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.5s ease;
+}
+
+.concept-modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.concept-content {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--accent-gold);
+    padding: 3rem;
+    border-radius: 8px;
+    max-width: 600px;
+    width: 90%;
+    text-align: center;
+    transform: translateY(20px);
+    transition: transform 0.5s ease;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+}
+
+.concept-modal.active .concept-content {
+    transform: translateY(0);
+}
+
+.concept-title {
+    font-size: 1.5rem;
+    color: var(--accent-gold);
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+    display: inline-block;
+    padding-bottom: 0.5rem;
+}
+
+.concept-text {
+    text-align: left;
+    line-height: 2.0;
+    font-size: 1rem;
+    margin-bottom: 2.5rem;
+}
+.concept-text p {
+    margin-bottom: 1.5rem;
+}
+
+.close-modal-btn {
+    background: var(--accent-gold);
+    color: var(--bg-dark);
+    border: none;
+    padding: 10px 30px;
+    border-radius: 4px;
+    font-family: var(--font-main);
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+.close-modal-btn:hover {
     opacity: 0.8;
 }
 
@@ -117,8 +234,8 @@ body {
 
 @media (max-width: 768px) {
     .title { font-size: 1.8rem; }
-    .circle-container {
-        width: 320px;
-        height: 320px;
-    }
+    .subtitle { margin-bottom: 1.5rem; }
+    .catchphrase-container { margin-bottom: 1.5rem; }
+    .concept-content { padding: 1.5rem; }
+    .concept-text { font-size: 0.9rem; text-align: center; } 
 }
