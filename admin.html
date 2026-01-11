@@ -6,15 +6,14 @@
     <title>イベント管理 - Admin</title>
     
     <script>
-        // セッションストレージに認証情報がなければログインページへリダイレクト
         if (!sessionStorage.getItem('orbit_admin_auth')) {
             window.location.replace('login.html');
         }
     </script>
     <style>
-        /* 認証チェックが終わるまで画面を一瞬隠す */
         body { display: none; }
     </style>
+    
     <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
@@ -32,10 +31,36 @@
         .event-info { cursor: pointer; flex-grow: 1; }
         .btn-delete { background: #ff4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px;}
         
-        /* 画像プレビュー用 */
         #preview-area { margin-top: 10px; text-align: center; display: none; }
         #preview-img { max-width: 100%; max-height: 200px; border: 1px solid #444; border-radius: 4px; }
         
+        select {
+            background-color: #050a14;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 5px;
+            border-radius: 4px;
+        }
+        option {
+            background-color: #050a14;
+            color: #fff;
+        }
+
+        /* ▼▼▼ 配色クラスの変更 ▼▼▼ */
+        .event-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 1px;
+        }
+        .dot-meteor { background-color: #28e070; box-shadow: 0 0 4px #28e070; }  /* 緑 */
+        .dot-eclipse { background-color: #ffcc00; box-shadow: 0 0 4px #ffcc00; } /* 黄 */
+        .dot-phenomenon { background-color: #3399ff; box-shadow: 0 0 4px #3399ff; } /* 青 */
+        .dot-rocket { background-color: #ff5544; box-shadow: 0 0 4px #ff5544; }  /* 赤 */
+        .dot-other { background-color: #dddddd; box-shadow: 0 0 4px #dddddd; }   /* グレー */
+        /* ▲▲▲ 変更ここまで ▲▲▲ */
+
         @media (max-width: 900px) { .admin-wrapper { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -84,7 +109,7 @@
                             <label>タイプ</label>
                             <select id="input-type">
                                 <option value="meteor">💫 流星群</option>
-                                <option value="eclipse">🌑 日食・月食</option>
+                                <option value="eclipse">🌕 月・太陽</option>
                                 <option value="phenomenon">🪐 天文現象</option>
                                 <option value="rocket">🚀 ロケット打上</option>
                                 <option value="other">✨ その他</option>
@@ -123,10 +148,8 @@
     </div>
 
     <script>
-        // ▼▼▼ あなたの関数URLを2つ貼ってください (重要！) ▼▼▼
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         let eventsData = {};
         const today = new Date();
@@ -134,7 +157,6 @@
         let currentMonth = today.getMonth();
         let selectedDateStr = "";
 
-        // DOM要素
         const gridEl = document.getElementById('calendar-grid');
         const monthLabelEl = document.getElementById('current-month');
         const selectedDateLabel = document.getElementById('selected-date-label');
@@ -143,14 +165,12 @@
         const btnSave = document.getElementById('btn-save');
         const statusMsg = document.getElementById('msg-status');
         
-        // 画像プレビュー関連要素
         const inputFile = document.getElementById('input-file');
         const previewArea = document.getElementById('preview-area');
         const previewImg = document.getElementById('preview-img');
         const finalImageUrl = document.getElementById('final-image-url');
         const btnClearImg = document.getElementById('btn-clear-img');
 
-        // ▼▼▼ 追加: ログアウト関数 ▼▼▼
         function logout() {
             sessionStorage.removeItem('orbit_admin_auth');
             sessionStorage.removeItem('orbit_admin_pass');
@@ -160,13 +180,11 @@
         init();
 
         async function init() {
-            // ▼▼▼ 追加: 画面表示 & パスワード自動入力 ▼▼▼
             document.body.style.display = 'block'; 
             const savedPass = sessionStorage.getItem('orbit_admin_pass');
             if(savedPass) {
                 document.getElementById('input-password').value = savedPass;
             }
-            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
             const y = today.getFullYear();
             const m = String(today.getMonth() + 1).padStart(2, '0');
@@ -261,7 +279,6 @@
             document.getElementById('input-time').value = evt.time;
             document.getElementById('input-desc').value = evt.desc;
             
-            // 画像情報のセット
             finalImageUrl.value = evt.image || "";
             if (evt.image) {
                 previewImg.src = evt.image;
@@ -270,7 +287,7 @@
                 previewArea.style.display = 'none';
             }
             
-            inputFile.value = ""; // ファイル入力はリセット
+            inputFile.value = "";
             btnSave.textContent = "更新する (上書き)";
             btnSave.style.background = "#4CAF50";
             statusMsg.textContent = "📝 編集モード";
@@ -292,18 +309,14 @@
         }
         document.getElementById('btn-clear').addEventListener('click', clearForm);
 
-        // 画像削除ボタン
         btnClearImg.addEventListener('click', () => {
             finalImageUrl.value = "";
             previewArea.style.display = 'none';
             inputFile.value = "";
         });
 
-        // ■ 画像アップロード関数
         async function uploadImage(file) {
             const password = document.getElementById('input-password').value;
-            
-            // 1. Lambdaから署名付きURLを取得
             const res = await fetch(PUT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -314,23 +327,17 @@
                     fileType: file.type
                 })
             });
-            
             if (!res.ok) throw new Error("アップロード許可の取得に失敗 (合言葉は正しいですか？)");
             const data = await res.json();
-            
-            // 2. S3へ直接アップロード
             const uploadRes = await fetch(data.uploadUrl, {
                 method: 'PUT',
                 body: file,
                 headers: { 'Content-Type': file.type }
             });
-            
             if (!uploadRes.ok) throw new Error("画像のアップロードに失敗");
-            
-            return data.publicUrl; // 公開用URLを返す
+            return data.publicUrl;
         }
 
-        // 送信処理
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('input-id').value;
@@ -342,7 +349,6 @@
             statusMsg.textContent = "送信中...";
 
             try {
-                // 画像ファイルのアップロード処理
                 const file = inputFile.files[0];
                 if (file) {
                     statusMsg.textContent = "画像をアップロード中...";
@@ -357,7 +363,7 @@
                     title: document.getElementById('input-title').value,
                     type: document.getElementById('input-type').value,
                     time: document.getElementById('input-time').value,
-                    image: finalImageUrl.value, // アップロード済み or 既存のURL
+                    image: finalImageUrl.value,
                     desc: document.getElementById('input-desc').value
                 };
 
@@ -394,12 +400,10 @@
             }
         });
 
-        // 削除処理
         window.deleteEvent = async (id) => {
             if(!confirm("本当に削除しますか？")) return;
             const password = document.getElementById('input-password').value;
             if(!password) { alert("合言葉を入力してください"); return; }
-            
             try {
                 const res = await fetch(PUT_URL, {
                     method: 'POST',
@@ -421,7 +425,6 @@
             } catch(e) { alert("通信エラー"); }
         };
 
-        // 月切り替え
         document.getElementById('prev-month').addEventListener('click', () => {
             currentMonth--; 
             if(currentMonth < 0){ currentMonth = 11; currentYear--; } 

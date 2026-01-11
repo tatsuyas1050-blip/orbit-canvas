@@ -6,13 +6,13 @@
     <title>星空情報局 - Sky Events</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&family=Jura:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho:wght@400;500;700&family=Jura:wght@400;600&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
-        <link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
     
     <script src="https://cdn.jsdelivr.net/gh/cosinekitty/astronomy@master/source/js/astronomy.browser.min.js"></script>
 
@@ -24,11 +24,12 @@
             --glow-color: rgba(212, 175, 55, 0.3);
             --font-tech: 'Jura', sans-serif;
             
-            --col-meteor: #33eaff;
-            --col-eclipse: #e080ff;
-            --col-phenom: #ffdd44;
-            --col-rocket: #ff7777;
-            --col-other: #cccccc;
+            /* 配色設定 */
+            --col-meteor: #28e070;  /* 流星群：緑 */
+            --col-eclipse: #ffcc00; /* 月・太陽：黄色 */
+            --col-phenom: #3399ff;  /* 天文現象：青 */
+            --col-rocket: #ff5544;  /* ロケット：赤 */
+            --col-other: #dddddd;   /* その他：白っぽいグレー */
 
             --header-height: 80px;
             --mobile-tab-height: 50px;
@@ -134,7 +135,7 @@
         .dot-eclipse { background: var(--col-eclipse); box-shadow: 0 0 4px var(--col-eclipse); }
         .dot-phenomenon { background: var(--col-phenom); box-shadow: 0 0 4px var(--col-phenom); }
         .dot-rocket { background: var(--col-rocket); box-shadow: 0 0 4px var(--col-rocket); }
-        .dot-other { background: var(--col-other); }
+        .dot-other { background: var(--col-other); box-shadow: 0 0 4px var(--col-other); }
 
         .legend-area { border-top: 1px solid rgba(255,255,255,0.15); padding: 0.8rem 1rem; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: center; }
         .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: #ddd; }
@@ -234,12 +235,12 @@
                 transform: translateX(-1px);
             }
             .page-title {
-                font-size: 1.5rem; /* base.css と合わせました */
+                font-size: 1.5rem; 
                 width: auto;
                 left: 50%; transform: translateX(-50%);
             }
             .page-title span {
-                font-size: 0.85rem; /* base.css と合わせました */
+                font-size: 0.85rem; 
                 margin-top: 2px;
             }
             .menu-toggle {
@@ -286,7 +287,7 @@
             .tab-highlight {
                 position: absolute;
                 top: 4px; left: 4px; bottom: 4px;
-                width: calc((100% - 13px) / 2); /* (100% - padding*2 - gap) / 2 */
+                width: calc((100% - 13px) / 2); 
                 border-radius: 25px;
                 z-index: 0;
                 transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -309,7 +310,7 @@
 
             /* 右へ移動 & 色変化 */
             .tab-highlight.move-right {
-                transform: translateX(calc(100% + 5px)); /* width + gap(5px) */
+                transform: translateX(calc(100% + 5px)); 
             }
             .tab-highlight.move-right::before { opacity: 0; }
             .tab-highlight.move-right::after { opacity: 1; }
@@ -320,7 +321,9 @@
                 background: transparent; 
                 border: none; 
                 color: #888;
-                font-family: 'Shippori Mincho', serif; 
+                /* ▼▼▼ フォントを Noto Sans JP に変更 ▼▼▼ */
+                font-family: 'Noto Sans JP', sans-serif; 
+                /* ▲▲▲ 変更ここまで ▲▲▲ */
                 font-weight: 500; 
                 font-size: 0.85rem; 
                 padding: 6px 10px; 
@@ -494,9 +497,10 @@
                 <div class="calendar-grid" id="calendar-grid"></div>
                 <div class="legend-area">
                     <div class="legend-item"><span class="legend-mark dot-meteor"></span>流星群</div>
-                    <div class="legend-item"><span class="legend-mark dot-eclipse"></span>日食・月食</div>
+                    <div class="legend-item"><span class="legend-mark dot-eclipse"></span>月・太陽</div>
                     <div class="legend-item"><span class="legend-mark dot-phenomenon"></span>現象</div>
                     <div class="legend-item"><span class="legend-mark dot-rocket"></span>ロケット</div>
+                    <div class="legend-item"><span class="legend-mark dot-other"></span>その他</div>
                 </div>
             </div>
 
@@ -595,7 +599,8 @@
         const elAstroDate = document.getElementById('astro-date-display');
         const canvasMoon = document.getElementById('moon-canvas');
 
-        const typeLabels = { meteor: "流星群", eclipse: "日食・月食", phenomenon: "天文現象", rocket: "ロケット打上", other: "その他", star: "天文現象" };
+        // ▼▼▼ 名称設定 ▼▼▼
+        const typeLabels = { meteor: "流星群", eclipse: "月・太陽", phenomenon: "天文現象", rocket: "ロケット打上", other: "その他", star: "天文現象" };
         const weekDaysEng = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
         function switchTab(mode) {
@@ -743,13 +748,8 @@
                     if(window.innerWidth <= 900) {
                         setTimeout(() => {
                             const heading = document.getElementById('daily-heading');
-                            
-                            // ▼▼▼ 修正箇所: ヘッダー+タブ分のオフセットを考慮したスクロール ▼▼▼
                             const rect = heading.getBoundingClientRect();
                             const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                            
-                            // ヘッダー60px + タブナビの高さ(padding込みで約60〜70px)
-                            // offsetHeight で動的に取得
                             const tabNav = document.querySelector('.mobile-tab-nav');
                             const offset = 60 + (tabNav ? tabNav.offsetHeight : 60); 
                             
@@ -757,7 +757,6 @@
                                 top: rect.top + scrollTop - offset,
                                 behavior: 'smooth'
                             });
-                            // ▲▲▲ 修正終わり ▲▲▲
                         }, 100);
                     }
                 });
