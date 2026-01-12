@@ -452,28 +452,7 @@
             line-height: normal;
         }
 
-        /* --------------------------------------------------------------------------------
-           カレンダーアイコンの制御
-           PC: カレンダーアイコンを表示し、背景が暗いのでfilterで白くして見やすくする。
-           Mobile(900px以下): レイアウト崩れ防止のため、アイコンを非表示にする（タップでOSピッカーが出る）。
-        -------------------------------------------------------------------------------- */
-        input[type="date"] {
-            -moz-appearance: textfield;
-            appearance: none; /* デフォルトの立体枠などを消す */
-        }
-
-        /* PCでのみ適用: カレンダーアイコンを見えるようにし、色を白くする */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1); /* 黒いアイコンを白く反転 */
-            cursor: pointer;
-            opacity: 0.8;
-            transition: opacity 0.3s;
-        }
-        input[type="date"]::-webkit-calendar-picker-indicator:hover {
-            opacity: 1;
-        }
-
-        /* モバイル用設定: 900px以下ならアイコンを非表示にする */
+        /* --- 修正: モバイルのみカレンダーアイコンを非表示にする（PCでは表示） --- */
         @media (max-width: 900px) {
             input[type="date"]::-webkit-inner-spin-button,
             input[type="date"]::-webkit-calendar-picker-indicator {
@@ -481,7 +460,23 @@
                 -webkit-appearance: none;
             }
             input[type="date"] {
+                -moz-appearance: textfield;
                 -webkit-appearance: none;
+                appearance: none;
+            }
+        }
+
+        /* PC表示時はカレンダーアイコンが見えるように色を反転（背景が暗いため） */
+        @media (min-width: 901px) {
+            input[type="date"]::-webkit-calendar-picker-indicator {
+                filter: invert(1);
+                cursor: pointer;
+                opacity: 0.8;
+                transition: 0.3s;
+            }
+            input[type="date"]::-webkit-calendar-picker-indicator:hover {
+                opacity: 1;
+                transform: scale(1.1);
             }
         }
         
