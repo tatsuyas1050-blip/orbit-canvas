@@ -69,6 +69,9 @@ const CATALOG_FILES = [
 
 let scene, camera, renderer, controls;
 let groundMesh, gridHelper, compassGroup, skyMesh;
+// 天の川用変数
+let milkyWayGroup, milkyWayMesh;
+
 let raycaster, mouse;
 let layers = {}; 
 let allCelestialObjects = []; 
@@ -132,6 +135,7 @@ function init() {
     controls.addEventListener('end', () => { state.isDragging = false; });
 
     createSkyDome();
+    createMilkyWay(); // 天の川の生成
     createGround();
     createGrid();
     createCompass();
@@ -460,6 +464,10 @@ function setupUI() {
         updatePositions();
         updateSliderBackground(magSlider, 'left');
         updateSliderBackground(mobileMagSlider, 'left');
+        
+        // --- 修正: 天の川の濃さも即座に更新する ---
+        // updateSolarSystemData内でupdateSkyが呼ばれ、そこでmagLimit判定が行われる
+        updateSolarSystemData();
     };
     magSlider.addEventListener('input', (e) => syncMag(e.target.value));
     mobileMagSlider.addEventListener('input', (e) => syncMag(e.target.value));
@@ -1243,6 +1251,15 @@ function updatePositions() {
         });
     }
 
+    // --- 天の川の回転制御 ---
+    if (milkyWayGroup && milkyWayMesh) {
+        // 1. 緯度に合わせてコンテナを傾ける (天の北極を合わせる)
+        milkyWayGroup.rotation.x = latRad - (Math.PI / 2);
+
+        // 2. 時間(LST)に合わせてメッシュ自体を回転させる
+        milkyWayMesh.rotation.y = -lstRad - (Math.PI / 2);
+    }
+
     if(state.shuttleValue !== 0) {
         updateSolarSystemData();
     }
@@ -1321,9 +1338,42 @@ function createSkyDome() {
     skyMesh.renderOrder = -100; scene.add(skyMesh);
 }
 
+// --- 天の川作成関数 ---
+function createMilkyWay() {
+    // 緯度による傾きを制御するグループ
+    milkyWayGroup = new THREE.Group();
+    scene.add(milkyWayGroup);
+
+    const loader = new THREE.TextureLoader();
+    // ユーザー指定のパスから画像をロード
+    const texture = loader.load('assets/img/equirectangular.jpg');
+    
+    // 星(500)より遠く、空(900)より手前
+    const geometry = new THREE.SphereGeometry(850, 64, 64); 
+    
+    const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.BackSide, // 内側から見る
+        transparent: true,
+        opacity: 0.0, // 初期値は0（updateSkyで制御）
+        depthWrite: false, // 星を隠さない
+        blending: THREE.AdditiveBlending // 星空になじむように加算合成
+    });
+
+    milkyWayMesh = new THREE.Mesh(geometry, material);
+    
+    // 内側から見るため左右反転が必要な場合が多い
+    milkyWayMesh.scale.x = -1;
+    
+    milkyWayGroup.add(milkyWayMesh);
+}
+
 function updateSky(sunAlt, sunAz) {
     if (!skyMesh) return;
     let targetColor;
+    // 昼の強さを計算 (0.0:夜 〜 1.0:昼)
+    const dayStrength = Math.min(1.0, Math.max(0.0, sunAlt / 25.0));
+
     if (state.sunlightVisible) {
         if (sunAlt <= SKY_GRADIENT[0].alt) targetColor = SKY_GRADIENT[0].color;
         else if (sunAlt >= SKY_GRADIENT[SKY_GRADIENT.length - 1].alt) targetColor = SKY_GRADIENT[SKY_GRADIENT.length - 1].color;
@@ -1351,6 +1401,29 @@ function updateSky(sunAlt, sunAz) {
     skyMesh.material.uniforms.sunDirection.value.set(x, y, z);
     skyMesh.material.uniforms.sunAlt.value = sunAlt;
     skyMesh.material.uniforms.uSunlightEnabled.value = state.sunlightVisible ? 1.0 : 0.0;
+
+    // --- 天の川の透明度制御 (更新箇所) ---
+    if (milkyWayMesh) {
+        // 1. 太陽高度によるフェード (Day/Night)
+        let dayFactor = 1.0;
+        if (state.sunlightVisible) {
+            dayFactor = 1.0 - dayStrength;
+        }
+
+        // 2. 星の等級によるフェード (Magnitude)
+        // 3.0以下で0%、5.5以上で100%
+        const magFadeThreshold = 3.0;
+        const magFullThreshold = 5.5;
+        let magFactor = (state.magLimit - magFadeThreshold) / (magFullThreshold - magFadeThreshold);
+        magFactor = Math.max(0, Math.min(1, magFactor)); // 0.0〜1.0に制限
+
+        // 最大不透明度と掛け合わせる
+        const maxOpacity = 0.6; 
+        const targetOpacity = maxOpacity * dayFactor * magFactor;
+        
+        milkyWayMesh.material.opacity = targetOpacity;
+        milkyWayMesh.visible = targetOpacity > 0.01;
+    }
 }
 
 function createGround() {
