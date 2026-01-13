@@ -1786,7 +1786,7 @@ function animate() {
     updateLabelSizes();
 
     if (state.shuttleValue !== 0) {
-        const speed = Math.pow(state.shuttleValue, 3) * 10; 
+        const speed = Math.pow(state.shuttleValue, 3) * 0.2; 
         state.date.setTime(state.date.getTime() + speed);
         updatePositions(); 
         const d = state.date;
