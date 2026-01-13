@@ -465,8 +465,7 @@ function setupUI() {
         updateSliderBackground(magSlider, 'left');
         updateSliderBackground(mobileMagSlider, 'left');
         
-        // --- 修正: 天の川の濃さも即座に更新する ---
-        // updateSolarSystemData内でupdateSkyが呼ばれ、そこでmagLimit判定が行われる
+        // 天の川の濃さも即座に更新する
         updateSolarSystemData();
     };
     magSlider.addEventListener('input', (e) => syncMag(e.target.value));
@@ -1411,14 +1410,16 @@ function updateSky(sunAlt, sunAz) {
         }
 
         // 2. 星の等級によるフェード (Magnitude)
-        // 3.0以下で0%、5.5以上で100%
+        // 3.0以下で0%、7.5以上で100%
         const magFadeThreshold = 3.0;
-        const magFullThreshold = 5.5;
+        const magFullThreshold = 7.5; // 最大値
         let magFactor = (state.magLimit - magFadeThreshold) / (magFullThreshold - magFadeThreshold);
         magFactor = Math.max(0, Math.min(1, magFactor)); // 0.0〜1.0に制限
 
-        // 最大不透明度と掛け合わせる
-        const maxOpacity = 0.6; 
+        // 最大不透明度 (100%に近づけるため高く設定)
+        // AdditiveBlendingで1.0はかなり明るくなりますが、ご要望に合わせて視認性を上げます。
+        const maxOpacity = 0.85; 
+        
         const targetOpacity = maxOpacity * dayFactor * magFactor;
         
         milkyWayMesh.material.opacity = targetOpacity;
