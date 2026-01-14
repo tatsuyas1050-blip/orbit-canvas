@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>宇宙シアター - Space Theater</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ソノッキーの部屋 - Sonocky's Room</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
@@ -12,58 +12,179 @@
     <link rel="stylesheet" href="assets/css/pages.css">
     
     <style>
-         /* Theater specific extra styles */
-        .section-content { display: none; animation: fadeIn 0.5s ease; }
+         /* --- Sonocky's Room Specific Styles --- */
+        .section-content { display: none; animation: fadeIn 0.4s ease; }
         .section-content.active { display: block; }
         
-        /* 準備中表示用のスタイル */
-        .coming-soon-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 4rem 1rem;
-            text-align: center;
-            border: 1px dashed rgba(212, 175, 55, 0.3);
-            border-radius: 8px;
-            background: rgba(5, 10, 20, 0.4);
-            color: rgba(255, 255, 255, 0.6);
-            min-height: 300px;
-        }
-        
-        .coming-soon-title {
-            font-family: 'Shippori Mincho', serif;
-            font-size: 1.5rem;
-            color: var(--accent-gold);
-            margin-bottom: 1rem;
-            letter-spacing: 0.1em;
-        }
-        
-        .coming-soon-text {
-            font-size: 0.9rem;
-            line-height: 1.8;
-            margin-bottom: 2rem;
-        }
-
-        /* --- タブナビゲーションのスタイル --- */
+        /* PC向けベースレイアウト */
         .tab-nav {
             display: flex;
             justify-content: center;
-            gap: 2rem;
-            padding: 2rem 0;
+            gap: 1rem;
+            padding: 1.5rem 0 2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .tab-btn {
+            background: transparent; 
+            color: var(--text-white); font-family: var(--font-main);
+            font-size: 1rem; cursor: pointer;
+            padding: 0.6rem 1.2rem; opacity: 0.7;
+            transition: all 0.3s;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: nowrap;
+        }
+        
+        .tab-btn:hover { opacity: 1; background: rgba(255,255,255,0.05); }
+        .tab-btn.active { 
+            opacity: 1; 
+            color: var(--bg-dark); 
+            background: var(--accent-gold);
+            border-color: var(--accent-gold);
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
         }
 
-        /* スマートフォン向け調整 */
-        @media (max-width: 900px) {
-            .tab-nav {
-                gap: 0.5rem; /* 間隔を狭くする */
-                padding: 1.5rem 0;
+        /* --- 1. Radio Styles --- */
+        .radio-list { display: flex; flex-direction: column; gap: 1rem; min-height: 200px; }
+        .radio-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1.2rem;
+            display: flex; flex-direction: column;
+            gap: 0.8rem;
+            transition: all 0.3s;
+        }
+        .radio-header { display: flex; justify-content: space-between; align-items: baseline; }
+        .radio-title { font-weight: bold; font-size: 1.1rem; color: var(--text-white); }
+        .radio-date { font-size: 0.8rem; opacity: 0.6; }
+        .radio-desc { font-size: 0.9rem; line-height: 1.6; color: #ccc; white-space: pre-wrap; }
+        .radio-player { width: 100%; margin-top: 0.5rem; }
+
+        /* --- 2. Live Styles --- */
+        .live-frame {
+            width: 100%; aspect-ratio: 16 / 9;
+            background: #000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            border-radius: 8px; border: 1px solid rgba(212,175,55,0.3);
+            margin-bottom: 1.5rem;
+            color: #666;
+        }
+        .live-status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 20px; 
+            font-size: 0.8rem; font-weight: bold; letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+        .status-offline { background: rgba(255,255,255,0.1); color: #aaa; border: 1px solid rgba(255,255,255,0.2); }
+
+        /* --- 3. Gallery Styles (Card Layout) --- */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            min-height: 200px;
+        }
+        .gallery-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            display: flex; flex-direction: column;
+        }
+        .gallery-card:hover { transform: translateY(-5px); border-color: var(--accent-gold); }
+        .gallery-img-container {
+            width: 100%;
+            aspect-ratio: 1 / 1; /* 正方形 */
+            overflow: hidden;
+            background: #000;
+            cursor: pointer;
+        }
+        .gallery-img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        .gallery-card:hover .gallery-img { transform: scale(1.05); }
+        .gallery-content { padding: 1rem; }
+        .gallery-date { font-size: 0.75rem; color: var(--accent-gold); margin-bottom: 0.3rem; }
+        .gallery-title { font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem; }
+        .gallery-desc { font-size: 0.9rem; line-height: 1.6; opacity: 0.8; white-space: pre-wrap; }
+
+        /* --- 4. Dev Log Styles --- */
+        .devlog-timeline {
+            border-left: 2px solid rgba(212, 175, 55, 0.3);
+            padding-left: 25px;
+            margin-left: 10px;
+            margin-top: 10px;
+            min-height: 200px;
+        }
+        .devlog-entry { margin-bottom: 2.5rem; position: relative; animation: fadeIn 0.5s ease; }
+        .devlog-entry::before {
+            content: ''; position: absolute; left: -32px; top: 6px;
+            width: 12px; height: 12px; background: var(--accent-gold);
+            border-radius: 50%; box-shadow: 0 0 8px var(--accent-gold);
+            border: 2px solid var(--bg-dark); 
+        }
+        .devlog-date { font-size: 0.85rem; color: var(--accent-gold); opacity: 0.9; margin-bottom: 0.4rem; font-family: monospace; letter-spacing: 0.1em; }
+        .devlog-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 0.8rem; line-height: 1.4; }
+        .devlog-content { 
+            font-size: 0.95rem; line-height: 1.8; 
+            background: rgba(255,255,255,0.03); padding: 1.2rem; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.05);
+            white-space: pre-wrap; 
+        }
+
+        /* --- 5. Message Form Styles --- */
+        .message-form {
+            display: flex; flex-direction: column; gap: 1.5rem;
+            max-width: 600px; margin: 0 auto;
+        }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: var(--accent-gold); font-size: 0.9rem; }
+        
+        .loading-msg { text-align: center; color: rgba(255,255,255,0.5); padding: 2rem; }
+        .empty-msg { text-align: center; color: rgba(255,255,255,0.4); padding: 3rem; font-size: 0.9rem; }
+
+        /* =========================================
+           スマートフォン向け最適化 (Mobile Styles)
+           ========================================= */
+        @media (max-width: 768px) {
+            .container {
+                width: 100%; padding: 0 1rem 6rem; margin-top: 1rem;
             }
-            .tab-btn {
-                font-size: 0.85rem !important; /* 文字を少し小さく */
-                white-space: nowrap; /* 改行を禁止して1行に収める */
-                padding: 0 5px; /* 左右の余白を微調整 */
+            .page-title { 
+                font-size: clamp(14px, 4.2vw, 1.5rem); 
+                white-space: nowrap; overflow: hidden; line-height: 1.2; padding: 0 4px;
             }
+            .page-title span { 
+                font-size: 0.7em; margin-left: 6px;
+            }
+            .tab-nav { 
+                justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto;
+                padding-bottom: 0.8rem; gap: 0.6rem;
+                -webkit-overflow-scrolling: touch; scrollbar-width: none;
+                margin-bottom: 1.5rem; margin-left: -1rem; margin-right: -1rem;
+                padding-left: 1rem; padding-right: 1rem; border-bottom: none;
+            }
+            .tab-nav::-webkit-scrollbar { display: none; }
+            .tab-btn { 
+                flex: 0 0 auto; font-size: 0.9rem; padding: 0.5rem 1.2rem;
+                background: rgba(255,255,255,0.05); border-radius: 20px;
+            }
+            /* Gallery Mobile Adjustment */
+            .gallery-grid {
+                grid-template-columns: 1fr; /* スマホでは1列で大きく見せる */
+                gap: 1.5rem;
+            }
+            
+            .devlog-timeline { margin-left: 0; padding-left: 20px; }
+            .devlog-entry::before { left: -26px; width: 10px; height: 10px; top: 7px; }
+            .devlog-content { padding: 1rem; font-size: 0.9rem; }
+            .panel-bg { padding: 1.5rem 1rem; }
         }
     </style>
 </head>
@@ -82,56 +203,99 @@
     <li><a href="/stars" class="nav-link">星を探す<span>Star Chart</span></a></li>
     <li><a href="/events" class="nav-link">星空情報局<span>Sky Events</span></a></li>
     <li><a href="/lifelog" class="nav-link">星空ライフログ<span>My Starry Sky Log</span></a></li>
+    <li><a href="/theater" class="nav-link" style="display:none;">ソノッキーの部屋<span>Sonocky's Room</span></a></li>
 </ul>
         </nav>
     </div>
 
     <header class="common-header">
         <a href="/" class="header-back-btn">トップへ戻る</a>
-        <h1 class="page-title">宇宙シアター<span>Space Theater</span></h1>
+        <h1 class="page-title">ソノッキーの部屋<span>Sonocky's Room</span></h1>
     </header>
 
-    <nav class="tab-nav">
-        <button class="tab-btn active" data-target="tab-live">LIVE 配信</button>
-        <button class="tab-btn" data-target="tab-archive">動画アーカイブ</button>
-        <button class="tab-btn" data-target="tab-gallery">天体写真館</button>
-    </nav>
-
     <div class="container">
-        
-        <div id="tab-live" class="section-content active">
-            <div class="coming-soon-container">
-                <h2 class="coming-soon-title">Coming Soon</h2>
-                <p class="coming-soon-text">
-                    リアルタイム配信を準備中です。<br>
-                    公開まで今しばらくお待ちください。
-                </p>
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-target="tab-radio">ラジオ</button>
+            <button class="tab-btn" data-target="tab-live">ライブ配信</button>
+            <button class="tab-btn" data-target="tab-gallery">ギャラリー</button>
+            <button class="tab-btn" data-target="tab-devlog">開発日誌</button>
+            <button class="tab-btn" data-target="tab-message">メッセージ</button>
+        </nav>
+
+        <div id="tab-radio" class="section-content active">
+            <div class="section-header">星降る夜の独り言 (ラジオ)</div>
+            <div id="radio-container" class="radio-list">
+                <div class="loading-msg">読み込み中...</div>
             </div>
         </div>
 
-        <div id="tab-archive" class="section-content">
-            <div class="coming-soon-container">
-                <h2 class="coming-soon-title">動画アーカイブ準備中</h2>
-                <p class="coming-soon-text">
-                    過去の観望会の様子や解説動画を準備中です。<br>
-                    コンテンツの追加をお楽しみに。
-                </p>
+        <div id="tab-live" class="section-content">
+            <div class="section-header">天文台からの生中継</div>
+            <div style="text-align:center;">
+                <span class="live-status-badge status-offline">● オフライン</span>
+                <p style="font-size:0.9rem; opacity:0.8; margin-bottom:1rem;">現在配信は行われていません。</p>
+            </div>
+            <div class="live-frame">
+                <div style="font-size:3rem; opacity:0.2; margin-bottom:10px;">📡</div>
+                <p>Live Stream Offline</p>
+            </div>
+            <div class="panel-bg" style="margin-top:1.5rem;">
+                <h3 style="font-size:1rem; color:var(--accent-gold); margin-bottom:0.5rem;">次回の配信予定</h3>
+                <p style="font-size:0.9rem;">未定（通知をオンにしてお待ちください）</p>
             </div>
         </div>
 
         <div id="tab-gallery" class="section-content">
-            <div class="coming-soon-container">
-                <h2 class="coming-soon-title">天体写真館準備中</h2>
-                <p class="coming-soon-text">
-                    美しい星空の写真をギャラリー形式で公開予定です。
-                </p>
+            <div class="section-header">星と日々の記録 (ギャラリー)</div>
+            <div id="gallery-container" class="gallery-grid">
+                <div class="loading-msg">読み込み中...</div>
             </div>
         </div>
+
+        <div id="tab-devlog" class="section-content">
+            <div class="section-header">開発日誌</div>
+            <div id="devlog-container" class="devlog-timeline">
+                <div class="loading-msg">読み込み中...</div>
+            </div>
+        </div>
+
+        <div id="tab-message" class="section-content">
+            <div class="section-header">管理人へメッセージ</div>
+            <div class="panel-bg">
+                <p style="margin-bottom:1.5rem; line-height:1.6; font-size:0.95rem;">
+                    アプリの不具合報告、機能の要望、あるいは単なる星の感想など、<br>
+                    お気軽にメッセージをお送りください。
+                </p>
+                <form class="message-form" onsubmit="alert('メッセージ機能は現在準備中です。'); return false;">
+                    <div class="form-group">
+                        <label>お名前 (ニックネーム可)</label>
+                        <input type="text" placeholder="例: 星見 太郎">
+                    </div>
+                    <div class="form-group">
+                        <label>メールアドレス (返信が必要な場合)</label>
+                        <input type="email" placeholder="example@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>メッセージ</label>
+                        <textarea rows="5" placeholder="ここにメッセージを入力してください..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-submit">送信する</button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="img-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9000; justify-content:center; align-items:center;">
+        <img id="img-modal-content" src="" style="max-width:95%; max-height:80vh; border:1px solid #444; border-radius:4px;">
+        <button id="img-modal-close" style="position:absolute; bottom:30px; background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4); color:white; padding:8px 24px; border-radius:20px; cursor:pointer;">閉じる</button>
     </div>
 
     <script src="assets/js/script.js"></script>
     <script>
-        // タブ切り替え機能
+        const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
+        
+        // --- タブ切り替え ---
         const tabBtns = document.querySelectorAll('.tab-btn');
         const sections = document.querySelectorAll('.section-content');
 
@@ -140,10 +304,142 @@
                 tabBtns.forEach(b => b.classList.remove('active'));
                 sections.forEach(s => s.classList.remove('active'));
                 btn.classList.add('active');
+                
                 const targetId = btn.getAttribute('data-target');
-                document.getElementById(targetId).classList.add('active');
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) targetSection.classList.add('active');
+
+                if (window.innerWidth <= 768) {
+                    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
             });
         });
+
+        // --- データ取得・描画 ---
+        document.addEventListener('DOMContentLoaded', fetchContents);
+
+        async function fetchContents() {
+            try {
+                const res = await fetch(GET_URL);
+                if (!res.ok) throw new Error("通信エラー");
+                const allData = await res.json();
+                
+                let items = [];
+                Object.keys(allData).forEach(date => {
+                    allData[date].forEach(item => {
+                        if (item.category && ['radio', 'gallery', 'devlog'].includes(item.category)) {
+                            items.push({ ...item, date: date });
+                        }
+                    });
+                });
+                items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                renderRadio(items.filter(i => i.category === 'radio'));
+                renderGallery(items.filter(i => i.category === 'gallery'));
+                renderDevLog(items.filter(i => i.category === 'devlog'));
+
+            } catch (err) {
+                console.error(err);
+                const errMsg = `<div class="empty-msg">読み込みに失敗しました</div>`;
+                document.getElementById('radio-container').innerHTML = errMsg;
+                document.getElementById('gallery-container').innerHTML = errMsg;
+                document.getElementById('devlog-container').innerHTML = errMsg;
+            }
+        }
+
+        function renderRadio(items) {
+            const container = document.getElementById('radio-container');
+            container.innerHTML = '';
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-msg">まだ投稿はありません</div>';
+                return;
+            }
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'radio-card';
+                // Audio Player実装
+                let playerHtml = '';
+                if (item.image) { // imageプロパティに音声URLが入っている
+                    playerHtml = `<audio controls src="${item.image}" class="radio-player"></audio>`;
+                } else {
+                    playerHtml = `<p style="font-size:0.8rem; color:#aaa;">音声ファイルがありません</p>`;
+                }
+
+                div.innerHTML = `
+                    <div class="radio-header">
+                        <span class="radio-title">${escapeHtml(item.title)}</span>
+                        <span class="radio-date">${item.date}</span>
+                    </div>
+                    <div class="radio-desc">${escapeHtml(item.desc)}</div>
+                    ${playerHtml}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderGallery(items) {
+            const container = document.getElementById('gallery-container');
+            container.innerHTML = '';
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-msg">まだ投稿はありません</div>';
+                return;
+            }
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'gallery-card';
+                const imgHtml = item.image 
+                    ? `<div class="gallery-img-container" onclick="openImageModal('${item.image}')"><img src="${item.image}" class="gallery-img" alt="Photo"></div>`
+                    : '';
+                
+                div.innerHTML = `
+                    ${imgHtml}
+                    <div class="gallery-content">
+                        <div class="gallery-date">${item.date}</div>
+                        <div class="gallery-title">${escapeHtml(item.title)}</div>
+                        <div class="gallery-desc">${escapeHtml(item.desc)}</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderDevLog(items) {
+            const container = document.getElementById('devlog-container');
+            container.innerHTML = '';
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-msg">まだ投稿はありません</div>';
+                return;
+            }
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'devlog-entry';
+                let imgHtml = '';
+                if(item.image) {
+                    imgHtml = `<img src="${item.image}" style="max-width:100%; border-radius:4px; margin-top:10px; border:1px solid rgba(255,255,255,0.2); cursor:pointer;" onclick="openImageModal('${item.image}')">`;
+                }
+                div.innerHTML = `
+                    <div class="devlog-date">${item.date}</div>
+                    <div class="devlog-title">${escapeHtml(item.title)}</div>
+                    <div class="devlog-content">${escapeHtml(item.desc)}${imgHtml}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, function(match) {
+                const escape = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+                return escape[match];
+            });
+        }
+
+        const modal = document.getElementById('img-modal');
+        const modalImg = document.getElementById('img-modal-content');
+        const modalClose = document.getElementById('img-modal-close');
+        window.openImageModal = (src) => { modalImg.src = src; modal.style.display = 'flex'; };
+        modalClose.addEventListener('click', () => { modal.style.display = 'none'; });
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
     </script>
 </body>
 </html>

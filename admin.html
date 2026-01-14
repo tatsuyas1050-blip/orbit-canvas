@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>イベント管理 - Admin</title>
+    <title>総合管理コンソール - Admin</title>
     
     <script>
         if (!sessionStorage.getItem('orbit_admin_auth')) {
@@ -21,7 +21,28 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
     <style>
-        .admin-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+        /* --- Layout & Tabs --- */
+        .admin-nav {
+            display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem;
+        }
+        .nav-btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.6); padding: 0.5rem 1.5rem;
+            border-radius: 20px; cursor: pointer; transition: all 0.3s;
+            font-family: var(--font-main);
+        }
+        .nav-btn.active {
+            background: var(--accent-gold); color: var(--bg-dark);
+            border-color: var(--accent-gold); font-weight: bold;
+        }
+        .view-section { display: none; animation: fadeIn 0.3s ease; }
+        .view-section.active { display: grid; } /* イベント画面はgrid */
+        
+        #view-theater.active { display: block; } /* シアター画面はblock */
+
+        /* --- Existing Styles --- */
+        .admin-wrapper { grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
         .calendar-section { background: rgba(5, 10, 20, 0.6); border: 1px solid var(--accent-gold); border-radius: 8px; padding: 1.5rem; }
         .calendar-day { min-height: 60px; font-size: 0.9rem; }
         .calendar-day.selected { background: rgba(212, 175, 55, 0.3); border: 2px solid var(--accent-gold); }
@@ -31,8 +52,8 @@
         .event-info { cursor: pointer; flex-grow: 1; }
         .btn-delete { background: #ff4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px;}
         
-        #preview-area { margin-top: 10px; text-align: center; display: none; }
-        #preview-img { max-width: 100%; max-height: 200px; border: 1px solid #444; border-radius: 4px; }
+        .preview-area { margin-top: 10px; text-align: center; display: none; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px;}
+        .preview-img { max-width: 100%; max-height: 200px; border: 1px solid #444; border-radius: 4px; }
         
         select {
             background-color: #050a14;
@@ -40,136 +61,212 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             padding: 5px;
             border-radius: 4px;
+            width: 100%;
         }
-        option {
-            background-color: #050a14;
-            color: #fff;
-        }
+        option { background-color: #050a14; color: #fff; }
 
-        /* ▼▼▼ 配色クラスの変更 ▼▼▼ */
-        .event-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            display: inline-block;
-            margin: 1px;
-        }
-        .dot-meteor { background-color: #28e070; box-shadow: 0 0 4px #28e070; }  /* 緑 */
-        .dot-eclipse { background-color: #ffcc00; box-shadow: 0 0 4px #ffcc00; } /* 黄 */
-        .dot-phenomenon { background-color: #3399ff; box-shadow: 0 0 4px #3399ff; } /* 青 */
-        .dot-rocket { background-color: #ff5544; box-shadow: 0 0 4px #ff5544; }  /* 赤 */
-        .dot-other { background-color: #dddddd; box-shadow: 0 0 4px #dddddd; }   /* グレー */
-        /* ▲▲▲ 変更ここまで ▲▲▲ */
+        .event-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin: 1px; }
+        .dot-meteor { background-color: #28e070; box-shadow: 0 0 4px #28e070; }
+        .dot-eclipse { background-color: #ffcc00; box-shadow: 0 0 4px #ffcc00; }
+        .dot-phenomenon { background-color: #3399ff; box-shadow: 0 0 4px #3399ff; }
+        .dot-rocket { background-color: #ff5544; box-shadow: 0 0 4px #ff5544; }
+        .dot-other { background-color: #dddddd; box-shadow: 0 0 4px #dddddd; }
 
-        @media (max-width: 900px) { .admin-wrapper { grid-template-columns: 1fr; } }
+        /* --- Theater Admin Styles --- */
+        .theater-subnav { display: flex; gap: 10px; margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 5px; }
+        .subnav-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
+            color: #ccc; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; white-space: nowrap;
+        }
+        .subnav-btn.active { background: var(--accent-gold); color: var(--bg-dark); border-color: var(--accent-gold); }
+        
+        .content-list-container { max-height: 400px; overflow-y: auto; margin-bottom: 2rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem; }
+        .content-item {
+            display: flex; gap: 10px; align-items: center; padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            transition: background 0.2s;
+        }
+        .content-item:hover { background: rgba(255,255,255,0.05); }
+        .content-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; background: #000; }
+        .content-audio-icon { width: 50px; height: 50px; border-radius: 50%; background: var(--accent-gold); display: flex; justify-content: center; align-items: center; color: var(--bg-dark); font-weight: bold; }
+        .content-details { flex-grow: 1; }
+        .content-date { font-size: 0.8rem; color: var(--accent-gold); }
+        .content-title { font-weight: bold; font-size: 0.95rem; }
+
+        .file-notice { font-size: 0.8rem; color: #aaa; margin-top: 5px; }
+
+        @media (max-width: 900px) { 
+            .admin-wrapper { grid-template-columns: 1fr; }
+            .nav-btn { padding: 0.5rem 1rem; font-size: 0.9rem; }
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
     <header class="common-header">
         <a href="/" class="header-back-btn">トップへ戻る</a>
-        <h1 class="page-title">管理者コンソール</h1>
+        <h1 class="page-title">総合管理コンソール</h1>
         <button onclick="logout()" style="position:absolute; right:20px; top:20px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; padding:5px 10px; cursor:pointer; border-radius:4px;">ログアウト</button>
     </header>
 
-    <div class="container admin-wrapper">
-        <div class="calendar-section">
-            <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; border:none; margin-bottom:1rem;">
-                <button class="btn-submit" id="prev-month" style="width:auto; padding:5px 15px;">&lt;</button>
-                <div id="current-month" style="font-size:1.3rem; color:var(--accent-gold);">----年 --月</div>
-                <button class="btn-submit" id="next-month" style="width:auto; padding:5px 15px;">&gt;</button>
+    <div class="container">
+        <nav class="admin-nav">
+            <button class="nav-btn active" onclick="switchMainTab('events')">📅 星空イベント</button>
+            <button class="nav-btn" onclick="switchMainTab('theater')">📻 ソノッキーの部屋</button>
+        </nav>
+
+        <div id="view-events" class="view-section admin-wrapper active">
+            <div class="calendar-section">
+                <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; border:none; margin-bottom:1rem;">
+                    <button class="btn-submit" id="prev-month" style="width:auto; padding:5px 15px;">&lt;</button>
+                    <div id="current-month" style="font-size:1.3rem; color:var(--accent-gold);">----年 --月</div>
+                    <button class="btn-submit" id="next-month" style="width:auto; padding:5px 15px;">&gt;</button>
+                </div>
+                <div class="calendar-grid" id="calendar-grid"></div>
             </div>
-            <div class="calendar-grid" id="calendar-grid"></div>
+
+            <div class="manage-panel">
+                <div class="panel-box">
+                    <h2 class="section-header" id="selected-date-label">日付を選択してください</h2>
+                    <div id="event-list-display"><p style="opacity:0.5;">カレンダーの日付をクリックしてください。</p></div>
+                </div>
+
+                <div class="panel-box">
+                    <h3 class="section-header">✏️ イベント編集 / 登録</h3>
+                    <form id="event-form">
+                        <input type="hidden" id="event-id">
+                        <input type="hidden" id="event-date">
+                        <input type="hidden" id="event-image-url">
+
+                        <div class="form-row">
+                            <div style="flex:2;">
+                                <label>タイトル</label>
+                                <input type="text" id="event-title" required>
+                            </div>
+                            <div style="flex:1;">
+                                <label>タイプ</label>
+                                <select id="event-type">
+                                    <option value="meteor">💫 流星群</option>
+                                    <option value="eclipse">🌕 月・太陽</option>
+                                    <option value="phenomenon">🪐 天文現象</option>
+                                    <option value="rocket">🚀 ロケット</option>
+                                    <option value="other">✨ その他</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:10px;">
+                            <label>時間</label>
+                            <input type="text" id="event-time" placeholder="例: 22:00頃">
+                        </div>
+                        
+                        <div style="margin-top:10px;">
+                            <label>画像</label>
+                            <input type="file" id="event-file" accept="image/png, image/jpeg, image/gif, image/webp">
+                            <p class="file-notice">※5MB以下の画像のみ (JPG, PNG, GIF)</p>
+                            <div id="event-preview-area" class="preview-area">
+                                <img id="event-preview-img" src="" class="preview-img">
+                                <button type="button" onclick="clearFile('event')" style="font-size:0.8rem;">削除</button>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:10px;">
+                            <label>詳細・説明</label>
+                            <textarea id="event-desc" rows="3" required></textarea>
+                        </div>
+
+                        <div style="display:flex; gap:10px; margin-top:1rem;">
+                            <button type="submit" class="btn-submit" id="btn-save-event">保存</button>
+                            <button type="button" class="btn-submit" onclick="clearEventForm()" style="background:#555;">クリア</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
-        <div class="manage-panel">
-            <div class="panel-box">
-                <h2 class="section-header" id="selected-date-label">日付を選択してください</h2>
-                <div id="event-list-display"><p style="opacity:0.5;">カレンダーの日付をクリックしてください。</p></div>
+        <div id="view-theater" class="view-section">
+            <div class="theater-subnav">
+                <button class="subnav-btn active" onclick="switchTheaterSub('radio')">📻 ラジオ</button>
+                <button class="subnav-btn" onclick="switchTheaterSub('gallery')">📷 ギャラリー</button>
+                <button class="subnav-btn" onclick="switchTheaterSub('devlog')">💻 開発日誌</button>
+            </div>
+
+            <div class="panel-box" style="margin-bottom:2rem;">
+                <h3 class="section-header">投稿済みコンテンツ一覧 (<span id="theater-category-label">ラジオ</span>)</h3>
+                <div id="theater-list" class="content-list-container">
+                    <p style="text-align:center; padding:2rem; opacity:0.5;">読み込み中...</p>
+                </div>
             </div>
 
             <div class="panel-box">
-                <h3 class="section-header">✏️ 編集 / 新規登録</h3>
-                <form id="admin-form">
+                <h3 class="section-header">✏️ コンテンツ投稿・編集</h3>
+                <form id="theater-form">
+                    <input type="hidden" id="theater-id">
+                    <input type="hidden" id="theater-category" value="radio"> 
+                    <input type="hidden" id="theater-file-url">
+                    
                     <div style="margin-bottom:1rem;">
-                        <label>🔑 合言葉 (Password)</label>
-                        <input type="password" id="input-password" placeholder="luna1234" required>
+                        <label id="theater-date-label">日付 (公開日)</label>
+                        <input type="date" id="theater-date" required>
                     </div>
-                    
-                    <input type="hidden" id="input-id">
-                    <input type="hidden" id="input-date">
-                    
-                    <input type="hidden" id="final-image-url"> 
 
-                    <div class="form-row">
-                        <div>
-                            <label>タイトル</label>
-                            <input type="text" id="input-title" required>
-                        </div>
-                        <div>
-                            <label>タイプ</label>
-                            <select id="input-type">
-                                <option value="meteor">💫 流星群</option>
-                                <option value="eclipse">🌕 月・太陽</option>
-                                <option value="phenomenon">🪐 天文現象</option>
-                                <option value="rocket">🚀 ロケット打上</option>
-                                <option value="other">✨ その他</option>
-                            </select>
+                    <div style="margin-bottom:1rem;">
+                        <label>タイトル</label>
+                        <input type="text" id="theater-title" required placeholder="タイトルを入力">
+                    </div>
+
+                    <div style="margin-bottom:1rem;" id="theater-file-group">
+                        <label id="theater-file-label">音声ファイル (MP3など)</label>
+                        <input type="file" id="theater-file" accept="audio/*">
+                        <p class="file-notice" id="theater-file-notice">※10MB以下の音声ファイル (MP3, WAV, M4A)</p>
+                        
+                        <div id="theater-preview-area" class="preview-area" style="display:none;">
+                            <div id="theater-preview-content"></div>
+                            <button type="button" onclick="clearFile('theater')" style="font-size:0.8rem; margin-top:5px;">ファイルを削除</button>
                         </div>
                     </div>
 
-                    <div>
-                        <label>時間</label>
-                        <input type="text" id="input-time" placeholder="例: 22:00頃">
-                    </div>
-                    
-                    <div>
-                        <label>画像 (ファイルを選択)</label>
-                        <input type="file" id="input-file" accept="image/*">
-                        <div id="preview-area">
-                            <p style="font-size:0.8rem; opacity:0.7;">現在の設定画像:</p>
-                            <img id="preview-img" src="">
-                            <button type="button" id="btn-clear-img" style="font-size:0.8rem; margin-top:5px;">画像を削除</button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label>詳細・説明</label>
-                        <textarea id="input-desc" rows="3" required></textarea>
+                    <div style="margin-bottom:1rem;">
+                        <label>詳細・本文</label>
+                        <textarea id="theater-desc" rows="5" required placeholder="本文を入力..."></textarea>
                     </div>
 
                     <div style="display:flex; gap:10px; margin-top:1rem;">
-                        <button type="submit" class="btn-submit" id="btn-save">この内容で保存</button>
-                        <button type="button" class="btn-submit" id="btn-clear" style="background:#555;">クリア</button>
+                        <button type="submit" class="btn-submit" id="btn-save-theater">保存</button>
+                        <button type="button" class="btn-submit" onclick="clearTheaterForm()" style="background:#555;">クリア</button>
                     </div>
-                    <p id="msg-status" style="margin-top:10px; font-weight:bold; color:var(--accent-gold);"></p>
                 </form>
             </div>
+        </div>
+
+        <div style="margin-top:2rem; padding-top:1rem; border-top:1px dashed rgba(255,255,255,0.2);">
+            <label>🔑 管理パスワード (合言葉)</label>
+            <input type="password" id="global-password" placeholder="luna1234" style="max-width:300px;">
+            <p id="global-status" style="color:var(--accent-gold); font-weight:bold; margin-top:5px; min-height:1.5em;"></p>
         </div>
     </div>
 
     <script>
+        // --- Configuration ---
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
+        
+        // ファイルサイズ制限 (10MB)
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; 
 
-        let eventsData = {};
+        // Global State
+        let allData = {};
+        let currentTheaterCat = 'radio';
+        
+        // Calendar State
         const today = new Date();
         let currentYear = today.getFullYear();
         let currentMonth = today.getMonth();
         let selectedDateStr = "";
 
-        const gridEl = document.getElementById('calendar-grid');
-        const monthLabelEl = document.getElementById('current-month');
-        const selectedDateLabel = document.getElementById('selected-date-label');
-        const listDisplay = document.getElementById('event-list-display');
-        const form = document.getElementById('admin-form');
-        const btnSave = document.getElementById('btn-save');
-        const statusMsg = document.getElementById('msg-status');
-        
-        const inputFile = document.getElementById('input-file');
-        const previewArea = document.getElementById('preview-area');
-        const previewImg = document.getElementById('preview-img');
-        const finalImageUrl = document.getElementById('final-image-url');
-        const btnClearImg = document.getElementById('btn-clear-img');
+        // DOM Elements
+        const globalPass = document.getElementById('global-password');
+        const statusMsg = document.getElementById('global-status');
 
         function logout() {
             sessionStorage.removeItem('orbit_admin_auth');
@@ -177,63 +274,121 @@
             window.location.href = 'login.html';
         }
 
-        init();
-
         async function init() {
-            document.body.style.display = 'block'; 
+            document.body.style.display = 'block';
             const savedPass = sessionStorage.getItem('orbit_admin_pass');
-            if(savedPass) {
-                document.getElementById('input-password').value = savedPass;
-            }
+            if(savedPass) globalPass.value = savedPass;
 
             const y = today.getFullYear();
             const m = String(today.getMonth() + 1).padStart(2, '0');
             const d = String(today.getDate()).padStart(2, '0');
             selectedDateStr = `${y}-${m}-${d}`;
-            
-            await fetchAllEvents();
+
+            await fetchData();
             renderCalendar(currentYear, currentMonth);
             selectDate(selectedDateStr);
+            
+            // 初期状態はラジオモードでセットアップ
+            switchTheaterSub('radio');
         }
+        init();
 
-        async function fetchAllEvents() {
+        async function fetchData() {
             try {
                 const res = await fetch(GET_URL);
                 if(!res.ok) throw new Error("Fetch failed");
-                eventsData = await res.json();
+                allData = await res.json();
             } catch (e) {
                 console.error(e);
-                alert("データの読み込みに失敗しました。GET_URLを確認してください。");
+                alert("データの読み込みに失敗しました。");
             }
         }
 
+        // --- Tab Switching Logic ---
+        window.switchMainTab = (tabName) => {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            
+            if(tabName === 'events') {
+                document.querySelector('.nav-btn:nth-child(1)').classList.add('active');
+                document.getElementById('view-events').classList.add('active');
+            } else {
+                document.querySelector('.nav-btn:nth-child(2)').classList.add('active');
+                document.getElementById('view-theater').classList.add('active');
+                switchTheaterSub(currentTheaterCat); // Re-apply current sub-tab settings
+            }
+        };
+
+        window.switchTheaterSub = (cat) => {
+            currentTheaterCat = cat;
+            document.getElementById('theater-category').value = cat;
+            
+            // Update UI buttons
+            const buttons = document.querySelectorAll('.subnav-btn');
+            buttons.forEach(b => b.classList.remove('active'));
+            if(cat === 'radio') buttons[0].classList.add('active');
+            if(cat === 'gallery') buttons[1].classList.add('active');
+            if(cat === 'devlog') buttons[2].classList.add('active');
+
+            // Update Labels & Form Attributes based on category
+            const labelMap = { 'radio': 'ラジオ', 'gallery': 'ギャラリー', 'devlog': '開発日誌' };
+            document.getElementById('theater-category-label').textContent = labelMap[cat];
+
+            const fileInput = document.getElementById('theater-file');
+            const fileLabel = document.getElementById('theater-file-label');
+            const fileNotice = document.getElementById('theater-file-notice');
+
+            if (cat === 'radio') {
+                fileLabel.textContent = "音声ファイル (MP3など)";
+                fileInput.accept = "audio/*";
+                fileNotice.textContent = "※10MB以下の音声ファイル (MP3, WAV, M4A)";
+            } else {
+                fileLabel.textContent = "画像・写真 (添付)";
+                fileInput.accept = "image/png, image/jpeg, image/gif, image/webp";
+                fileNotice.textContent = "※10MB以下の画像のみ (JPG, PNG, GIF)";
+            }
+
+            clearTheaterForm();
+            renderTheaterList();
+        };
+
+        // --- Calendar Logic (Sky Events) ---
         function renderCalendar(year, month) {
+            const gridEl = document.getElementById('calendar-grid');
+            const monthLabelEl = document.getElementById('current-month');
             gridEl.innerHTML = '';
+            
             const days = ['日', '月', '火', '水', '木', '金', '土'];
             days.forEach(d => {
                 const div = document.createElement('div');
-                div.className = 'day-name';
-                div.style.textAlign='center'; div.style.fontSize='0.8rem'; div.style.color='rgba(255,255,255,0.6)';
                 div.textContent = d;
+                div.style.textAlign='center'; div.style.fontSize='0.8rem'; div.style.color='rgba(255,255,255,0.6)';
                 gridEl.appendChild(div);
             });
+            
             monthLabelEl.textContent = `${year}年 ${month + 1}月`;
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
             for (let i = 0; i < firstDay; i++) gridEl.appendChild(document.createElement('div'));
+            
             for (let d = 1; d <= daysInMonth; d++) {
                 const cell = document.createElement('div');
                 cell.className = 'calendar-day';
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                 if (dateStr === selectedDateStr) cell.classList.add('selected');
+                
                 const numDiv = document.createElement('div');
                 numDiv.textContent = d; numDiv.style.fontWeight='bold';
                 cell.appendChild(numDiv);
-                if (eventsData[dateStr]) {
-                    eventsData[dateStr].forEach(evt => {
-                        const dot = document.createElement('span');
-                        dot.className = `event-dot dot-${evt.type || 'other'}`;
-                        cell.appendChild(dot);
+
+                if (allData[dateStr]) {
+                    allData[dateStr].forEach(evt => {
+                        if (!evt.category || evt.category === 'sky_event') {
+                            const dot = document.createElement('span');
+                            dot.className = `event-dot dot-${evt.type || 'other'}`;
+                            cell.appendChild(dot);
+                        }
                     });
                 }
                 cell.addEventListener('click', () => selectDate(dateStr));
@@ -243,198 +398,299 @@
 
         function selectDate(dateStr) {
             selectedDateStr = dateStr;
-            selectedDateLabel.textContent = `${dateStr} のイベント`;
-            document.getElementById('input-date').value = dateStr;
+            document.getElementById('selected-date-label').textContent = `${dateStr} のイベント`;
+            document.getElementById('event-date').value = dateStr;
             document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected'));
             renderCalendar(currentYear, currentMonth);
             renderEventList(dateStr);
-            clearForm();
+            clearEventForm();
         }
 
         function renderEventList(dateStr) {
+            const listDisplay = document.getElementById('event-list-display');
             listDisplay.innerHTML = '';
-            const events = eventsData[dateStr] || [];
-            if (events.length === 0) {
+            const events = allData[dateStr] || [];
+            const skyEvents = events.filter(e => !e.category || e.category === 'sky_event');
+
+            if (skyEvents.length === 0) {
                 listDisplay.innerHTML = '<p style="opacity:0.6;">イベントは登録されていません。</p>';
                 return;
             }
-            events.forEach(evt => {
+            skyEvents.forEach(evt => {
                 const div = document.createElement('div');
                 div.className = 'event-item';
                 div.innerHTML = `
-                    <div class="event-info" onclick='loadToForm(${JSON.stringify(evt)})'>
+                    <div class="event-info" onclick='loadEventToForm(${JSON.stringify(evt)})'>
                         <strong>${evt.title}</strong>
                         <span style="font-size:0.8rem; opacity:0.7; margin-left:8px;">${evt.type}</span>
                     </div>
-                    <button class="btn-delete" onclick='deleteEvent("${evt.id}")'>削除</button>
+                    <button class="btn-delete" onclick='deleteContent("${dateStr}", "${evt.id}")'>削除</button>
                 `;
                 listDisplay.appendChild(div);
             });
         }
 
-        window.loadToForm = (evt) => {
-            document.getElementById('input-id').value = evt.id || "";
-            document.getElementById('input-title').value = evt.title;
-            document.getElementById('input-type').value = evt.type;
-            document.getElementById('input-time').value = evt.time;
-            document.getElementById('input-desc').value = evt.desc;
+        document.getElementById('prev-month').addEventListener('click', () => { currentMonth--; if(currentMonth < 0){ currentMonth=11; currentYear--; } renderCalendar(currentYear, currentMonth); });
+        document.getElementById('next-month').addEventListener('click', () => { currentMonth++; if(currentMonth > 11){ currentMonth=0; currentYear++; } renderCalendar(currentYear, currentMonth); });
+
+        // --- Theater Logic ---
+        function renderTheaterList() {
+            const listEl = document.getElementById('theater-list');
+            listEl.innerHTML = '';
+            let items = [];
+            Object.keys(allData).forEach(date => {
+                allData[date].forEach(item => {
+                    if (item.category === currentTheaterCat) {
+                        items.push({ ...item, date: date });
+                    }
+                });
+            });
+            items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if(items.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center; padding:1rem; opacity:0.5;">投稿はありません</p>';
+                return;
+            }
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'content-item';
+                
+                // アイコン表示の出し分け
+                let thumbHtml = '';
+                if (currentTheaterCat === 'radio') {
+                    thumbHtml = `<div class="content-audio-icon">♪</div>`;
+                } else {
+                    thumbHtml = item.image ? `<img src="${item.image}" class="content-thumb">` : `<div class="content-thumb" style="background:#333;"></div>`;
+                }
+
+                div.innerHTML = `
+                    ${thumbHtml}
+                    <div class="content-details" style="cursor:pointer;" onclick='loadTheaterToForm(${JSON.stringify(item)})'>
+                        <div class="content-date">${item.date}</div>
+                        <div class="content-title">${item.title}</div>
+                    </div>
+                    <button class="btn-delete" onclick='deleteContent("${item.date}", "${item.id}")'>削除</button>
+                `;
+                listEl.appendChild(div);
+            });
+        }
+
+        // --- Form Functions ---
+        window.loadEventToForm = (evt) => {
+            document.getElementById('event-id').value = evt.id;
+            document.getElementById('event-title').value = evt.title;
+            document.getElementById('event-type').value = evt.type;
+            document.getElementById('event-time').value = evt.time || "";
+            document.getElementById('event-desc').value = evt.desc;
             
-            finalImageUrl.value = evt.image || "";
-            if (evt.image) {
-                previewImg.src = evt.image;
+            const imgUrl = evt.image || "";
+            document.getElementById('event-image-url').value = imgUrl;
+            if(imgUrl) {
+                document.getElementById('event-preview-img').src = imgUrl;
+                document.getElementById('event-preview-area').style.display = 'block';
+            } else {
+                document.getElementById('event-preview-area').style.display = 'none';
+            }
+            const btn = document.getElementById('btn-save-event');
+            btn.textContent = "更新する (上書き)";
+            btn.style.background = "#4CAF50";
+        };
+
+        window.loadTheaterToForm = (item) => {
+            document.getElementById('theater-id').value = item.id;
+            document.getElementById('theater-date').value = item.date;
+            document.getElementById('theater-title').value = item.title;
+            document.getElementById('theater-desc').value = item.desc;
+            
+            const fileUrl = item.image || ""; // theater.html側では全て "image" プロパティとして扱っているため
+            document.getElementById('theater-file-url').value = fileUrl;
+            
+            const previewArea = document.getElementById('theater-preview-area');
+            const previewContent = document.getElementById('theater-preview-content');
+
+            if(fileUrl) {
                 previewArea.style.display = 'block';
+                if (currentTheaterCat === 'radio') {
+                    previewContent.innerHTML = `<audio controls src="${fileUrl}" style="width:100%;"></audio>`;
+                } else {
+                    previewContent.innerHTML = `<img src="${fileUrl}" class="preview-img">`;
+                }
             } else {
                 previewArea.style.display = 'none';
             }
-            
-            inputFile.value = "";
-            btnSave.textContent = "更新する (上書き)";
-            btnSave.style.background = "#4CAF50";
-            statusMsg.textContent = "📝 編集モード";
+
+            const btn = document.getElementById('btn-save-theater');
+            btn.textContent = "更新する (上書き)";
+            btn.style.background = "#4CAF50";
         };
 
-        function clearForm() {
-            document.getElementById('input-id').value = "";
-            document.getElementById('input-title').value = "";
-            document.getElementById('input-desc').value = "";
-            document.getElementById('input-time').value = "";
+        window.clearEventForm = () => {
+            document.getElementById('event-id').value = "";
+            document.getElementById('event-title').value = "";
+            document.getElementById('event-time').value = "";
+            document.getElementById('event-desc').value = "";
+            clearFile('event');
+            const btn = document.getElementById('btn-save-event');
+            btn.textContent = "保存";
+            btn.style.background = "var(--accent-gold)";
+        };
+
+        window.clearTheaterForm = () => {
+            document.getElementById('theater-id').value = "";
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            document.getElementById('theater-date').value = `${y}-${m}-${d}`;
+            document.getElementById('theater-title').value = "";
+            document.getElementById('theater-desc').value = "";
+            clearFile('theater');
+            const btn = document.getElementById('btn-save-theater');
+            btn.textContent = "保存";
+            btn.style.background = "var(--accent-gold)";
+        };
+
+        window.clearFile = (prefix) => {
+            const urlField = document.getElementById(prefix === 'event' ? 'event-image-url' : 'theater-file-url');
+            urlField.value = "";
+            document.getElementById(`${prefix}-file`).value = "";
+            document.getElementById(`${prefix}-preview-area`).style.display = 'none';
+        };
+
+        // --- Upload & Save ---
+        async function handleFileUpload(fileInput, typeConstraint) {
+            const file = fileInput.files[0];
+            if (!file) return null;
             
-            finalImageUrl.value = "";
-            inputFile.value = "";
-            previewArea.style.display = 'none';
+            // バリデーション
+            if (typeConstraint === 'audio' && !file.type.startsWith('audio/')) {
+                throw new Error("音声ファイルを選択してください。");
+            }
+            if (typeConstraint === 'image' && !file.type.startsWith('image/')) {
+                throw new Error("画像ファイルを選択してください。");
+            }
+            if (file.size > MAX_FILE_SIZE) {
+                throw new Error("ファイルサイズが大きすぎます (10MB以下)");
+            }
 
-            btnSave.textContent = "この内容で新規登録";
-            btnSave.style.background = "var(--accent-gold)";
-            statusMsg.textContent = "";
-        }
-        document.getElementById('btn-clear').addEventListener('click', clearForm);
-
-        btnClearImg.addEventListener('click', () => {
-            finalImageUrl.value = "";
-            previewArea.style.display = 'none';
-            inputFile.value = "";
-        });
-
-        async function uploadImage(file) {
-            const password = document.getElementById('input-password').value;
+            statusMsg.textContent = "ファイルアップロード中...";
+            const pass = globalPass.value;
+            
+            // 署名付きURL取得
             const res = await fetch(PUT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    password: password,
-                    action: 'getUploadUrl',
-                    fileName: file.name,
-                    fileType: file.type
-                })
+                body: JSON.stringify({ password: pass, action: 'getUploadUrl', fileName: file.name, fileType: file.type })
             });
-            if (!res.ok) throw new Error("アップロード許可の取得に失敗 (合言葉は正しいですか？)");
+            if (!res.ok) throw new Error("アップロード許可失敗");
             const data = await res.json();
-            const uploadRes = await fetch(data.uploadUrl, {
-                method: 'PUT',
-                body: file,
-                headers: { 'Content-Type': file.type }
-            });
-            if (!uploadRes.ok) throw new Error("画像のアップロードに失敗");
+            
+            // S3へPUT
+            const uploadRes = await fetch(data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+            if (!uploadRes.ok) throw new Error("保存失敗: バックエンドの設定を確認してください");
+            
             return data.publicUrl;
         }
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('input-id').value;
-            const action = id ? "edit" : "add";
-            const password = document.getElementById('input-password').value;
-
-            if(!password) { alert("合言葉を入力してください"); return; }
-            btnSave.disabled = true;
-            statusMsg.textContent = "送信中...";
+        async function saveData(payloadDate, dataObj, btnId) {
+            const pass = globalPass.value;
+            if(!pass) { alert("パスワードを入力してください"); return; }
+            
+            const btn = document.getElementById(btnId);
+            btn.disabled = true;
+            statusMsg.textContent = "データ送信中...";
 
             try {
-                const file = inputFile.files[0];
-                if (file) {
-                    statusMsg.textContent = "画像をアップロード中...";
-                    const uploadedUrl = await uploadImage(file);
-                    finalImageUrl.value = uploadedUrl;
-                }
-
-                statusMsg.textContent = "データを保存中...";
-
-                const eventData = {
-                    id: id,
-                    title: document.getElementById('input-title').value,
-                    type: document.getElementById('input-type').value,
-                    time: document.getElementById('input-time').value,
-                    image: finalImageUrl.value,
-                    desc: document.getElementById('input-desc').value
-                };
-
+                const action = dataObj.id ? "edit" : "add";
                 const res = await fetch(PUT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        password: password,
-                        date: selectedDateStr,
-                        action: action,
-                        eventData: eventData
-                    })
+                    body: JSON.stringify({ password: pass, date: payloadDate, action: action, eventData: dataObj })
                 });
-                
                 const result = await res.json();
-                
                 if(res.ok) {
-                    statusMsg.textContent = "✅ 処理完了！";
-                    await fetchAllEvents();
+                    statusMsg.textContent = "✅ 保存完了";
+                    await fetchData();
                     renderCalendar(currentYear, currentMonth);
-                    renderEventList(selectedDateStr);
-                    if(action !== 'edit') clearForm();
-                } else {
-                    statusMsg.textContent = "⛔ エラー: " + result.message;
-                    if(result.message === "合言葉が違います") {
-                        alert("合言葉が違います。確認してください。");
+                    selectDate(selectedDateStr);
+                    renderTheaterList();
+                    if(action === 'add') {
+                        btnId === 'btn-save-event' ? clearEventForm() : clearTheaterForm();
                     }
+                } else {
+                    statusMsg.textContent = "⛔ " + result.message;
+                    if(result.message === "合言葉が違います") alert("パスワードが違います");
                 }
             } catch(e) {
                 console.error(e);
                 statusMsg.textContent = "エラー: " + e.message;
+                alert(e.message);
             } finally {
-                btnSave.disabled = false;
+                btn.disabled = false;
             }
+        }
+
+        // Event Submit
+        document.getElementById('event-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            let imgUrl = document.getElementById('event-image-url').value;
+            try {
+                const newImg = await handleFileUpload(document.getElementById('event-file'), 'image');
+                if(newImg) imgUrl = newImg;
+            } catch(err) { alert(err.message); statusMsg.textContent = "エラー"; return; }
+
+            const data = {
+                id: document.getElementById('event-id').value,
+                title: document.getElementById('event-title').value,
+                type: document.getElementById('event-type').value,
+                time: document.getElementById('event-time').value,
+                desc: document.getElementById('event-desc').value,
+                image: imgUrl,
+                category: 'sky_event'
+            };
+            saveData(document.getElementById('event-date').value, data, 'btn-save-event');
         });
 
-        window.deleteEvent = async (id) => {
+        // Theater Submit
+        document.getElementById('theater-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            let fileUrl = document.getElementById('theater-file-url').value;
+            const cat = document.getElementById('theater-category').value;
+            const constraint = cat === 'radio' ? 'audio' : 'image';
+            
+            try {
+                const newFile = await handleFileUpload(document.getElementById('theater-file'), constraint);
+                if(newFile) fileUrl = newFile;
+            } catch(err) { alert(err.message); statusMsg.textContent = "エラー"; return; }
+
+            const data = {
+                id: document.getElementById('theater-id').value,
+                title: document.getElementById('theater-title').value,
+                desc: document.getElementById('theater-desc').value,
+                image: fileUrl, // 便宜上 "image" プロパティに音声URLも入れる
+                category: cat
+            };
+            saveData(document.getElementById('theater-date').value, data, 'btn-save-theater');
+        });
+
+        window.deleteContent = async (dateStr, id) => {
             if(!confirm("本当に削除しますか？")) return;
-            const password = document.getElementById('input-password').value;
-            if(!password) { alert("合言葉を入力してください"); return; }
+            const pass = globalPass.value;
+            if(!pass) { alert("パスワードを入力してください"); return; }
             try {
                 const res = await fetch(PUT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        password: password,
-                        date: selectedDateStr,
-                        action: 'delete',
-                        eventData: { id: id }
-                    })
+                    body: JSON.stringify({ password: pass, date: dateStr, action: 'delete', eventData: { id: id } })
                 });
                 if(res.ok) {
-                    await fetchAllEvents();
+                    await fetchData();
                     renderCalendar(currentYear, currentMonth);
-                    renderEventList(selectedDateStr);
-                } else {
-                    alert("削除失敗: 合言葉を確認してください");
-                }
+                    selectDate(selectedDateStr);
+                    renderTheaterList();
+                } else { alert("削除失敗"); }
             } catch(e) { alert("通信エラー"); }
         };
-
-        document.getElementById('prev-month').addEventListener('click', () => {
-            currentMonth--; 
-            if(currentMonth < 0){ currentMonth = 11; currentYear--; } 
-            renderCalendar(currentYear, currentMonth);
-        });
-        document.getElementById('next-month').addEventListener('click', () => {
-            currentMonth++; 
-            if(currentMonth > 11){ currentMonth = 0; currentYear++; } 
-            renderCalendar(currentYear, currentMonth);
-        });
     </script>
 </body>
 </html>
