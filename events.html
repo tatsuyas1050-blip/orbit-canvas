@@ -64,7 +64,7 @@
             color: #fff;
             position: absolute;
             left: 50%; top: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%); /* PC: 上下左右中央配置 */
             margin: 0;
             width: 100%; text-align: center;
             line-height: 1.1;
@@ -338,10 +338,15 @@
                 margin-right: 0;
                 transform: translateX(-1px);
             }
+            
+            /* 修正: タイトルの位置ずれ修正 */
             .page-title {
                 font-size: 1.5rem; 
                 width: auto;
-                left: 50%; transform: translateX(-50%);
+                left: 50%; 
+                top: 50%; /* 親要素(header)の50%の位置に */
+                transform: translate(-50%, -50%); /* 上下左右中央寄せ */
+                white-space: nowrap;
             }
             .page-title span {
                 font-size: 0.85rem; 
@@ -557,6 +562,19 @@
             }
             
             .modal-box { padding: 1rem; max-height: 90vh; }
+            
+            /* 修正: 日付入力のアイコンをモバイルで非表示にする */
+            input[type="date"]::-webkit-calendar-picker-indicator {
+                display: none;
+                -webkit-appearance: none;
+            }
+            
+            /* 入力欄自体のスタイルも調整 */
+            input[type="date"] {
+                -webkit-appearance: none;
+                appearance: none;
+                min-width: 0;
+            }
         }
     </style>
 </head>
