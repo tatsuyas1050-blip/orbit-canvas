@@ -15,6 +15,7 @@
     <link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
     
     <script src="https://cdn.jsdelivr.net/gh/cosinekitty/astronomy@master/source/js/astronomy.browser.min.js"></script>
+    <script src="https://unpkg.com/aws-amplify@4.3.43/dist/aws-amplify.min.js"></script>
 
     <style>
         :root {
@@ -22,7 +23,11 @@
             --card-bg: rgba(30, 40, 60, 0.5);
             --card-border: rgba(255, 255, 255, 0.2);
             --glow-color: rgba(212, 175, 55, 0.3);
-            --font-tech: 'Jura', sans-serif;
+            
+            /* フォント定義 */
+            --font-tech: 'Jura', sans-serif;           /* 数字・英語用 */
+            --font-main: 'Shippori Mincho', serif;     /* タイトル・見出し用（明朝） */
+            --font-body: 'Noto Sans JP', sans-serif;   /* UI用（ゴシック） */
             
             /* 配色設定 */
             --col-meteor: #28e070;  /* 流星群：緑 */
@@ -35,12 +40,14 @@
             --mobile-tab-height: 50px;
             --text-main: #ffffff;
             --text-sub: #d0d0d0;
+            --accent-gold: #d4af37;
         }
 
         body {
             background-color: var(--bg-deep);
             background-image: radial-gradient(circle at 50% 0%, #2a3a55 0%, var(--bg-deep) 80%);
             height: 100vh; overflow: hidden; color: var(--text-main);
+            font-family: var(--font-body); /* 基本UIはゴシック */
         }
 
         .common-header {
@@ -48,6 +55,27 @@
             background: rgba(10, 15, 25, 0.85); backdrop-filter: blur(10px);
             position: absolute; top: 0; left: 0; width: 100%; z-index: 20;
             border-bottom: 1px solid rgba(255,255,255,0.15);
+        }
+
+        /* タイトル・見出し修正 (明朝体へ) */
+        .page-title {
+            font-family: var(--font-main); /* 明朝体 */
+            font-size: 1.8rem;
+            color: #fff;
+            position: absolute;
+            left: 50%; top: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0;
+            width: 100%; text-align: center;
+            line-height: 1.1;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .page-title span {
+            font-family: var(--font-main); /* 英語部分も明朝体 */
+            font-size: 0.9rem; 
+            color: var(--accent-gold); 
+            margin-top: 4px;
+            letter-spacing: 0.05em;
         }
 
         /* --- メインレイアウト (PC) --- */
@@ -144,7 +172,10 @@
         /* 天文パネル */
         .astro-panel { padding: 1.2rem; }
         .astro-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
-        .astro-title { font-size: 0.9rem; color: var(--accent-gold); letter-spacing: 0.1em; display:flex; flex-direction:column; line-height:1.2; font-weight: bold; }
+        .astro-title { 
+            font-size: 1rem; color: var(--accent-gold); letter-spacing: 0.1em; display:flex; flex-direction:column; line-height:1.2; font-weight: bold; 
+            font-family: var(--font-main); /* 明朝体 */
+        }
         .astro-date-sub { font-size: 0.75rem; color: #aaa; font-family: var(--font-tech); font-weight: normal; }
         .location-control { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .btn-geo { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #ddd; font-size: 0.7rem; padding: 3px 8px; border-radius: 4px; }
@@ -183,20 +214,93 @@
         .feed-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; transition: transform 0.5s; }
         
         .feed-content { padding: 1.5rem; display: flex; flex-direction: column; }
-        .badge-row { display: flex; gap: 10px; margin-bottom: 0.6rem; }
+        .badge-row { display: flex; gap: 10px; margin-bottom: 0.6rem; align-items: center; justify-content: space-between; }
         .smart-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.4); letter-spacing: 0.05em; font-weight: 500; }
-        .feed-title { font-size: 1.5rem; margin: 0 0 0.5rem; color: #fff; line-height: 1.3; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        
+        .feed-title { 
+            font-size: 1.5rem; margin: 0 0 0.5rem; color: #fff; line-height: 1.3; text-shadow: 0 2px 5px rgba(0,0,0,0.5); 
+            font-family: var(--font-main); /* 明朝体 */
+        }
         .feed-time { font-family: var(--font-tech); font-size: 0.95rem; color: #ccc; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 6px; }
         .feed-details { max-height: 0; overflow: hidden; opacity: 0; transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); }
         .feed-card.open .feed-details { max-height: 500px; opacity: 1; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.2); }
-        .feed-desc { font-size: 1rem; line-height: 1.8; color: #e0e0e0; }
+        
+        .feed-desc { 
+            font-size: 1rem; line-height: 1.8; color: #e0e0e0; white-space: pre-wrap; 
+            font-family: var(--font-main); /* 説明文も明朝体 */
+        }
+        
         .toggle-btn { margin-top: 0.5rem; font-size: 0.85rem; color: var(--accent-gold); opacity: 0.9; text-align: center; width: 100%; padding-top: 5px; transition: 0.3s; }
         .toggle-btn::before { content: "▼ 詳細を見る"; }
         .feed-card.open .toggle-btn::before { content: "▲ 閉じる"; }
 
+        /* 追加: プランボタン */
+        .btn-add-plan {
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(0, 100, 200, 0.3));
+            border: 1px solid rgba(0, 210, 255, 0.5); color: #d0f0ff;
+            padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; transition: 0.3s;
+            font-family: var(--font-body); display: flex; align-items: center; gap: 5px;
+            z-index: 10;
+        }
+        .btn-add-plan:hover { background: rgba(0, 210, 255, 0.4); text-shadow: 0 0 8px #fff; transform: translateY(-1px); }
+
         .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; margin-bottom: 1rem; }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
+
+        /* ナビゲーションメニュー (明朝体へ) */
+        .nav-link {
+            font-family: var(--font-main); 
+        }
+
+        /* --- モーダル (Plans用) --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 8, 15, 0.85); backdrop-filter: blur(10px);
+            z-index: 999; display: none; align-items: center; justify-content: center;
+        }
+        .modal-box {
+            background: rgba(20, 25, 35, 0.95); 
+            width: 90%; max-width: 500px; padding: 1.5rem;
+            border-radius: 12px; position: relative; 
+            max-height: 80vh; overflow-y: auto; 
+            border: 1px solid #00d2ff; 
+            box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 15px rgba(0, 210, 255, 0.2);
+        }
+        .modal-close { position: absolute; top: 1rem; right: 1rem; background:none; border:none; color: #fff; font-size: 1.8rem; cursor: pointer; }
+        .modal-h { 
+            text-align: center; color: #00d2ff; margin-bottom: 2rem; font-size: 1.5rem; 
+            border-bottom: 1px solid rgba(0, 210, 255, 0.3); padding-bottom: 1rem;
+            display: flex; align-items: center; justify-content: center; font-weight: normal; 
+            font-family: var(--font-main); /* 明朝体 */
+        }
+        .modal-h-icon { width: 28px; height: 28px; object-fit: contain; margin-right: 10px; }
+        .form-grp { margin-bottom: 1.5rem; }
+        label { display: block; font-size: 0.85rem; color: #ccc; margin-bottom: 0.5rem; font-family: var(--font-tech); }
+        input[type="text"], input[type="date"], textarea {
+            width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 0.8rem; 
+            border-radius: 6px; font-family: var(--font-body); font-size: 1rem;
+        }
+        textarea { min-height: 120px; }
+        .btn-modal-action {
+            width: 100%; padding: 12px; border-radius: 30px; border: none;
+            background: linear-gradient(135deg, #00d2ff, #0077ff);
+            color: #fff; font-weight: bold; font-size: 1rem; cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3); font-family: var(--font-body);
+        }
+        /* 公開設定ボタン */
+        .vis-selector {
+            display: flex; background: rgba(255,255,255,0.1); border-radius: 30px; padding: 4px; margin-top: 5px;
+        }
+        .vis-btn {
+            flex: 1; border: none; background: transparent; color: #888; padding: 10px;
+            border-radius: 25px; cursor: pointer; font-size: 0.9rem; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--font-tech);
+        }
+        .vis-btn.active { background: #00d2ff; color: #000; font-weight: bold; }
+        .vis-toggle-icon { width: 18px; height: 18px; opacity: 0.6; }
+        .vis-btn.active .vis-toggle-icon { filter: brightness(0); opacity: 1; }
 
         /* スマホ用タブ（初期非表示） */
         .mobile-tab-nav { display: none; }
@@ -321,9 +425,7 @@
                 background: transparent; 
                 border: none; 
                 color: #888;
-                /* ▼▼▼ フォントを Noto Sans JP に変更 ▼▼▼ */
-                font-family: 'Noto Sans JP', sans-serif; 
-                /* ▲▲▲ 変更ここまで ▲▲▲ */
+                font-family: 'Noto Sans JP', sans-serif; /* タブは可読性重視でゴシック */
                 font-weight: 500; 
                 font-size: 0.85rem; 
                 padding: 6px 10px; 
@@ -453,6 +555,8 @@
                 color: #fff; width: 36px; height: 36px; border-radius: 50%;
                 cursor: pointer; display: flex; align-items: center; justify-content: center;
             }
+            
+            .modal-box { padding: 1rem; max-height: 90vh; }
         }
     </style>
 </head>
@@ -468,7 +572,6 @@
     <li><a href="/stars" class="nav-link">星を探す<span>Star Chart</span></a></li>
     <li><a href="/lifelog" class="nav-link">星空ライフログ<span>My Starry Sky Log</span></a></li>
     <li><a href="/theater" class="nav-link">宇宙シアター<span>Space Theater</span></a></li>
-</ul>
 </ul>
         </nav>
     </div>
@@ -566,9 +669,56 @@
         </div>
     </div>
 
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <h3 class="modal-h">
+                <img src="assets/img/plan.png" class="modal-h-icon"> プランを作成
+            </h3>
+            <form id="plan-form" onsubmit="submitPlan(event)">
+                <div class="form-grp">
+                    <label>日付</label>
+                    <input type="date" id="input-plan-date" required>
+                </div>
+                <div class="form-grp">
+                    <label>対象 / タイトル</label>
+                    <input type="text" id="input-plan-target" placeholder="例: オリオン座流星群" required>
+                </div>
+                <div class="form-grp">
+                    <label>メモ・詳細</label>
+                    <textarea id="input-plan-comment" placeholder="観測計画やメモを入力..."></textarea>
+                </div>
+                <div class="form-grp">
+                    <label>公開設定</label>
+                    <div class="vis-selector">
+                        <input type="checkbox" id="input-plan-public" checked style="display:none">
+                        <button type="button" class="vis-btn active" id="vis-btn-public" onclick="setPublicState(true)">
+                            <img src="assets/img/feed.png" class="vis-toggle-icon" alt="公開"> 公開
+                        </button>
+                        <button type="button" class="vis-btn" id="vis-btn-private" onclick="setPublicState(false)">
+                            <img src="assets/img/lock.png" class="vis-toggle-icon" alt="非公開"> 非公開
+                        </button>
+                    </div>
+                    <p style="font-size:0.75rem; color:#888; margin-top:5px; margin-left:5px;">※公開するとライフログのジョインに表示されます</p>
+                </div>
+                <button type="submit" class="btn-modal-action" id="btn-save-plan">プランに追加</button>
+            </form>
+        </div>
+    </div>
+
     <script src="assets/js/script.js"></script>
     <script>
         const API_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
+        // ライフログ保存用のAPI URL
+        const SAVE_API_URL = "https://ef7yxsmrds7qxjopbqyg5x6omm0uaomt.lambda-url.ap-northeast-1.on.aws/";
+
+        // AWS Amplify Config
+        const COGNITO_REGION = 'ap-northeast-1';
+        const USER_POOL_ID = 'ap-northeast-1_kXEnG6ST0'; 
+        const CLIENT_ID = '1fsbv088bo29u6ob8gaavn4jll'; 
+
+        const { Auth } = aws_amplify;
+        aws_amplify.Amplify.configure({ Auth: { region: COGNITO_REGION, userPoolId: USER_POOL_ID, userPoolWebClientId: CLIENT_ID } });
         
         let observerLat = 35.6895; 
         let observerLon = 139.6917;
@@ -578,7 +728,8 @@
         let currentMonth = today.getMonth();
         let selectedDate = null;
         let currentTab = 'daily';
-        let isAnimating = false; // アニメーション中の連打防止
+        let isAnimating = false;
+        let myProfile = { name: 'Guest', icon: '' }; // 保存用ダミー
 
         // Elements
         const gridEl = document.getElementById('calendar-grid');
@@ -607,7 +758,6 @@
             if (isAnimating || mode === currentTab) return;
             isAnimating = true;
 
-            // ハイライトのスライド移動
             const highlight = document.getElementById('tab-highlight');
             if (mode === 'monthly') {
                 highlight.classList.add('move-right');
@@ -615,32 +765,25 @@
                 highlight.classList.remove('move-right');
             }
 
-            // 文字色の切り替え（activeクラスの付け替え）
             document.querySelectorAll('.m-tab-btn').forEach(b => b.classList.remove('active'));
             const activeIndex = mode === 'daily' ? 0 : 1;
             document.querySelectorAll('.m-tab-btn')[activeIndex].classList.add('active');
 
-            // --- コンテンツのフェード切り替え ---
-            // Dailyの構成要素
             const dailyEls = [
                 document.getElementById('calendar-card'),
                 document.getElementById('astro-card'),
                 document.getElementById('daily-heading'),
                 document.getElementById('event-feed-list')
             ];
-            // Monthlyの構成要素
             const monthlyEl = document.getElementById('monthly-list-view');
 
-            // 現在表示されている要素をフェードアウト
             const visibleEls = currentTab === 'daily' ? dailyEls : [monthlyEl];
             visibleEls.forEach(el => el.classList.add('fade-out'));
 
-            // アニメーション時間待機後に表示切り替え
             setTimeout(() => {
                 const colLeft = document.getElementById('col-left');
                 const colFeed = document.getElementById('col-feed');
                 
-                // 画面トップへスクロールリセット
                 if(window.innerWidth <= 900) {
                      window.scrollTo({ top: 0 });
                 }
@@ -649,26 +792,23 @@
                     colLeft.classList.add('daily-view');
                     colFeed.classList.add('daily-view');
                     monthlyEl.classList.remove('active-view');
-                    dailyEls.forEach(el => el.classList.add('fade-out')); // 初期状態は透明
+                    dailyEls.forEach(el => el.classList.add('fade-out'));
                 } else {
                     colLeft.classList.remove('daily-view');
                     colFeed.classList.remove('daily-view');
                     monthlyEl.classList.add('active-view');
                     renderMonthlyList();
-                    monthlyEl.classList.add('fade-out'); // 初期状態は透明
+                    monthlyEl.classList.add('fade-out');
                 }
 
-                // 少し待ってからフェードイン
                 requestAnimationFrame(() => {
                     const newVisibleEls = mode === 'daily' ? dailyEls : [monthlyEl];
                     newVisibleEls.forEach(el => {
                         el.classList.remove('fade-out');
                     });
-                    
                     currentTab = mode;
                     isAnimating = false;
                 });
-                
             }, 300);
         }
 
@@ -676,6 +816,15 @@
             feedList.innerHTML = `<div class="skeleton" style="height:200px;"></div>`;
             await fetchEvents();
             
+            // ユーザー情報取得 (プラン保存用)
+            try {
+                const user = await Auth.currentAuthenticatedUser();
+                myProfile.name = user.attributes.email.split('@')[0]; // 仮の名前
+                // 本来はLifelog APIからプロフィールを取得すべきだが、ここでは簡易的にemailを使用
+            } catch(e) {
+                // 未ログイン状態
+            }
+
             const y = today.getFullYear();
             const m = String(today.getMonth() + 1).padStart(2, '0');
             const d = String(today.getDate()).padStart(2, '0');
@@ -695,7 +844,6 @@
             }
         }
 
-        // --- 月変更処理 (共通) ---
         function changeMonth(delta) {
             currentMonth += delta;
             if (currentMonth > 11) { currentMonth = 0; currentYear++; }
@@ -715,7 +863,7 @@
             
             const label = `${year}. ${String(month + 1).padStart(2, '0')}`;
             calHeaderDisplay.textContent = label;
-            mMonthLabel.textContent = label; // Monthly Navも更新
+            mMonthLabel.textContent = label;
             
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -766,7 +914,6 @@
 
         function renderMonthlyList() {
             monthlyContent.innerHTML = '';
-            // 月ラベル更新（念のため）
             mMonthLabel.textContent = `${currentYear}. ${String(currentMonth + 1).padStart(2, '0')}`;
             
             const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -784,6 +931,8 @@
                     monthlyContent.appendChild(dateHeader);
 
                     events.forEach(evt => {
+                        // evtオブジェクトに日付を追加（後でプラン追加で使うため）
+                        evt.date = dateStr;
                         const card = createEventCard(evt);
                         monthlyContent.appendChild(card);
                     });
@@ -806,10 +955,27 @@
             const badgeStyle = `color:${typeColorVar}; border-color:${typeColorVar};`;
             const imgSection = evt.image ? `<div class="feed-img-col"><img src="${evt.image}" class="feed-img"></div>` : '';
 
+            // 未来の日付かどうかチェック (当日も含む)
+            const eventDate = new Date(evt.date);
+            // 時間情報をリセットして日付のみ比較
+            const todayReset = new Date(today); todayReset.setHours(0,0,0,0);
+            const eventReset = new Date(eventDate); eventReset.setHours(0,0,0,0);
+            
+            let planBtnHtml = '';
+            // 未来の日付なら「プランに追加」ボタンを表示
+            if (eventReset >= todayReset) {
+                // オブジェクトを文字列化して渡すためにエンコード
+                const evtJson = encodeURIComponent(JSON.stringify(evt));
+                planBtnHtml = `<button class="btn-add-plan" onclick="event.stopPropagation(); openPlanModal('${evtJson}')"><span>📅</span> プランに追加</button>`;
+            }
+
             card.innerHTML = `
                 ${imgSection}
                 <div class="feed-content">
-                    <div class="badge-row"><span class="smart-badge" style="${badgeStyle}">${label}</span></div>
+                    <div class="badge-row">
+                        <span class="smart-badge" style="${badgeStyle}">${label}</span>
+                        ${planBtnHtml}
+                    </div>
                     <h3 class="feed-title">${evt.title}</h3>
                     <div class="feed-time"><span style="font-size:1.2rem;">⏱</span> ${evt.time}</div>
                     <div class="feed-details">
@@ -834,7 +1000,10 @@
             feedList.innerHTML = '';
             const events = eventsData[dateStr];
             if (events && events.length > 0) {
-                events.forEach(evt => feedList.appendChild(createEventCard(evt)));
+                events.forEach(evt => {
+                    evt.date = dateStr; // 日付情報を付与
+                    feedList.appendChild(createEventCard(evt))
+                });
             } else {
                 feedList.innerHTML = `<div style="padding:2rem; text-align:center; opacity:0.3; border:1px dashed #555; border-radius:12px; margin-bottom:1rem;">NO EVENT</div>`;
             }
@@ -876,12 +1045,88 @@
             ctx.fill();
         }
 
+        /* --- プラン連携機能 --- */
+        function openPlanModal(evtJson) {
+            const evt = JSON.parse(decodeURIComponent(evtJson));
+            document.getElementById('modal-overlay').style.display = 'flex';
+            
+            // データの自動入力
+            document.getElementById('input-plan-date').value = evt.date;
+            document.getElementById('input-plan-target').value = evt.title;
+            const desc = evt.desc ? evt.desc : "";
+            const time = evt.time ? `時間: ${evt.time}\n` : "";
+            document.getElementById('input-plan-comment').value = `${time}イベント詳細:\n${desc}`;
+            
+            // 公開設定初期化
+            setPublicState(true);
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').style.display = 'none';
+        }
+
+        function setPublicState(isPublic) {
+            document.getElementById('input-plan-public').checked = isPublic;
+            const btnPub = document.getElementById('vis-btn-public');
+            const btnPri = document.getElementById('vis-btn-private');
+            if(isPublic) {
+                btnPub.classList.add('active'); btnPri.classList.remove('active');
+            } else {
+                btnPub.classList.remove('active'); btnPri.classList.add('active');
+            }
+        }
+
+        async function submitPlan(e) {
+            e.preventDefault();
+            
+            // ログインチェック
+            let token;
+            try {
+                const session = await Auth.currentSession();
+                token = session.getAccessToken().getJwtToken();
+            } catch(err) {
+                alert("プランを保存するにはログインが必要です。\n星空ライフログページからログインしてください。");
+                return;
+            }
+
+            const btn = document.getElementById('btn-save-plan');
+            btn.disabled = true;
+            btn.textContent = "保存中...";
+
+            const planData = {
+                type: 'plan',
+                date: document.getElementById('input-plan-date').value,
+                target: document.getElementById('input-plan-target').value,
+                comment: document.getElementById('input-plan-comment').value,
+                authorName: myProfile.name, // 簡易的な名前を使用
+                isPublic: document.getElementById('input-plan-public').checked
+            };
+
+            try {
+                const res = await fetch(SAVE_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        action: 'save', 
+                        token: token, 
+                        logData: planData 
+                    })
+                });
+                const result = await res.json();
+                
+                alert("プランに追加しました！\n「星空ライフログ」で確認できます。");
+                closeModal();
+            } catch(err) {
+                alert("保存に失敗しました: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "プランに追加";
+            }
+        }
+
         // --- イベントリスナー設定 ---
-        // カレンダー(Daily View)用
         document.getElementById('prev-month').addEventListener('click', () => changeMonth(-1));
         document.getElementById('next-month').addEventListener('click', () => changeMonth(1));
-        
-        // 月間リスト(Monthly View)用
         document.getElementById('m-prev-month').addEventListener('click', () => changeMonth(-1));
         document.getElementById('m-next-month').addEventListener('click', () => changeMonth(1));
 
