@@ -30,11 +30,11 @@
             --font-body: 'Noto Sans JP', sans-serif;   /* UI用（ゴシック） */
             
             /* 配色設定 */
-            --col-meteor: #28e070;  /* 流星群：緑 */
-            --col-eclipse: #ffcc00; /* 月・太陽：黄色 */
-            --col-phenom: #3399ff;  /* 天文現象：青 */
-            --col-rocket: #ff5544;  /* ロケット：赤 */
-            --col-other: #dddddd;   /* その他：白っぽいグレー */
+            --col-meteor: #28e070;     /* 流星群：緑 */
+            --col-eclipse: #ffcc00;    /* 月・太陽：黄色 */
+            --col-phenomenon: #57abff; /* 天文現象：青 (変数名をIDに合わせて修正) */
+            --col-rocket: #ff5544;     /* ロケット：赤 */
+            --col-other: #dddddd;      /* その他：白っぽいグレー */
 
             --header-height: 80px;
             --mobile-tab-height: 50px;
@@ -161,7 +161,8 @@
         
         .dot-meteor { background: var(--col-meteor); box-shadow: 0 0 4px var(--col-meteor); }
         .dot-eclipse { background: var(--col-eclipse); box-shadow: 0 0 4px var(--col-eclipse); }
-        .dot-phenomenon { background: var(--col-phenom); box-shadow: 0 0 4px var(--col-phenom); }
+        /* 修正: 変数名を ID に合わせる */
+        .dot-phenomenon { background: var(--col-phenomenon); box-shadow: 0 0 4px var(--col-phenomenon); }
         .dot-rocket { background: var(--col-rocket); box-shadow: 0 0 4px var(--col-rocket); }
         .dot-other { background: var(--col-other); box-shadow: 0 0 4px var(--col-other); }
 
@@ -203,9 +204,11 @@
         }
         .feed-card.type-meteor { border-left-color: var(--col-meteor); }
         .feed-card.type-eclipse { border-left-color: var(--col-eclipse); }
-        .feed-card.type-phenomenon { border-left-color: var(--col-phenom); }
+        /* 修正: 変数名を ID に合わせる */
+        .feed-card.type-phenomenon { border-left-color: var(--col-phenomenon); }
         .feed-card.type-rocket { border-left-color: var(--col-rocket); }
         .feed-card.type-other { border-left-color: var(--col-other); }
+        
         .feed-card.no-image { grid-template-columns: 1fr; }
         .feed-card.no-image .feed-img-col { display: none; }
         
@@ -619,7 +622,7 @@
                 <div class="legend-area">
                     <div class="legend-item"><span class="legend-mark dot-meteor"></span>流星群</div>
                     <div class="legend-item"><span class="legend-mark dot-eclipse"></span>月・太陽</div>
-                    <div class="legend-item"><span class="legend-mark dot-phenomenon"></span>現象</div>
+                    <div class="legend-item"><span class="legend-mark dot-phenomenon"></span>天文現象</div>
                     <div class="legend-item"><span class="legend-mark dot-rocket"></span>ロケット</div>
                     <div class="legend-item"><span class="legend-mark dot-other"></span>その他</div>
                 </div>
