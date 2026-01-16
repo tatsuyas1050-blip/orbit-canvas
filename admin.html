@@ -163,7 +163,7 @@
                         <div style="margin-top:10px;">
                             <label>画像</label>
                             <input type="file" id="event-file" accept="image/png, image/jpeg, image/gif, image/webp">
-                            <p class="file-notice">※5MB以下の画像のみ (JPG, PNG, GIF)</p>
+                            <p class="file-notice">※自動でリサイズされます (大きな画像もOK)</p>
                             <div id="event-preview-area" class="preview-area">
                                 <img id="event-preview-img" src="" class="preview-img">
                                 <button type="button" onclick="clearFile('event')" style="font-size:0.8rem;">削除</button>
@@ -251,8 +251,11 @@
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
         
-        // ファイルサイズ制限 (10MB)
-        const MAX_FILE_SIZE = 10 * 1024 * 1024; 
+        // 音声ファイルのみサイズ制限 (10MB)
+        const AUDIO_MAX_SIZE = 10 * 1024 * 1024; 
+        // 画像リサイズ設定
+        const IMG_MAX_WIDTH = 1200;
+        const IMG_QUALITY = 0.85;
 
         // Global State
         let allData = {};
@@ -345,7 +348,7 @@
             } else {
                 fileLabel.textContent = "画像・写真 (添付)";
                 fileInput.accept = "image/png, image/jpeg, image/gif, image/webp";
-                fileNotice.textContent = "※10MB以下の画像のみ (JPG, PNG, GIF)";
+                fileNotice.textContent = "※自動でリサイズされます (大きな画像もOK)";
             }
 
             clearTheaterForm();
@@ -557,20 +560,62 @@
             document.getElementById(`${prefix}-preview-area`).style.display = 'none';
         };
 
+        // --- Upload & Save Helper: Image Resizer ---
+        async function resizeImage(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    // リサイズ計算 (縦横比維持)
+                    if (width > IMG_MAX_WIDTH) {
+                        height = Math.round(height * (IMG_MAX_WIDTH / width));
+                        width = IMG_MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            // blobのnameプロパティなどは標準ではないが、アップロード時にファイル名が必要なら元の名前を使う
+                            const newFile = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+                            resolve(newFile);
+                        } else {
+                            reject(new Error("Image compression failed"));
+                        }
+                    }, 'image/jpeg', IMG_QUALITY);
+                };
+                img.onerror = reject;
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
         // --- Upload & Save ---
         async function handleFileUpload(fileInput, typeConstraint) {
-            const file = fileInput.files[0];
+            let file = fileInput.files[0];
             if (!file) return null;
             
-            // バリデーション
-            if (typeConstraint === 'audio' && !file.type.startsWith('audio/')) {
-                throw new Error("音声ファイルを選択してください。");
-            }
-            if (typeConstraint === 'image' && !file.type.startsWith('image/')) {
-                throw new Error("画像ファイルを選択してください。");
-            }
-            if (file.size > MAX_FILE_SIZE) {
-                throw new Error("ファイルサイズが大きすぎます (10MB以下)");
+            statusMsg.textContent = "ファイルを準備中...";
+
+            // バリデーション & リサイズ処理
+            if (typeConstraint === 'audio') {
+                if (!file.type.startsWith('audio/')) throw new Error("音声ファイルを選択してください。");
+                if (file.size > AUDIO_MAX_SIZE) throw new Error("ファイルサイズが大きすぎます (10MB以下)");
+            } else if (typeConstraint === 'image') {
+                if (!file.type.startsWith('image/')) throw new Error("画像ファイルを選択してください。");
+                // 画像の場合はリサイズを実行
+                try {
+                    file = await resizeImage(file);
+                    console.log(`Resized image size: ${(file.size / 1024).toFixed(2)} KB`);
+                } catch(e) {
+                    console.error(e);
+                    throw new Error("画像のリサイズに失敗しました");
+                }
             }
 
             statusMsg.textContent = "ファイルアップロード中...";
@@ -635,6 +680,7 @@
             e.preventDefault();
             let imgUrl = document.getElementById('event-image-url').value;
             try {
+                // 画像なので typeConstraint='image' を指定
                 const newImg = await handleFileUpload(document.getElementById('event-file'), 'image');
                 if(newImg) imgUrl = newImg;
             } catch(err) { alert(err.message); statusMsg.textContent = "エラー"; return; }
@@ -667,7 +713,7 @@
                 id: document.getElementById('theater-id').value,
                 title: document.getElementById('theater-title').value,
                 desc: document.getElementById('theater-desc').value,
-                image: fileUrl, // 便宜上 "image" プロパティに音声URLも入れる
+                image: fileUrl, 
                 category: cat
             };
             saveData(document.getElementById('theater-date').value, data, 'btn-save-theater');
