@@ -32,7 +32,7 @@
             /* 配色設定 */
             --col-meteor: #28e070;     /* 流星群：緑 */
             --col-eclipse: #ffcc00;    /* 月・太陽：黄色 */
-            --col-phenomenon: #57abff; /* 天文現象：青 (変数名をIDに合わせて修正) */
+            --col-phenomenon: #57abff; /* 天文現象：青 */
             --col-rocket: #ff5544;     /* ロケット：赤 */
             --col-other: #dddddd;      /* その他：白っぽいグレー */
 
@@ -161,7 +161,6 @@
         
         .dot-meteor { background: var(--col-meteor); box-shadow: 0 0 4px var(--col-meteor); }
         .dot-eclipse { background: var(--col-eclipse); box-shadow: 0 0 4px var(--col-eclipse); }
-        /* 修正: 変数名を ID に合わせる */
         .dot-phenomenon { background: var(--col-phenomenon); box-shadow: 0 0 4px var(--col-phenomenon); }
         .dot-rocket { background: var(--col-rocket); box-shadow: 0 0 4px var(--col-rocket); }
         .dot-other { background: var(--col-other); box-shadow: 0 0 4px var(--col-other); }
@@ -204,7 +203,6 @@
         }
         .feed-card.type-meteor { border-left-color: var(--col-meteor); }
         .feed-card.type-eclipse { border-left-color: var(--col-eclipse); }
-        /* 修正: 変数名を ID に合わせる */
         .feed-card.type-phenomenon { border-left-color: var(--col-phenomenon); }
         .feed-card.type-rocket { border-left-color: var(--col-rocket); }
         .feed-card.type-other { border-left-color: var(--col-other); }
@@ -750,7 +748,7 @@
         let selectedDate = null;
         let currentTab = 'daily';
         let isAnimating = false;
-        let myProfile = { name: 'Guest', icon: '' }; // 保存用ダミー
+        let myProfile = { name: 'Guest', icon: '' }; // 保存用
 
         // Elements
         const gridEl = document.getElementById('calendar-grid');
@@ -839,11 +837,53 @@
             
             // ユーザー情報取得 (プラン保存用)
             try {
+                // 1. まずは認証情報の確認
                 const user = await Auth.currentAuthenticatedUser();
-                myProfile.name = user.attributes.email.split('@')[0]; // 仮の名前
-                // 本来はLifelog APIからプロフィールを取得すべきだが、ここでは簡易的にemailを使用
+                
+                // ログイン確認成功：まずは最低限のID（メールアドレスの一部）をセット
+                myProfile.name = user.attributes.email.split('@')[0]; 
+                
+                // 2. 次に詳細プロフィールの取得を試みる (ネストさせることで、ここが失敗してもメールは残る)
+                try {
+                    const session = await Auth.currentSession();
+                    const token = session.getAccessToken().getJwtToken();
+
+                    const res = await fetch(SAVE_API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'load', token: token })
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.logs) {
+                            // ログの中からプロフィールタイプを探す
+                            // (古い順か新しい順かはAPI実装依存だが、末尾のものを採用する)
+                            const profiles = data.logs.filter(d => d.logId === 'profile' || d.type === 'profile');
+                            
+                            if (profiles.length > 0) {
+                                // 配列の最後（通常は最新）を使用
+                                const profile = profiles[profiles.length - 1];
+                                if (profile.target && profile.target.trim() !== "") {
+                                    myProfile.name = profile.target; // 表示名を上書き
+                                }
+                                if (profile.imageUrl) {
+                                    myProfile.icon = profile.imageUrl; // アイコンも上書き
+                                }
+                            }
+                        }
+                    } else {
+                        console.warn("Profile fetch failed:", res.status);
+                    }
+                } catch(innerErr) {
+                    console.error("Profile API error:", innerErr);
+                    // 詳細取得に失敗しても、myProfile.name はメールアドレスのまま維持される
+                }
+
             } catch(e) {
-                // 未ログイン状態
+                // そもそも未ログインの場合
+                console.log("Not logged in");
+                // Guestのまま
             }
 
             const y = today.getFullYear();
@@ -1119,7 +1159,8 @@
                 date: document.getElementById('input-plan-date').value,
                 target: document.getElementById('input-plan-target').value,
                 comment: document.getElementById('input-plan-comment').value,
-                authorName: myProfile.name, // 簡易的な名前を使用
+                authorName: myProfile.name, // 取得した表示名を使用
+                authorIcon: myProfile.icon, // 取得したアイコンを使用
                 isPublic: document.getElementById('input-plan-public').checked
             };
 
