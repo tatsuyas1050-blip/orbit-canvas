@@ -313,20 +313,21 @@
                     アプリの不具合報告、機能の要望、あるいは単なる星の感想など、<br>
                     お気軽にメッセージをお送りください。
                 </p>
-                <form class="message-form" onsubmit="alert('メッセージ機能は現在準備中です。'); return false;">
+                <form class="message-form" id="msg-form" onsubmit="submitMessage(event)">
                     <div class="form-group">
                         <label>お名前 (ニックネーム可)</label>
-                        <input type="text" placeholder="例: 星見 太郎">
+                        <input type="text" id="msg-name" placeholder="例: 星見 太郎" required>
                     </div>
                     <div class="form-group">
                         <label>メールアドレス (返信が必要な場合)</label>
-                        <input type="email" placeholder="example@email.com">
+                        <input type="email" id="msg-email" placeholder="example@email.com" required>
                     </div>
                     <div class="form-group">
                         <label>メッセージ</label>
-                        <textarea rows="5" placeholder="ここにメッセージを入力してください..."></textarea>
+                        <textarea id="msg-body" rows="5" placeholder="ここにメッセージを入力してください..." required></textarea>
                     </div>
-                    <button type="submit" class="btn-submit">送信する</button>
+                    <button type="submit" class="btn-submit" id="msg-btn">送信する</button>
+                    <p id="msg-status" style="text-align:center; font-size:0.9rem; margin-top:10px; min-height:1.2em;"></p>
                 </form>
             </div>
         </div>
@@ -341,6 +342,8 @@
     <script src="assets/js/script.js"></script>
     <script>
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
+        // メッセージ送信用の新しい関数URL
+        const POST_URL = "https://3vtporkgipspcqyo3frdeesdu40gkmqw.lambda-url.ap-northeast-1.on.aws/";
         
         // --- タブ切り替え ---
         const tabBtns = document.querySelectorAll('.tab-btn');
@@ -387,7 +390,7 @@
                 renderRadio(items.filter(i => i.category === 'radio'));
                 renderGallery(items.filter(i => i.category === 'gallery'));
                 renderDevLog(items.filter(i => i.category === 'devlog'));
-                renderColumn(items.filter(i => i.category === 'column')); // 新規追加
+                renderColumn(items.filter(i => i.category === 'column')); 
 
             } catch (err) {
                 console.error(err);
@@ -409,7 +412,6 @@
             items.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'radio-card';
-                // Audio Player実装
                 let playerHtml = '';
                 if (item.image) { 
                     playerHtml = `<audio controls src="${item.image}" class="radio-player"></audio>`;
@@ -478,7 +480,6 @@
             });
         }
 
-        // 新規追加: コラム描画関数
         function renderColumn(items) {
             const container = document.getElementById('column-container');
             container.innerHTML = '';
@@ -511,6 +512,53 @@
                 `;
                 container.appendChild(div);
             });
+        }
+
+        // --- メッセージ送信処理 ---
+        async function submitMessage(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('msg-btn');
+            const status = document.getElementById('msg-status');
+            const name = document.getElementById('msg-name').value;
+            const email = document.getElementById('msg-email').value;
+            const body = document.getElementById('msg-body').value;
+
+            btn.disabled = true;
+            btn.textContent = "送信中...";
+            status.textContent = "";
+
+            try {
+                // バックエンドAPIへPOSTリクエスト
+                const res = await fetch(POST_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'send_message',
+                        name: name,
+                        email: email,
+                        message: body
+                    })
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    status.textContent = "✅ メッセージを送信しました！";
+                    status.style.color = "var(--accent-gold)";
+                    document.getElementById('msg-form').reset();
+                    alert("ありがとうございます。メッセージを受け付けました。");
+                } else {
+                    throw new Error(result.message || "送信エラー");
+                }
+            } catch (err) {
+                console.error(err);
+                status.textContent = "⛔ 送信に失敗しました。時間をおいて再度お試しください。";
+                status.style.color = "#ff4444";
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "送信する";
+            }
         }
 
         function escapeHtml(str) {
