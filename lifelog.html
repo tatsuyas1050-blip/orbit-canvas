@@ -1303,7 +1303,7 @@
             <div class="smart-card profile-panel">
                 <div class="avatar-circle"><img id="avatar-img" src="" style="display:none;"><span id="avatar-default" class="avatar-default">🔭</span></div>
                 <div class="profile-info-group">
-                    <h2 id="display-name" class="user-name">Guest User</h2>
+                    <h2 id="display-name" class="user-name">表示名設定無し</h2>
                     <div id="display-email-sub" class="user-email">guest@example.com</div>
                     <div class="mobile-stats-row">
                         <span class="m-stat-item log-color"><strong id="mob-stat-logs">0</strong>LOGS</span>
@@ -1589,7 +1589,7 @@
         let currentSession = null;
         let selectedImageBase64 = null; 
         let profileImageBase64 = null;  
-        let myProfile = { name: 'Guest', icon: '' }; 
+        let myProfile = { name: '表示名設定無し', icon: '' }; 
         let currentMode = 'my'; 
         let convertingPlanId = null;
         let myDataCache = []; 
@@ -1634,13 +1634,18 @@
             }
         }
 
+        // 修正: 表示名の初期設定を「表示名設定無し」にする
         function showDashboard(user) {
             document.getElementById('auth-overlay').style.display = 'none';
             document.getElementById('app-container').style.display = ''; 
             
             const email = user.attributes.email;
             document.getElementById('display-email-sub').textContent = email;
-            document.getElementById('display-name').textContent = email.split('@')[0];
+            
+            // プロフィール読み込み前のデフォルト表示名をセット
+            const defaultName = "表示名設定無し";
+            document.getElementById('display-name').textContent = defaultName;
+            myProfile.name = defaultName;
             
             fetchMyDataAndInit();
             updateViewLayout(); 
@@ -1664,17 +1669,15 @@
                 // PC用
                 document.getElementById('stat-total').textContent = logsCount;
                 document.getElementById('stat-plans').textContent = plansCount;
-                // Mobile用 (新しいIDにセット)
+                // Mobile用
                 document.getElementById('mob-stat-logs').textContent = logsCount;
                 document.getElementById('mob-stat-plans').textContent = plansCount;
 
                 renderMyPlans(myDataCache); 
                 
-                // PCの場合は 'my' モードで初期化
                 if(!isMobile) {
                     updateMainContent('my');
                 } else {
-                    // モバイルの場合は現在のタブに合わせてコンテンツ更新
                     switchBottomTab(currentMobileTab);
                 }
 
@@ -1709,7 +1712,7 @@
                     });
                     const data = await res.json();
                     const publicData = data.logs || [];
-                    publicDataCache = publicData; // キャッシュに保存
+                    publicDataCache = publicData; 
 
                     if (mode === 'global') {
                         itemsToShow = publicData.filter(d => d.type === 'log');
@@ -1733,14 +1736,12 @@
             const fabPlan = document.getElementById('fab-plan');
 
             if (!isMobile) {
-                // PC表示
                 myPage.style.display = ''; 
                 contentCol.style.display = 'block';
                 plansCard.style.display = 'flex';
                 plansCard.classList.remove('active-mobile-view');
                 document.querySelectorAll('.mobile-only').forEach(e => e.style.display = 'none');
                 
-                // FAB非表示
                 fabLog.style.display = 'none';
                 fabPlan.style.display = 'none';
 
@@ -1748,11 +1749,9 @@
                 return; 
             }
 
-            // モバイル表示: currentMobileTab に基づいて表示切り替え
             switchBottomTab(currentMobileTab);
         }
 
-        // 新しいボトムタブ切り替え関数
         function switchBottomTab(tabName) {
             if (!isMobile) return;
             currentMobileTab = tabName;
@@ -1764,7 +1763,6 @@
             const fabPlan = document.getElementById('fab-plan');
             const actionPanel = document.querySelector('.action-panel');
 
-            // すべてのナビアイテムのactiveを外す
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active', 'plan-mode'));
             
             const navItem = document.getElementById('nav-' + tabName);
@@ -1773,7 +1771,6 @@
             actionPanel.style.display = 'none';
 
             if (tabName === 'global-log') {
-                // みんなのログ
                 myPage.style.display = 'none';
                 contentCol.style.display = 'block';
                 plansCard.style.display = 'none';
@@ -1781,7 +1778,6 @@
                 fabPlan.style.display = 'none';
                 switchMode('global');
             } else if (tabName === 'global-plan') {
-                // みんなのプラン
                 if(navItem) navItem.classList.add('plan-mode');
                 myPage.style.display = 'none';
                 contentCol.style.display = 'block';
@@ -1790,7 +1786,6 @@
                 fabPlan.style.display = 'flex';
                 switchMode('plans');
             } else if (tabName === 'my-log') {
-                // 自分のログ (プロフィール + ログリスト)
                 myPage.style.display = 'contents';
                 contentCol.style.display = 'block';
                 plansCard.style.display = 'none';
@@ -1799,7 +1794,6 @@
                 fabPlan.style.display = 'none';
                 switchMode('my');
             } else if (tabName === 'my-plan') {
-                // 自分のプラン (プロフィール + プランリスト)
                 if(navItem) navItem.classList.add('plan-mode');
                 myPage.style.display = 'contents';
                 contentCol.style.display = 'none';
@@ -1807,7 +1801,6 @@
                 plansCard.classList.add('active-mobile-view');
                 fabLog.style.display = 'none';
                 fabPlan.style.display = 'flex';
-                // 自分のプラン表示のため、特に追加のAPIロードは不要(myDataCacheにある)
             }
         }
 
@@ -1848,13 +1841,13 @@
             });
         }
 
+        // 修正: 投稿者の名前がない場合は「表示名設定無し」にする
         function renderMainList(items, type) {
             const container = document.getElementById('logs-list');
             container.innerHTML = '';
             
             if (isMobile) {
                 container.style.paddingBottom = "80px"; 
-                // 上部のタブが無くなったのでpaddingTopは不要
                 container.style.paddingTop = "0";
             } else {
                 container.style.paddingBottom = "0";
@@ -1874,23 +1867,26 @@
                     const dateStr = `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
                     
                     let userInfoHtml = '';
-                    if (item.authorName) {
+                    if (item.authorName && item.authorName !== "Guest User" && item.authorName !== "Guest") {
                         const iconSrc = item.authorIcon || ''; 
                         const iconImg = iconSrc ? `<img src="${iconSrc}" class="feed-user-icon">` : `<span class="feed-user-icon" style="background:#333; display:inline-block;"></span>`;
                         userInfoHtml = `<div class="feed-user-info">${iconImg} <span>${escapeHtml(item.authorName)}</span></div>`;
                     } else {
-                        userInfoHtml = `<div class="feed-user-info" style="opacity:0.5;"><span>Guest User</span></div>`;
+                        // 投稿者の名前が不明な場合の表示
+                        userInfoHtml = `<div class="feed-user-info" style="opacity:0.5;">
+                            <span class="feed-user-icon" style="background:#333; display:inline-block;"></span>
+                            <span>表示名設定無し</span>
+                        </div>`;
                     }
                     
                     let deleteBtn = '';
                     let clickAttr = '';
                     let cardClass = 'smart-card feed-card';
-                    // 画像があるかチェック
                     const hasImg = item.imageUrl ? ' has-image' : '';
                     cardClass += hasImg;
 
                     let privateMark = '';
-                    let editBtnHtml = ''; // モバイル詳細エリア用(アイコン版)
+                    let editBtnHtml = ''; 
 
                     const likedList = item.likedBy || [];
                     const usefulList = item.usefulBy || [];
@@ -1899,25 +1895,19 @@
                     const likedJson = encodeURIComponent(JSON.stringify(likedList));
                     const usefulJson = encodeURIComponent(JSON.stringify(usefulList));
 
-                    // モバイル表示なら常にタップで開閉可能にする
                     if (isMobile) {
                         clickAttr = `onclick="toggleLogCard(this)"`;
                     }
 
                     let myReactionView = '';
-                    // ボタン表示の条件分岐
                     if (currentMode === 'my' || (isMobile && (currentMobileTab === 'my-log'))) {
-                        // 自分のログまたは自分のプランの場合
-                        
                         if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
                         
-                        // PCかつ自分のログなら、全体クリックで編集モードへ
                         if (!isMobile) {
                             clickAttr = `onclick="editLog('${item.logId}')"`;
                             cardClass += ' clickable';
                         }
 
-                        // 編集・削除ボタンの生成
                         if (isMobile) {
                             editBtnHtml = `
                                 <button class="btn-edit-log" onclick="event.stopPropagation(); editLog('${item.logId}')">編集</button>
@@ -1929,7 +1919,6 @@
                         }
 
                         if (isMobile) {
-                            // モバイル用フッターレイアウト
                             myReactionView = `
                                 <div class="feed-foot-mobile">
                                     <div class="reaction-group">
@@ -1942,7 +1931,6 @@
                                 </div>
                             `;
                         } else {
-                            // PC用レイアウト
                             myReactionView = `
                                 <div class="feed-foot">
                                     <div class="reaction-group">
@@ -1956,18 +1944,13 @@
                                 </div>
                             `;
                         }
-                    } else {
-                        // 他人のログ・プランの場合 (フィード/ジョイン)
-                        // PCではクリック不可(デフォルト)、モバイルは上で toggleLogCard を設定済み
-                    }
+                    } 
 
                     if (type === 'log') {
                         const stars = "★".repeat(parseInt(item.rating||0));
                         let thumbHtml = `<div class="feed-no-img">🔭</div>`;
-                        // モバイルでは展開時にのみ画像を表示し、クリックで拡大
                         if(item.imageUrl) {
                             thumbHtml = `<img src="${item.imageUrl}" class="feed-img" onclick="event.stopPropagation(); openImageModal(this.src)">`;
-                            // バッジ表示 (モバイルのみ)
                             if(isMobile) {
                                 thumbHtml += `<div class="img-badge">タップで画像表示</div>`;
                             }
@@ -2016,20 +1999,11 @@
                         container.insertAdjacentHTML('beforeend', html);
 
                     } else {
-                        // Plan (Join)
                         const commentHtml = makeCommentHtml(item.comment || '');
                         const refList = item.referencedBy || [];
                         const refCount = refList.length;
                         const refListJson = encodeURIComponent(JSON.stringify(refList));
                         
-                        const refArea = `
-                            <div style="display:flex; justify-content:flex-end; gap:5px; margin-top:10px;">
-                                ${refCount > 0 ? `<span class="ref-count" onclick="event.stopPropagation(); showRefUsers('${refListJson}', 'useful')">${refCount}人が参考にしています</span>` : ''}
-                                <button class="btn-ref-plan" onclick="event.stopPropagation(); referencePlan('${item.userId}', '${item.logId}')">この予定を参考にする</button>
-                            </div>
-                        `;
-
-                        // プランカードのデザイン変更 (画像カラム削除、ボタン位置変更など)
                         const html = `
                             <div class="smart-card feed-card plan-type" style="animation-delay:${i*0.05}s" ${clickAttr}>
                                 <div class="feed-content">
@@ -2068,12 +2042,10 @@
             }
         }
 
-        // 新規追加: カード開閉トグル
         function toggleLogCard(el) {
             el.classList.toggle('open');
         }
 
-        // 新規追加: 画像拡大モーダル
         function openImageModal(src) {
             const overlay = document.getElementById('img-modal-overlay');
             const img = document.getElementById('img-modal-content');
@@ -2096,14 +2068,12 @@
             const lbl = document.getElementById('label-comment');
             const h = document.getElementById('modal-heading');
             
-            // 公開設定注釈テキストの要素を取得
             const visHint = document.getElementById('vis-hint-text');
 
             if(type !== 'log') convertingPlanId = null; 
 
             if(type === 'plan') {
                 modalBox.classList.add('plan-theme');
-                // 修正: 見出しにプランアイコン追加
                 h.innerHTML = `<img src="assets/img/plan.png" class="modal-h-icon"> プランを作成`;
                 
                 lf.style.display = 'none'; 
@@ -2113,11 +2083,9 @@
                 document.getElementById('input-date').required = false; 
                 setPublicState(true);
                 
-                // プランモード用テキストに変更
                 if(visHint) visHint.textContent = "※公開するとジョインに表示されます";
             } else {
                 modalBox.classList.remove('plan-theme');
-                // 修正: 見出しにログアイコン追加
                 h.innerHTML = `<img src="assets/img/log.png" class="modal-h-icon"> ログを作成`;
                 
                 lf.style.display = 'block';
@@ -2126,13 +2094,11 @@
                 btn.className = "btn-modal-action";
                 document.getElementById('input-date').required = true;
                 
-                // ログモード用テキストに変更
                 if(visHint) visHint.textContent = "※公開するとフィードに表示されます";
                 
-                // デフォルト状態のセット
                 setPublicState(true);
-                setTool('肉眼', null); // デフォルト選択
-                updateRating(3); // デフォルト評価(3)
+                setTool('肉眼', null);
+                updateRating(3);
             }
         }
 
@@ -2142,13 +2108,11 @@
             convertingPlanId = null;
             editingLog = null;
             clearImage();
-            // 初期状態に戻す
             setPublicState(true);
             setTool('肉眼', null);
             updateRating(3);
         }
 
-        // 公開設定
         function setPublicState(isPublic) {
             document.getElementById('input-public').checked = isPublic;
             const btnPub = document.getElementById('vis-btn-public');
@@ -2163,7 +2127,6 @@
             }
         }
 
-        // 新規追加: 機材選択 (複数選択・文字のみ)
         function setTool(val, btnEl) {
             const input = document.getElementById('input-tool');
             let currentTools = input.value ? input.value.split(',') : [];
@@ -2182,8 +2145,7 @@
         function updateToolButtons(selectedTools) {
             const btns = document.querySelectorAll('.tool-btn');
             btns.forEach(b => {
-                // アイコンを削除したので、直接テキストコンテンツを参照
-                const span = b.querySelector('span'); // spanタグがあればそれを使う
+                const span = b.querySelector('span'); 
                 const txt = span ? span.textContent : b.textContent;
                 
                 const isSelected = selectedTools.includes(txt) || (txt === '望遠鏡' && selectedTools.includes('天体望遠鏡'));
@@ -2196,7 +2158,6 @@
             });
         }
 
-        // 新規追加: 評価スライダー更新
         function updateRating(val) {
             document.getElementById('input-rating').value = val;
             document.getElementById('input-rating-range').value = val;
@@ -2422,7 +2383,6 @@
             convertingPlanId = planId;
             editingLog = null;
             openModal('log');
-            // 修正: ログ作成アイコン付き見出し設定
             document.getElementById('modal-heading').innerHTML = `<img src="assets/img/log.png" class="modal-h-icon"> ログを作成`;
             document.getElementById('input-date').value = plan.date;
             document.getElementById('input-target').value = plan.target;
@@ -2435,7 +2395,6 @@
             const type = (target.type === 'plan') ? 'plan' : 'log';
             openModal(type);
             
-            // 修正: アイコン付き見出し設定
             const titleText = (type==='plan')?"プランを編集":"ログを編集";
             const iconImg = (type==='plan')?"assets/img/plan.png":"assets/img/log.png";
             document.getElementById('modal-heading').innerHTML = `<img src="${iconImg}" class="modal-h-icon"> ${titleText}`;
@@ -2444,16 +2403,12 @@
             document.getElementById('input-date').value = target.date;
             document.getElementById('input-target').value = target.target;
             document.getElementById('input-comment').value = target.comment || '';
-            // 編集時は保存された公開設定を反映
             const isPublic = (target.isPublic !== false);
             setPublicState(isPublic);
             
             if(type === 'log') {
-                // 機材と評価を復元
-                // データ形式が "肉眼,カメラ" のような文字列を想定
                 const toolVal = target.tool || '肉眼';
                 document.getElementById('input-tool').value = toolVal;
-                // ボタンの見た目を更新
                 const selectedTools = toolVal.split(',').map(t => t.trim());
                 updateToolButtons(selectedTools);
                 
@@ -2476,12 +2431,11 @@
             if (msg.includes('User is not confirmed')) return '認証コードを入力してください。';
             if (msg.includes('Username exists')) return 'このメールアドレスは既に登録されています。';
             
-            // --- 修正: パスワード要件等のエラー翻訳を追加 ---
             if (msg.includes('Password not long enough')) return 'パスワードは8文字以上で入力してください。';
             if (msg.includes('uppercase characters')) return 'パスワードには大文字を含める必要があります。';
             if (msg.includes('lowercase characters')) return 'パスワードには小文字を含める必要があります。';
             if (msg.includes('numeric characters')) return 'パスワードには数字を含める必要があります。';
-            if (msg.includes('symbol characters')) return 'パスワードには記号を含める必要があります。'; // 万が一のために残す
+            if (msg.includes('symbol characters')) return 'パスワードには記号を含める必要があります。'; 
             
             if (msg.includes('CodeMismatchException') || msg.includes('Invalid code')) return '認証コードが正しくありません。';
             if (msg.includes('ExpiredCodeException')) return '認証コードの有効期限が切れています。もう一度送信してください。';
@@ -2503,7 +2457,6 @@
                 e.textContent = '';
                 e.classList.remove('show');
             });
-            // 画面切り替え時にパスワード入力欄があればリセット＆再チェック
             if(n === 'signup') {
                 document.getElementById('signup-pass').value = '';
                 handleSignupInput();
@@ -2513,21 +2466,19 @@
             }
         }
 
-        // パスワード表示切替機能 (画像アイコン版)
         function togglePassword(inputId, iconImg) {
             const input = document.getElementById(inputId);
             if (input.type === "password") {
                 input.type = "text";
-                iconImg.src = "assets/img/hidden.png"; // パスワードが見えている状態なので「隠す」アイコンへ
+                iconImg.src = "assets/img/hidden.png"; 
                 iconImg.alt = "パスワードを隠す";
             } else {
                 input.type = "password";
-                iconImg.src = "assets/img/visible.png"; // パスワードが隠れている状態なので「表示する」アイコンへ
+                iconImg.src = "assets/img/visible.png"; 
                 iconImg.alt = "パスワードを表示";
             }
         }
 
-        // 新規追加: パスワードバリデーションロジック
         function validatePasswordInput(val) {
             return {
                 len: val.length >= 8,
@@ -2551,7 +2502,6 @@
             setStatus('lower', results.lower);
             setStatus('num', results.num);
 
-            // 全てtrueならtrueを返す
             return results.len && results.upper && results.lower && results.num;
         }
 
@@ -2579,7 +2529,6 @@
                 return;
             }
             
-            // ログイン情報の保存処理
             if(remember) {
                 localStorage.setItem('starry_login_email', e);
             } else {
@@ -2597,7 +2546,6 @@
         async function signUp() {
             const e = document.getElementById('signup-email').value;
             const p = document.getElementById('signup-pass').value;
-            // ボタンがdisabledの場合もあるので念のためチェック
             const validation = validatePasswordInput(p);
             const isValid = validation.len && validation.upper && validation.lower && validation.num;
             
@@ -2655,7 +2603,6 @@
             const code = document.getElementById('reset-code').value;
             const newPass = document.getElementById('reset-new-pass').value;
 
-            // ボタンがdisabledの場合もあるので念のためチェック
             const validation = validatePasswordInput(newPass);
             const isValid = validation.len && validation.upper && validation.lower && validation.num;
 
@@ -2704,20 +2651,23 @@
             } catch(e) { console.error(e); }
         }
 
+        // 修正: ユーザー名がない場合は「表示名設定無し」にする
         function showRefUsers(jsonStr, type) {
             const list = JSON.parse(decodeURIComponent(jsonStr)); const c = document.getElementById('user-list-container');
             const titleEl = document.getElementById('user-list-title'); titleEl.textContent = (type === 'like') ? "いいねしたユーザー" : "参考にしたユーザー";
             c.innerHTML = '';
             if(list.length === 0) { c.innerHTML = '<div style="padding:1rem; opacity:0.5; text-align:center;">まだありません</div>'; }
             list.forEach(u => {
-                let name = (typeof u === 'string') ? 'Guest User' : (u.name || 'Guest User');
-                let iconHtml = (typeof u !== 'string' && u.icon) ? `<img src="${u.icon}" class="user-list-icon">` : `<div class="user-list-icon" style="background:#333;</div>`;
+                // 修正箇所
+                let name = (typeof u === 'string') ? '表示名設定無し' : (u.name || '表示名設定無し');
+                if(name === "Guest User" || name === "Guest") name = "表示名設定無し";
+
+                let iconHtml = (typeof u !== 'string' && u.icon) ? `<img src="${u.icon}" class="user-list-icon">` : `<div class="user-list-icon" style="background:#333; display:inline-block; width:32px; height:32px; border-radius:50%;"></div>`;
                 const div = document.createElement('div'); div.className = 'user-list-item'; div.innerHTML = `${iconHtml}<span>${escapeHtml(name)}</span>`; c.appendChild(div);
             });
             document.getElementById('user-list-modal').style.display = 'flex';
         }
 
-        // 新規追加: 参考ボタン押下時の処理 (モーダルを開いて編集させる)
         function initiateReference(logId) {
             let target = publicDataCache.find(d => d.logId === logId);
             if(!target) target = myDataCache.find(d => d.logId === logId);
@@ -2726,7 +2676,10 @@
             openModal('plan');
             document.getElementById('input-date').value = target.date;
             document.getElementById('input-target').value = target.target;
-            const author = target.authorName || 'Guest User';
+            
+            let author = target.authorName || '表示名設定無し';
+            if(author === "Guest User" || author === "Guest") author = "表示名設定無し";
+            
             document.getElementById('input-comment').value = `${author}さんの予定を参考にしました`;
         }
     </script>
