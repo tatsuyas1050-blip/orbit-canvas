@@ -1841,7 +1841,7 @@
             });
         }
 
-        // 修正: 投稿者の名前がない場合は「表示名設定無し」にする
+// 修正後の renderMainList 関数
         function renderMainList(items, type) {
             const container = document.getElementById('logs-list');
             container.innerHTML = '';
@@ -1866,18 +1866,40 @@
                     const d = new Date(item.date);
                     const dateStr = `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
                     
+                    // ▼▼▼ 修正箇所: 最新のプロフィール情報を適用するロジック ▼▼▼
+                    
+                    let displayAuthorName = item.authorName;
+                    let displayAuthorIcon = item.authorIcon;
+
+                    // このログが「自分」のものである場合、保存されている過去の名前ではなく、
+                    // 現在の最新プロフィール(myProfile)の情報で上書き表示する
+                    // (currentMode === 'my' は自分のタブ、item.userId === myUserId はフィード内の自分の投稿)
+                    if (currentMode === 'my' || item.userId === myUserId) {
+                        displayAuthorName = myProfile.name;
+                        displayAuthorIcon = myProfile.icon;
+                    }
+
+                    // 「表示名設定無し」の判定 (Guestなどの場合も含む)
+                    if (!displayAuthorName || displayAuthorName === "Guest User" || displayAuthorName === "Guest") {
+                        displayAuthorName = "表示名設定無し";
+                    }
+
+                    // ユーザー情報HTMLの生成
                     let userInfoHtml = '';
-                    if (item.authorName && item.authorName !== "Guest User" && item.authorName !== "Guest") {
-                        const iconSrc = item.authorIcon || ''; 
+                    const iconSrc = displayAuthorIcon || '';
+                    
+                    if (displayAuthorName !== "表示名設定無し") {
+                        // アイコンがある場合とない場合
                         const iconImg = iconSrc ? `<img src="${iconSrc}" class="feed-user-icon">` : `<span class="feed-user-icon" style="background:#333; display:inline-block;"></span>`;
-                        userInfoHtml = `<div class="feed-user-info">${iconImg} <span>${escapeHtml(item.authorName)}</span></div>`;
+                        userInfoHtml = `<div class="feed-user-info">${iconImg} <span>${escapeHtml(displayAuthorName)}</span></div>`;
                     } else {
-                        // 投稿者の名前が不明な場合の表示
+                        // 名前がない場合
                         userInfoHtml = `<div class="feed-user-info" style="opacity:0.5;">
                             <span class="feed-user-icon" style="background:#333; display:inline-block;"></span>
                             <span>表示名設定無し</span>
                         </div>`;
                     }
+                    // ▲▲▲ 修正箇所終わり ▲▲▲
                     
                     let deleteBtn = '';
                     let clickAttr = '';
