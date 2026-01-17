@@ -187,6 +187,7 @@
         <div id="view-theater" class="view-section">
             <div class="theater-subnav">
                 <button class="subnav-btn active" onclick="switchTheaterSub('radio')">📻 ラジオ</button>
+                <button class="subnav-btn" onclick="switchTheaterSub('column')">📰 コラム</button>
                 <button class="subnav-btn" onclick="switchTheaterSub('gallery')">📷 ギャラリー</button>
                 <button class="subnav-btn" onclick="switchTheaterSub('devlog')">💻 開発日誌</button>
             </div>
@@ -329,12 +330,15 @@
             // Update UI buttons
             const buttons = document.querySelectorAll('.subnav-btn');
             buttons.forEach(b => b.classList.remove('active'));
+            
+            // ボタンの順序: Radio(0), Column(1), Gallery(2), Devlog(3)
             if(cat === 'radio') buttons[0].classList.add('active');
-            if(cat === 'gallery') buttons[1].classList.add('active');
-            if(cat === 'devlog') buttons[2].classList.add('active');
+            if(cat === 'column') buttons[1].classList.add('active');
+            if(cat === 'gallery') buttons[2].classList.add('active');
+            if(cat === 'devlog') buttons[3].classList.add('active');
 
             // Update Labels & Form Attributes based on category
-            const labelMap = { 'radio': 'ラジオ', 'gallery': 'ギャラリー', 'devlog': '開発日誌' };
+            const labelMap = { 'radio': 'ラジオ', 'column': '星空コラム', 'gallery': 'ギャラリー', 'devlog': '開発日誌' };
             document.getElementById('theater-category-label').textContent = labelMap[cat];
 
             const fileInput = document.getElementById('theater-file');
@@ -346,6 +350,7 @@
                 fileInput.accept = "audio/*";
                 fileNotice.textContent = "※10MB以下の音声ファイル (MP3, WAV, M4A)";
             } else {
+                // コラム、ギャラリー、開発日誌はすべて画像
                 fileLabel.textContent = "画像・写真 (添付)";
                 fileInput.accept = "image/png, image/jpeg, image/gif, image/webp";
                 fileNotice.textContent = "※自動でリサイズされます (大きな画像もOK)";
