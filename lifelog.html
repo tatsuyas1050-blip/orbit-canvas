@@ -1686,11 +1686,44 @@
             }
         }
 
-        function switchMode(mode) {
+
+        // タブ切替時の最新化用: 自分データだけを更新(画面の強制再描画はしない)
+        async function fetchMyDataOnly() {
+            const token = currentSession.getAccessToken().getJwtToken();
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'load', token: token })
+            });
+            const data = await res.json();
+            myDataCache = data.logs || [];
+            extractProfileFromLogs(myDataCache);
+
+            const logsCount = myDataCache.filter(d => d.type === 'log').length;
+            const plansCount = myDataCache.filter(d => d.type === 'plan').length;
+            // PC用
+            document.getElementById('stat-total').textContent = logsCount;
+            document.getElementById('stat-plans').textContent = plansCount;
+            // Mobile用
+            document.getElementById('mob-stat-logs').textContent = logsCount;
+            document.getElementById('mob-stat-plans').textContent = plansCount;
+
+            // 自分のプラン表示も最新化
+            renderMyPlans(myDataCache);
+        }
+
+        async function switchMode(mode) {
             currentMode = mode;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             const tabBtn = document.getElementById(`tab-${mode}`);
             if(tabBtn) tabBtn.classList.add('active');
+
+            // ▼ 最新データを取得してから描画（リロード不要にする）
+            if (mode === 'my') {
+                try {
+                    await fetchMyDataOnly();
+                } catch(e) { console.error(e); }
+            }
             updateMainContent(mode);
         }
 
@@ -1795,6 +1828,8 @@
                 switchMode('my');
             } else if (tabName === 'my-plan') {
                 if(navItem) navItem.classList.add('plan-mode');
+                // タブ切替時に最新の自分データを取得（プラン/参考数などを即時反映）
+                fetchMyDataOnly().catch(console.error);
                 myPage.style.display = 'contents';
                 contentCol.style.display = 'none';
                 plansCard.style.display = 'flex';
@@ -1944,8 +1979,8 @@
                             myReactionView = `
                                 <div class="feed-foot-mobile">
                                     <div class="reaction-group">
-                                        <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}', 'like')"><span>❤</span> ${likeCount}</button>
-                                        <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}', 'useful')"><span>★</span> ${usefulCount}</button>
+                                        <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'like')"><span>❤</span> ${likeCount}</button>
+                                        <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'useful')"><span>★</span> ${usefulCount}</button>
                                     </div>
                                     <div style="display:flex; gap:5px;">
                                         ${editBtnHtml}
@@ -1956,8 +1991,8 @@
                             myReactionView = `
                                 <div class="feed-foot">
                                     <div class="reaction-group">
-                                        <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsers('${likedJson}', 'like')"><span>❤</span> ${likeCount}</button>
-                                        <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsers('${usefulJson}', 'useful')"><span>★</span> ${usefulCount}</button>
+                                        <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'like')"><span>❤</span> ${likeCount}</button>
+                                        <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'useful')"><span>★</span> ${usefulCount}</button>
                                     </div>
                                     <div style="display:flex; gap:10px;">
                                         ${editBtnHtml}
@@ -2671,6 +2706,24 @@
                     btnEl.innerHTML = `<span>${icon}</span> ${label}`;
                 }
             } catch(e) { console.error(e); }
+        }
+
+        // 自分のログの『いいね/参考』一覧はキャッシュが古いと反映されないため、
+        // 表示直前に最新の自分データを再取得してから一覧を開く
+        async function showRefUsersFresh(logId, type) {
+            try {
+                await fetchMyDataOnly();
+                const target = myDataCache.find(d => d.logId === logId);
+                const list = (type === 'like') ? (target?.likedBy || []) : (target?.usefulBy || []);
+                const jsonStr = encodeURIComponent(JSON.stringify(list));
+                showRefUsers(jsonStr, type);
+            } catch (e) {
+                console.error(e);
+                // 失敗時は従来通り（キャッシュ表示）にフォールバック
+                const target = myDataCache.find(d => d.logId === logId);
+                const list = (type === 'like') ? (target?.likedBy || []) : (target?.usefulBy || []);
+                showRefUsers(encodeURIComponent(JSON.stringify(list)), type);
+            }
         }
 
         // 修正: ユーザー名がない場合は「表示名設定無し」にする
