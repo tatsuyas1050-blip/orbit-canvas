@@ -2126,10 +2126,11 @@ function renderMainList(items, type) {
                             ${userInfoHtml}
                             <div class="feed-head">
                                 <h3 class="feed-title">${escapeHtml(item.target)}${privateMark}</h3>
-                                <div style="text-align:right;">
-                                    <div class="feed-stars">${stars}</div>
-                                    <div style="font-size:0.75rem; color:#aaa; margin-top:4px;">機材: ${escapeHtml(item.tool)}${item.location ? ` / 観測地: ${escapeHtml(item.location)}` : ""}</div>
-                                </div>
+<div style="font-size:0.75rem; color:#aaa; margin-top:4px;">
+  <div>機材: ${escapeHtml(item.tool)}</div>
+  ${item.location ? `<div>観測地: ${escapeHtml(item.location)}</div>` : ''}
+</div>
+
                             </div>
                             <div class="log-collapsible-area">
                                 <div class="feed-text">${commentHtml}</div>
