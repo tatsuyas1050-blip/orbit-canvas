@@ -1370,6 +1370,8 @@
                     <input type="password" id="signup-pass" class="auth-input" placeholder="パスワード" autocomplete="new-password" required>
                     <img src="assets/img/visible.png" class="toggle-pass-icon" onclick="togglePassword('signup-pass', this)" alt="パスワードを表示">
                 </div>
+                <p style="font-size:0.75rem; color:#aaa; margin-bottom:1rem; text-align:center;">※パスワードには大文字・小文字・数字を含める必要があります</p>
+                
                 <button type="submit" class="btn-modal-action">認証コードを送信</button>
             </form>
             <div class="auth-links"><span onclick="switchView('login')">ログイン画面へ戻る</span></div>
@@ -1393,6 +1395,7 @@
                 <input type="password" id="reset-new-pass" class="auth-input" placeholder="新しいパスワード" autocomplete="new-password">
                 <img src="assets/img/visible.png" class="toggle-pass-icon" onclick="togglePassword('reset-new-pass', this)" alt="パスワードを表示">
             </div>
+            <p style="font-size:0.75rem; color:#aaa; margin-bottom:1rem; text-align:center;">※パスワードには大文字・小文字・数字を含める必要があります</p>
             <button onclick="submitResetPassword()" class="btn-modal-action">変更を保存</button>
         </div>
     </div>
@@ -2404,6 +2407,18 @@
             if (msg.includes('User does not exist')) return 'ユーザーが見つかりません。';
             if (msg.includes('User is not confirmed')) return '認証コードを入力してください。';
             if (msg.includes('Username exists')) return 'このメールアドレスは既に登録されています。';
+            
+            // --- 修正: パスワード要件等のエラー翻訳を追加 ---
+            if (msg.includes('Password not long enough')) return 'パスワードは8文字以上で入力してください。';
+            if (msg.includes('uppercase characters')) return 'パスワードには大文字を含める必要があります。';
+            if (msg.includes('lowercase characters')) return 'パスワードには小文字を含める必要があります。';
+            if (msg.includes('numeric characters')) return 'パスワードには数字を含める必要があります。';
+            if (msg.includes('symbol characters')) return 'パスワードには記号を含める必要があります。'; // 万が一のために残す
+            
+            if (msg.includes('CodeMismatchException') || msg.includes('Invalid code')) return '認証コードが正しくありません。';
+            if (msg.includes('ExpiredCodeException')) return '認証コードの有効期限が切れています。もう一度送信してください。';
+            if (msg.includes('LimitExceededException')) return '試行回数が多すぎます。しばらく待ってからお試しください。';
+            
             return 'エラーが発生しました: ' + msg;
         }
 
@@ -2561,7 +2576,7 @@
             if(list.length === 0) { c.innerHTML = '<div style="padding:1rem; opacity:0.5; text-align:center;">まだありません</div>'; }
             list.forEach(u => {
                 let name = (typeof u === 'string') ? 'Guest User' : (u.name || 'Guest User');
-                let iconHtml = (typeof u !== 'string' && u.icon) ? `<img src="${u.icon}" class="user-list-icon">` : `<div class="user-list-icon" style="background:#333;"></div>`;
+                let iconHtml = (typeof u !== 'string' && u.icon) ? `<img src="${u.icon}" class="user-list-icon">` : `<div class="user-list-icon" style="background:#333;</div>`;
                 const div = document.createElement('div'); div.className = 'user-list-item'; div.innerHTML = `${iconHtml}<span>${escapeHtml(name)}</span>`; c.appendChild(div);
             });
             document.getElementById('user-list-modal').style.display = 'flex';
