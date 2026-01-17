@@ -1421,6 +1421,7 @@
             <h2 class="modal-h" style="color:var(--accent-gold) !important;">SIGN UP</h2><p id="signup-error" class="error-msg"></p>
             <form onsubmit="event.preventDefault(); signUp();">
                 <div class="input-group"><input type="email" id="signup-email" class="auth-input" placeholder="メールアドレス" autocomplete="email" required></div>
+                <div class="input-group"><input type="text" id="signup-name" class="auth-input" placeholder="表示名" autocomplete="nickname" oninput="handleSignupInput()" required></div>
                 <div class="input-group">
                     <input type="text" id="signup-pass" class="auth-input" placeholder="パスワード" autocomplete="new-password" oninput="handleSignupInput()" required>
                     <img src="assets/img/hidden.png" class="toggle-pass-icon" onclick="togglePassword('signup-pass', this)" alt="パスワードを隠す">
@@ -1595,6 +1596,7 @@
         let myDataCache = []; 
         let editingLog = null; 
         let myUserId = null; 
+        let cognitoDisplayName = null; // サインアップ時に登録した表示名（Cognito attributes.name）
 
         let isMobile = window.innerWidth <= 900;
         let currentMobileTab = 'my-log'; // 初期タブ
@@ -1641,17 +1643,29 @@
             
             const email = user.attributes.email;
             document.getElementById('display-email-sub').textContent = email;
+
+            // サインアップ時に登録した表示名（Cognitoの標準 attribute: name）
+            cognitoDisplayName = (user.attributes && user.attributes.name) ? String(user.attributes.name).trim() : null;
+
+            // フォールバック: 直前のサインアップでローカルに一時保存していた表示名
+            if (!cognitoDisplayName) {
+                const pendingEmail = localStorage.getItem('starry_pending_display_email');
+                const pendingName = localStorage.getItem('starry_pending_display_name');
+                if (pendingEmail && pendingName && pendingEmail === email) {
+                    cognitoDisplayName = String(pendingName).trim();
+                }
+            }
             
             // プロフィール読み込み前のデフォルト表示名をセット
-            const defaultName = "表示名設定無し";
+            const defaultName = (cognitoDisplayName && cognitoDisplayName.length > 0) ? cognitoDisplayName : "表示名設定無し";
             document.getElementById('display-name').textContent = defaultName;
             myProfile.name = defaultName;
             
-            fetchMyDataAndInit();
+            fetchMyDataAndInit(true);
             updateViewLayout(); 
         }
 
-        async function fetchMyDataAndInit() {
+        async function fetchMyDataAndInit(ensureProfile) {
             try {
                 const token = currentSession.getAccessToken().getJwtToken();
                 const res = await fetch(API_URL, {
@@ -1662,6 +1676,25 @@
                 const data = await res.json();
                 myDataCache = data.logs || [];
                 extractProfileFromLogs(myDataCache);
+
+                // 初回ログイン時などでプロフィールが未作成なら、サインアップ時の表示名で自動作成
+                if (ensureProfile) {
+                    const hasProfile = myDataCache.some(d => d.logId === 'profile' || d.type === 'profile');
+                    const candidate = (cognitoDisplayName && cognitoDisplayName.length > 0) ? cognitoDisplayName : null;
+                    if (!hasProfile && candidate) {
+                        try {
+                            await saveItem({ type: 'profile', target: candidate }, 'profile');
+                            // 一時保存した表示名は不要になるので削除
+                            localStorage.removeItem('starry_pending_display_email');
+                            localStorage.removeItem('starry_pending_display_name');
+                            // 反映用に再読込（無限ループ防止で ensureProfile=false）
+                            await fetchMyDataAndInit(false);
+                            return;
+                        } catch(e) {
+                            console.error(e);
+                        }
+                    }
+                }
                 
                 const logsCount = myDataCache.filter(d => d.type === 'log').length;
                 const plansCount = myDataCache.filter(d => d.type === 'plan').length;
@@ -2268,7 +2301,7 @@
                     await deleteItem(convertingPlanId, null, true);
                 }
                 closeModal();
-                fetchMyDataAndInit();
+                fetchMyDataAndInit(false);
             } catch(e) {
                 alert(e.message);
             } finally {
@@ -2299,7 +2332,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'delete', token: token, logId: logId, logData: { imageUrl: imageUrl } })
                 });
-                fetchMyDataAndInit();
+                fetchMyDataAndInit(false);
             } catch(e) {
                 alert("Error: " + e.message);
             }
@@ -2516,6 +2549,7 @@
             });
             if(n === 'signup') {
                 document.getElementById('signup-pass').value = '';
+                document.getElementById('signup-name').value = '';
                 handleSignupInput();
             } else if(n === 'reset-submit') {
                 document.getElementById('reset-new-pass').value = '';
@@ -2564,9 +2598,10 @@
 
         function handleSignupInput() {
             const val = document.getElementById('signup-pass').value;
+            const nameVal = (document.getElementById('signup-name')?.value || '').trim();
             const results = validatePasswordInput(val);
             const isValid = updateRequirementView(results, 'req-signup');
-            document.getElementById('btn-signup').disabled = !isValid;
+            document.getElementById('btn-signup').disabled = !(isValid && nameVal.length > 0);
         }
 
         function handleResetInput() {
@@ -2602,12 +2637,17 @@
 
         async function signUp() {
             const e = document.getElementById('signup-email').value;
+            const n = (document.getElementById('signup-name')?.value || '').trim();
             const p = document.getElementById('signup-pass').value;
             const validation = validatePasswordInput(p);
             const isValid = validation.len && validation.upper && validation.lower && validation.num;
             
-            if (!e || !p) {
+            if (!e || !p || !n) {
                 showError('signup-error', '入力してください。');
+                return;
+            }
+            if (n.length > 30) {
+                showError('signup-error', '表示名は30文字以内で入力してください。');
                 return;
             }
             if (!isValid) {
@@ -2616,7 +2656,11 @@
             }
 
             try {
-                await Auth.signUp({ username: e, password: p, attributes: { email: e } });
+                // Cognito の標準属性 name に表示名を登録（後からプロフィール設定で変更可能）
+                // もし UserPool 側で name 属性が無効になっている場合でも復旧できるよう、ローカルにも一時保存
+                localStorage.setItem('starry_pending_display_email', e);
+                localStorage.setItem('starry_pending_display_name', n);
+                await Auth.signUp({ username: e, password: p, attributes: { email: e, name: n } });
                 switchView('verify');
             } catch (err) {
                 if (err.code === 'UsernameExistsException') {
