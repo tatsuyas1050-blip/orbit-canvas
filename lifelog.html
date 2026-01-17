@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -9,9 +10,9 @@
     
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
-        <link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
     
     <script src="https://unpkg.com/aws-amplify@4.3.43/dist/aws-amplify.min.js"></script>
 
@@ -489,6 +490,60 @@
         }
         .btn-modal-action.plan-mode { background: linear-gradient(135deg, #00d2ff, #0077ff); box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3); color: #fff; }
         
+        /* 新規追加: ボタンの無効化スタイル */
+        .btn-modal-action:disabled {
+            background: #555;
+            color: #999;
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 0.6;
+        }
+
+/* 修正: パスワード要件リストのスタイル */
+        .password-requirements {
+            list-style: none;
+            padding: 0;
+            margin: 5px 0 15px 0;
+            text-align: left;
+        }
+        .req-item {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            transition: color 0.3s;
+            font-family: var(--font-body);
+        }
+        .req-item::before {
+            content: "✔";
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            
+            /* --- 変更点: クリア前 --- */
+            background: transparent; /* 中は透明 */
+            border: 1px solid #666;  /* グレーの円（枠線） */
+            color: transparent;      /* チェックマークは見えない状態 */
+            
+            border-radius: 50%;
+            margin-right: 8px;
+            font-size: 10px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .req-item.valid::before {
+            /* --- 変更点: クリア後 --- */
+            background: #28a745;     /* 背景を緑に */
+            border-color: #28a745;   /* 枠線も緑に */
+            color: #fff;             /* 白のチェックを表示 */
+        }
+        .req-item.valid {
+            color: #fff; /* テキストを明るくする */
+        }
+
         /* チェックボックスのレイアウトとデザイン */
         .checkbox-wrapper { 
             display: flex; 
@@ -1347,8 +1402,8 @@
             <form id="login-form" onsubmit="event.preventDefault(); signIn();">
                 <div class="input-group"><input type="email" id="login-email" class="auth-input" placeholder="メールアドレス" autocomplete="username" required></div>
                 <div class="input-group">
-                    <input type="password" id="login-pass" class="auth-input" placeholder="パスワード" autocomplete="current-password" required>
-                    <img src="assets/img/visible.png" class="toggle-pass-icon" onclick="togglePassword('login-pass', this)" alt="パスワードを表示">
+                    <input type="text" id="login-pass" class="auth-input" placeholder="パスワード" autocomplete="current-password" required>
+                    <img src="assets/img/hidden.png" class="toggle-pass-icon" onclick="togglePassword('login-pass', this)" alt="パスワードを隠す">
                 </div>
                 <label class="checkbox-wrapper">
                     <input type="checkbox" id="remember-me" class="custom-checkbox">
@@ -1367,12 +1422,18 @@
             <form onsubmit="event.preventDefault(); signUp();">
                 <div class="input-group"><input type="email" id="signup-email" class="auth-input" placeholder="メールアドレス" autocomplete="email" required></div>
                 <div class="input-group">
-                    <input type="password" id="signup-pass" class="auth-input" placeholder="パスワード" autocomplete="new-password" required>
-                    <img src="assets/img/visible.png" class="toggle-pass-icon" onclick="togglePassword('signup-pass', this)" alt="パスワードを表示">
+                    <input type="text" id="signup-pass" class="auth-input" placeholder="パスワード" autocomplete="new-password" oninput="handleSignupInput()" required>
+                    <img src="assets/img/hidden.png" class="toggle-pass-icon" onclick="togglePassword('signup-pass', this)" alt="パスワードを隠す">
                 </div>
-                <p style="font-size:0.75rem; color:#aaa; margin-bottom:1rem; text-align:center;">※パスワードには大文字・小文字・数字を含める必要があります</p>
                 
-                <button type="submit" class="btn-modal-action">認証コードを送信</button>
+                <ul class="password-requirements">
+                    <li id="req-signup-len" class="req-item">8文字以上</li>
+                    <li id="req-signup-upper" class="req-item">大文字 (A-Z)</li>
+                    <li id="req-signup-lower" class="req-item">小文字 (a-z)</li>
+                    <li id="req-signup-num" class="req-item">数字 (0-9)</li>
+                </ul>
+                
+                <button type="submit" id="btn-signup" class="btn-modal-action" disabled>認証コードを送信</button>
             </form>
             <div class="auth-links"><span onclick="switchView('login')">ログイン画面へ戻る</span></div>
         </div>
@@ -1392,11 +1453,18 @@
             <h2 class="modal-h" style="color:var(--accent-gold) !important;">NEW PASSWORD</h2><p id="reset-error" class="error-msg"></p>
             <div class="input-group"><input type="text" id="reset-code" class="auth-input" placeholder="認証コード" autocomplete="one-time-code"></div>
             <div class="input-group">
-                <input type="password" id="reset-new-pass" class="auth-input" placeholder="新しいパスワード" autocomplete="new-password">
-                <img src="assets/img/visible.png" class="toggle-pass-icon" onclick="togglePassword('reset-new-pass', this)" alt="パスワードを表示">
+                <input type="text" id="reset-new-pass" class="auth-input" placeholder="新しいパスワード" autocomplete="new-password" oninput="handleResetInput()">
+                <img src="assets/img/hidden.png" class="toggle-pass-icon" onclick="togglePassword('reset-new-pass', this)" alt="パスワードを隠す">
             </div>
-            <p style="font-size:0.75rem; color:#aaa; margin-bottom:1rem; text-align:center;">※パスワードには大文字・小文字・数字を含める必要があります</p>
-            <button onclick="submitResetPassword()" class="btn-modal-action">変更を保存</button>
+            
+            <ul class="password-requirements">
+                <li id="req-reset-len" class="req-item">8文字以上</li>
+                <li id="req-reset-upper" class="req-item">大文字 (A-Z)</li>
+                <li id="req-reset-lower" class="req-item">小文字 (a-z)</li>
+                <li id="req-reset-num" class="req-item">数字 (0-9)</li>
+            </ul>
+
+            <button onclick="submitResetPassword()" id="btn-reset" class="btn-modal-action" disabled>変更を保存</button>
         </div>
     </div>
 
@@ -2435,6 +2503,14 @@
                 e.textContent = '';
                 e.classList.remove('show');
             });
+            // 画面切り替え時にパスワード入力欄があればリセット＆再チェック
+            if(n === 'signup') {
+                document.getElementById('signup-pass').value = '';
+                handleSignupInput();
+            } else if(n === 'reset-submit') {
+                document.getElementById('reset-new-pass').value = '';
+                handleResetInput();
+            }
         }
 
         // パスワード表示切替機能 (画像アイコン版)
@@ -2449,6 +2525,48 @@
                 iconImg.src = "assets/img/visible.png"; // パスワードが隠れている状態なので「表示する」アイコンへ
                 iconImg.alt = "パスワードを表示";
             }
+        }
+
+        // 新規追加: パスワードバリデーションロジック
+        function validatePasswordInput(val) {
+            return {
+                len: val.length >= 8,
+                upper: /[A-Z]/.test(val),
+                lower: /[a-z]/.test(val),
+                num: /\d/.test(val)
+            };
+        }
+
+        function updateRequirementView(results, prefix) {
+            const setStatus = (key, isValid) => {
+                const el = document.getElementById(`${prefix}-${key}`);
+                if (isValid) {
+                    el.classList.add('valid');
+                } else {
+                    el.classList.remove('valid');
+                }
+            };
+            setStatus('len', results.len);
+            setStatus('upper', results.upper);
+            setStatus('lower', results.lower);
+            setStatus('num', results.num);
+
+            // 全てtrueならtrueを返す
+            return results.len && results.upper && results.lower && results.num;
+        }
+
+        function handleSignupInput() {
+            const val = document.getElementById('signup-pass').value;
+            const results = validatePasswordInput(val);
+            const isValid = updateRequirementView(results, 'req-signup');
+            document.getElementById('btn-signup').disabled = !isValid;
+        }
+
+        function handleResetInput() {
+            const val = document.getElementById('reset-new-pass').value;
+            const results = validatePasswordInput(val);
+            const isValid = updateRequirementView(results, 'req-reset');
+            document.getElementById('btn-reset').disabled = !isValid;
         }
 
         async function signIn() {
@@ -2479,10 +2597,19 @@
         async function signUp() {
             const e = document.getElementById('signup-email').value;
             const p = document.getElementById('signup-pass').value;
+            // ボタンがdisabledの場合もあるので念のためチェック
+            const validation = validatePasswordInput(p);
+            const isValid = validation.len && validation.upper && validation.lower && validation.num;
+            
             if (!e || !p) {
                 showError('signup-error', '入力してください。');
                 return;
             }
+            if (!isValid) {
+                 showError('signup-error', 'パスワードの条件を満たしていません。');
+                 return;
+            }
+
             try {
                 await Auth.signUp({ username: e, password: p, attributes: { email: e } });
                 switchView('verify');
@@ -2528,8 +2655,16 @@
             const code = document.getElementById('reset-code').value;
             const newPass = document.getElementById('reset-new-pass').value;
 
+            // ボタンがdisabledの場合もあるので念のためチェック
+            const validation = validatePasswordInput(newPass);
+            const isValid = validation.len && validation.upper && validation.lower && validation.num;
+
             if (!code || !newPass) {
                 showError('reset-error', "すべての項目を入力してください");
+                return;
+            }
+            if(!isValid) {
+                showError('reset-error', "パスワードの条件を満たしていません");
                 return;
             }
 
