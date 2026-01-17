@@ -1603,6 +1603,8 @@
         
         let lastWidth = window.innerWidth; // 画面幅監視用
         let publicDataCache = []; // グローバル変数として定義
+        let publicProfilesCache = {}; // 公開フィード用: userId -> 最新プロフィール
+
 
         window.addEventListener('resize', () => {
             // 幅が変わったときだけレイアウト更新（スクロールによるアドレスバー伸縮対策）
@@ -1778,7 +1780,9 @@
                     });
                     const data = await res.json();
                     const publicData = data.logs || [];
-                    publicDataCache = publicData; 
+                    publicDataCache = publicData;
+                    // ★追加: Lambda(load_public) から返ってくる最新プロフィール辞書
+                    publicProfilesCache = data.profilesByUserId || {};
 
                     if (mode === 'global') {
                         itemsToShow = publicData.filter(d => d.type === 'log');
@@ -1909,6 +1913,33 @@
             });
         }
 
+// ★追加: 投稿の表示名/アイコンを「最新プロフィール優先」で解決する
+function getLatestAuthorInfo(item, userMap) {
+    // 1) 自分の投稿は常に myProfile（最新）
+    if (currentMode === 'my' || item.userId === myUserId) {
+        return { name: myProfile.name, icon: myProfile.icon };
+    }
+
+    // 2) みんなのフィードでは、Lambdaが返す profilesByUserId を最優先
+    if (publicProfilesCache && item.userId && publicProfilesCache[item.userId]) {
+        const p = publicProfilesCache[item.userId];
+        const n = p?.name;
+        const ic = p?.icon;
+        if (n || ic) {
+            return { name: n || item.authorName || null, icon: ic || item.authorIcon || null };
+        }
+    }
+
+    // 3) フォールバック: 画面内で最も新しい authorName を採用（従来ロジック）
+    if (userMap && item.userId && userMap[item.userId]) {
+        const m = userMap[item.userId];
+        return { name: m.authorName || item.authorName || null, icon: m.authorIcon || item.authorIcon || null };
+    }
+
+    // 4) 最終フォールバック
+    return { name: item.authorName || null, icon: item.authorIcon || null };
+}
+
 // 修正後の renderMainList 関数
 function renderMainList(items, type) {
     const container = document.getElementById('logs-list');
@@ -1930,78 +1961,50 @@ function renderMainList(items, type) {
     // 表示順は「観測日」の新しい順でOK
     items.sort((a,b) => new Date(b.date) - new Date(a.date));
 
-    // ▼▼▼ 改修: ユーザー情報の補完マップ（profile優先） ▼▼▼
+    // ▼▼▼ 修正: ユーザー情報の補完マップ作成 ▼▼▼
     const userMap = {};
     const sourceData = (currentMode === 'global' || currentMode === 'plans') ? publicDataCache : items;
-
-    const toTime = (x) => {
-        if (!x) return 0;
-        const t = new Date(x).getTime();
-        return Number.isFinite(t) ? t : 0;
-    };
-
-    if (Array.isArray(sourceData)) {
+    
+    if (sourceData && Array.isArray(sourceData)) {
         sourceData.forEach(d => {
-            if (!d || !d.userId) return;
-
-            // 1) プロフィールレコードを最優先で採用（公開データに profile が混ざっている前提）
-            const isProfile = (d.type === 'profile' || d.logId === 'profile');
-            if (isProfile) {
-                const name = (d.target || '').trim();               // プロフィールの表示名
-                const icon = d.imageUrl || d.authorIcon || '';      // プロフィール画像
-                const ts = toTime(d.updatedAt) || toTime(d.createdAt) || toTime(d.date);
-
-                if (name) {
-                    if (!userMap[d.userId] || ts >= userMap[d.userId].timestamp) {
-                        userMap[d.userId] = { name, icon, timestamp: ts };
-                    }
-                }
-                return;
-            }
-
-            // 2) profile が無いユーザーのフォールバック：投稿の authorName を使う（従来互換）
-            const isValidName = d.authorName &&
-                                d.authorName !== "表示名設定無し" &&
-                                d.authorName !== "Guest User" &&
+            // 有効な名前を持っているデータのみ対象
+            const isValidName = d.authorName && 
+                                d.authorName !== "表示名設定無し" && 
+                                d.authorName !== "Guest User" && 
                                 d.authorName !== "Guest";
 
-            if (isValidName) {
-                const ts = toTime(d.createdAt) || toTime(d.date);
-                if (!userMap[d.userId] || ts > userMap[d.userId].timestamp) {
-                    userMap[d.userId] = { name: d.authorName, icon: d.authorIcon || '', timestamp: ts };
+            if (d.userId && isValidName) {
+                // 比較用の日付を取得：作成日時(createdAt)があればそれを優先、なければ観測日(date)
+                // ※ createdAtを使うことで「最近投稿された過去の記録」の名前を最新として扱える
+                const postTime = d.createdAt ? new Date(d.createdAt).getTime() : new Date(d.date).getTime();
+
+                // マップにデータがない、または今回のデータの方が「投稿日時」が新しい場合に更新
+                if (!userMap[d.userId] || postTime > userMap[d.userId].timestamp) {
+                    userMap[d.userId] = { 
+                        name: d.authorName, 
+                        icon: d.authorIcon, 
+                        timestamp: postTime // 比較用にタイムスタンプを保存
+                    };
                 }
             }
         });
     }
-    // ▲▲▲ 改修終わり ▲▲▲
+    // ▲▲▲ 修正終わり ▲▲▲
 
     try {
         items.forEach((item, i) => {
             const d = new Date(item.date);
             const dateStr = `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
             
-            let displayAuthorName = item.authorName;
-            let displayAuthorIcon = item.authorIcon;
+            // ★最新プロフィール優先で表示名/アイコンを解決
+            const authorInfo = getLatestAuthorInfo(item, userMap);
+            let displayAuthorName = authorInfo.name;
+            let displayAuthorIcon = authorInfo.icon;
 
-            // ▼▼▼ 修正: 補完マップ適用ロジック ▼▼▼
-            
-            // 1. 他人の投稿: マップにある「最新の投稿時の名前」で上書き
-            if (item.userId && userMap[item.userId]) {
-                displayAuthorName = userMap[item.userId].name;
-                displayAuthorIcon = userMap[item.userId].icon;
-            }
-
-            // 2. 自分の投稿: 今の自分のプロフィールで強制上書き（最優先）
-            if (currentMode === 'my' || item.userId === myUserId) {
-                displayAuthorName = myProfile.name;
-                displayAuthorIcon = myProfile.icon;
-            }
-
-            // 3. 名前がない場合のフォールバック
+            // 名前がない場合のフォールバック
             if (!displayAuthorName || displayAuthorName === "Guest User" || displayAuthorName === "Guest") {
                 displayAuthorName = "表示名設定無し";
             }
-            // ▲▲▲ 修正終わり ▲▲▲
 
             // ユーザー情報HTMLの生成
             let userInfoHtml = '';
@@ -2825,11 +2828,18 @@ function renderMainList(items, type) {
             c.innerHTML = '';
             if(list.length === 0) { c.innerHTML = '<div style="padding:1rem; opacity:0.5; text-align:center;">まだありません</div>'; }
             list.forEach(u => {
-                // 修正箇所
-                let name = (typeof u === 'string') ? '表示名設定無し' : (u.name || '表示名設定無し');
+                // ★修正: 可能なら最新プロフィールで上書き
+                let latest = null;
+                if (typeof u !== 'string' && u.userId && publicProfilesCache && publicProfilesCache[u.userId]) {
+                    latest = publicProfilesCache[u.userId];
+                }
+
+                let name = (typeof u === 'string') ? '表示名設定無し' : ((latest && latest.name) ? latest.name : (u.name || '表示名設定無し'));
                 if(name === "Guest User" || name === "Guest") name = "表示名設定無し";
 
-                let iconHtml = (typeof u !== 'string' && u.icon) ? `<img src="${u.icon}" class="user-list-icon">` : `<div class="user-list-icon" style="background:#333; display:inline-block; width:32px; height:32px; border-radius:50%;"></div>`;
+                const iconUrl = (typeof u !== 'string') ? ((latest && latest.icon) ? latest.icon : (u.icon || '')) : '';
+
+                let iconHtml = (typeof u !== 'string' && iconUrl) ? `<img src="${iconUrl}" class="user-list-icon">` : `<div class="user-list-icon" style="background:#333; display:inline-block; width:32px; height:32px; border-radius:50%;"></div>`;
                 const div = document.createElement('div'); div.className = 'user-list-item'; div.innerHTML = `${iconHtml}<span>${escapeHtml(name)}</span>`; c.appendChild(div);
             });
             document.getElementById('user-list-modal').style.display = 'flex';
@@ -2844,9 +2854,14 @@ function renderMainList(items, type) {
             document.getElementById('input-date').value = target.date;
             document.getElementById('input-target').value = target.target;
             
-            let author = target.authorName || '表示名設定無し';
-            if(author === "Guest User" || author === "Guest") author = "表示名設定無し";
-            
+            // ★修正: 参照元の作者名も最新プロフィールを優先
+            let author = '表示名設定無し';
+            if (target) {
+                const resolved = getLatestAuthorInfo(target, null);
+                author = resolved.name || target.authorName || '表示名設定無し';
+            }
+            if(author === "Guest User" || author === "Guest" || !author) author = "表示名設定無し";
+
             document.getElementById('input-comment').value = `${author}さんの予定を参考にしました`;
         }
     </script>
