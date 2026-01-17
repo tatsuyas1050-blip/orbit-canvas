@@ -1418,7 +1418,7 @@
             </div>
         </div>
         <div id="view-signup" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="color:var(--accent-gold) !important;">SIGN UP</h2><p id="signup-error" class="error-msg"></p>
+            <h2 class="modal-h" style="color:var(--accent-gold) !important;">新規登録</h2><p id="signup-error" class="error-msg"></p>
             <form onsubmit="event.preventDefault(); signUp();">
                 <div class="input-group"><input type="email" id="signup-email" class="auth-input" placeholder="メールアドレス" autocomplete="email" required></div>
                 <div class="input-group"><input type="text" id="signup-name" class="auth-input" placeholder="表示名" autocomplete="nickname" oninput="handleSignupInput()" required></div>
@@ -1439,19 +1439,19 @@
             <div class="auth-links"><span onclick="switchView('login')">ログイン画面へ戻る</span></div>
         </div>
         <div id="view-verify" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="color:var(--accent-gold) !important;">VERIFY</h2><p id="verify-error" class="error-msg"></p>
+            <h2 class="modal-h" style="color:var(--accent-gold) !important;">認証</h2><p id="verify-error" class="error-msg"></p>
             <div class="input-group"><input type="text" id="verify-code" class="auth-input" placeholder="認証コード" autocomplete="one-time-code"></div>
             <button onclick="verifyCode()" class="btn-modal-action">認証して完了</button>
             <div class="auth-links"><span onclick="switchView('signup')">戻る</span></div>
         </div>
         <div id="view-forgot" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="color:var(--accent-gold) !important;">RESET PASSWORD</h2><p id="forgot-error" class="error-msg"></p>
+            <h2 class="modal-h" style="color:var(--accent-gold) !important;">パスワード再設定</h2><p id="forgot-error" class="error-msg"></p>
             <div class="input-group"><input type="email" id="forgot-email" class="auth-input" placeholder="登録メールアドレス" autocomplete="email"></div>
             <button onclick="sendResetCode()" class="btn-modal-action">コードを送信</button>
             <div class="auth-links"><span onclick="switchView('login')">戻る</span></div>
         </div>
         <div id="view-reset-submit" style="display:none;" class="modal-box login-box-deco">
-            <h2 class="modal-h" style="color:var(--accent-gold) !important;">NEW PASSWORD</h2><p id="reset-error" class="error-msg"></p>
+            <h2 class="modal-h" style="color:var(--accent-gold) !important;">新しいパスワード</h2><p id="reset-error" class="error-msg"></p>
             <div class="input-group"><input type="text" id="reset-code" class="auth-input" placeholder="認証コード" autocomplete="one-time-code"></div>
             <div class="input-group">
                 <input type="text" id="reset-new-pass" class="auth-input" placeholder="新しいパスワード" autocomplete="new-password" oninput="handleResetInput()">
