@@ -1483,6 +1483,9 @@
                 </div>
                 <div id="log-fields">
                     <div class="form-grp">
+                        <label>観測地</label><input type="text" id="input-location" placeholder="例: 自宅ベランダ / 富士山五合目 / ○○県など">
+                    </div>
+                    <div class="form-grp">
                         <label>機材 (複数選択可)</label>
                         <div class="tool-selector">
                             <input type="hidden" id="input-tool" value="肉眼">
@@ -2125,7 +2128,7 @@ function renderMainList(items, type) {
                                 <h3 class="feed-title">${escapeHtml(item.target)}${privateMark}</h3>
                                 <div style="text-align:right;">
                                     <div class="feed-stars">${stars}</div>
-                                    <div style="font-size:0.75rem; color:#aaa; margin-top:4px;">機材: ${escapeHtml(item.tool)}</div>
+                                    <div style="font-size:0.75rem; color:#aaa; margin-top:4px;">機材: ${escapeHtml(item.tool)}${item.location ? ` / 観測地: ${escapeHtml(item.location)}` : ""}</div>
                                 </div>
                             </div>
                             <div class="log-collapsible-area">
@@ -2240,7 +2243,9 @@ function renderMainList(items, type) {
                 setPublicState(true);
                 setTool('肉眼', null);
                 updateRating(3);
-            }
+                            const locEl = document.getElementById('input-location');
+                if(locEl) locEl.value = '';
+}
         }
 
         function closeModal() {
@@ -2328,6 +2333,7 @@ function renderMainList(items, type) {
             };
 
             if(type === 'log') {
+                data.location = document.getElementById('input-location').value;
                 data.tool = document.getElementById('input-tool').value;
                 data.rating = document.getElementById('input-rating').value;
                 if(selectedImageBase64) { 
@@ -2548,6 +2554,7 @@ function renderMainList(items, type) {
             setPublicState(isPublic);
             
             if(type === 'log') {
+                document.getElementById('input-location').value = target.location || '';
                 const toolVal = target.tool || '肉眼';
                 document.getElementById('input-tool').value = toolVal;
                 const selectedTools = toolVal.split(',').map(t => t.trim());
