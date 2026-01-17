@@ -1910,227 +1910,275 @@
         }
 
 // 修正後の renderMainList 関数
-        function renderMainList(items, type) {
-            const container = document.getElementById('logs-list');
-            container.innerHTML = '';
-            
-            if (isMobile) {
-                container.style.paddingBottom = "80px"; 
-                container.style.paddingTop = "0";
-            } else {
-                container.style.paddingBottom = "0";
-                container.style.paddingTop = "0";
-            }
+function renderMainList(items, type) {
+    const container = document.getElementById('logs-list');
+    container.innerHTML = '';
+    
+    if (isMobile) {
+        container.style.paddingBottom = "80px"; 
+        container.style.paddingTop = "0";
+    } else {
+        container.style.paddingBottom = "0";
+        container.style.paddingTop = "0";
+    }
 
-            if(items.length === 0) {
-                container.innerHTML = '<div style="text-align:center; opacity:0.3; padding:3rem;">データがありません</div>';
+    if(items.length === 0) {
+        container.innerHTML = '<div style="text-align:center; opacity:0.3; padding:3rem;">データがありません</div>';
+        return;
+    }
+
+    // 表示順は「観測日」の新しい順でOK
+    items.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+    // ▼▼▼ 改修: ユーザー情報の補完マップ（profile優先） ▼▼▼
+    const userMap = {};
+    const sourceData = (currentMode === 'global' || currentMode === 'plans') ? publicDataCache : items;
+
+    const toTime = (x) => {
+        if (!x) return 0;
+        const t = new Date(x).getTime();
+        return Number.isFinite(t) ? t : 0;
+    };
+
+    if (Array.isArray(sourceData)) {
+        sourceData.forEach(d => {
+            if (!d || !d.userId) return;
+
+            // 1) プロフィールレコードを最優先で採用（公開データに profile が混ざっている前提）
+            const isProfile = (d.type === 'profile' || d.logId === 'profile');
+            if (isProfile) {
+                const name = (d.target || '').trim();               // プロフィールの表示名
+                const icon = d.imageUrl || d.authorIcon || '';      // プロフィール画像
+                const ts = toTime(d.updatedAt) || toTime(d.createdAt) || toTime(d.date);
+
+                if (name) {
+                    if (!userMap[d.userId] || ts >= userMap[d.userId].timestamp) {
+                        userMap[d.userId] = { name, icon, timestamp: ts };
+                    }
+                }
                 return;
             }
 
-            items.sort((a,b) => new Date(b.date) - new Date(a.date));
+            // 2) profile が無いユーザーのフォールバック：投稿の authorName を使う（従来互換）
+            const isValidName = d.authorName &&
+                                d.authorName !== "表示名設定無し" &&
+                                d.authorName !== "Guest User" &&
+                                d.authorName !== "Guest";
 
-            try {
-                items.forEach((item, i) => {
-                    const d = new Date(item.date);
-                    const dateStr = `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
-                    
-                    // ▼▼▼ 修正箇所: 最新のプロフィール情報を適用するロジック ▼▼▼
-                    
-                    let displayAuthorName = item.authorName;
-                    let displayAuthorIcon = item.authorIcon;
-
-                    // このログが「自分」のものである場合、保存されている過去の名前ではなく、
-                    // 現在の最新プロフィール(myProfile)の情報で上書き表示する
-                    // (currentMode === 'my' は自分のタブ、item.userId === myUserId はフィード内の自分の投稿)
-                    if (currentMode === 'my' || item.userId === myUserId) {
-                        displayAuthorName = myProfile.name;
-                        displayAuthorIcon = myProfile.icon;
-                    }
-
-                    // 「表示名設定無し」の判定 (Guestなどの場合も含む)
-                    if (!displayAuthorName || displayAuthorName === "Guest User" || displayAuthorName === "Guest") {
-                        displayAuthorName = "表示名設定無し";
-                    }
-
-                    // ユーザー情報HTMLの生成
-                    let userInfoHtml = '';
-                    const iconSrc = displayAuthorIcon || '';
-                    
-                    if (displayAuthorName !== "表示名設定無し") {
-                        // アイコンがある場合とない場合
-                        const iconImg = iconSrc ? `<img src="${iconSrc}" class="feed-user-icon">` : `<span class="feed-user-icon" style="background:#333; display:inline-block;"></span>`;
-                        userInfoHtml = `<div class="feed-user-info">${iconImg} <span>${escapeHtml(displayAuthorName)}</span></div>`;
-                    } else {
-                        // 名前がない場合
-                        userInfoHtml = `<div class="feed-user-info" style="opacity:0.5;">
-                            <span class="feed-user-icon" style="background:#333; display:inline-block;"></span>
-                            <span>表示名設定無し</span>
-                        </div>`;
-                    }
-                    // ▲▲▲ 修正箇所終わり ▲▲▲
-                    
-                    let deleteBtn = '';
-                    let clickAttr = '';
-                    let cardClass = 'smart-card feed-card';
-                    const hasImg = item.imageUrl ? ' has-image' : '';
-                    cardClass += hasImg;
-
-                    let privateMark = '';
-                    let editBtnHtml = ''; 
-
-                    const likedList = item.likedBy || [];
-                    const usefulList = item.usefulBy || [];
-                    const likeCount = likedList.length;
-                    const usefulCount = usefulList.length;
-                    const likedJson = encodeURIComponent(JSON.stringify(likedList));
-                    const usefulJson = encodeURIComponent(JSON.stringify(usefulList));
-
-                    if (isMobile) {
-                        clickAttr = `onclick="toggleLogCard(this)"`;
-                    }
-
-                    let myReactionView = '';
-                    if (currentMode === 'my' || (isMobile && (currentMobileTab === 'my-log'))) {
-                        if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
-                        
-                        if (!isMobile) {
-                            clickAttr = `onclick="editLog('${item.logId}')"`;
-                            cardClass += ' clickable';
-                        }
-
-                        if (isMobile) {
-                            editBtnHtml = `
-                                <button class="btn-edit-log" onclick="event.stopPropagation(); editLog('${item.logId}')">編集</button>
-                                <button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>
-                            `;
-                        } else {
-                            deleteBtn = `<button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>`;
-                            editBtnHtml = `<button class="btn-edit-log" onclick="event.stopPropagation(); editLog('${item.logId}')">編集</button>`;
-                        }
-
-                        if (isMobile) {
-                            myReactionView = `
-                                <div class="feed-foot-mobile">
-                                    <div class="reaction-group">
-                                        <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'like')"><span>❤</span> ${likeCount}</button>
-                                        <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'useful')"><span>★</span> ${usefulCount}</button>
-                                    </div>
-                                    <div style="display:flex; gap:5px;">
-                                        ${editBtnHtml}
-                                    </div>
-                                </div>
-                            `;
-                        } else {
-                            myReactionView = `
-                                <div class="feed-foot">
-                                    <div class="reaction-group">
-                                        <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'like')"><span>❤</span> ${likeCount}</button>
-                                        <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'useful')"><span>★</span> ${usefulCount}</button>
-                                    </div>
-                                    <div style="display:flex; gap:10px;">
-                                        ${editBtnHtml}
-                                        ${deleteBtn}
-                                    </div>
-                                </div>
-                            `;
-                        }
-                    } 
-
-                    if (type === 'log') {
-                        const stars = "★".repeat(parseInt(item.rating||0));
-                        let thumbHtml = `<div class="feed-no-img">🔭</div>`;
-                        if(item.imageUrl) {
-                            thumbHtml = `<img src="${item.imageUrl}" class="feed-img" onclick="event.stopPropagation(); openImageModal(this.src)">`;
-                            if(isMobile) {
-                                thumbHtml += `<div class="img-badge">タップで画像表示</div>`;
-                            }
-                        }
-                        const commentHtml = makeCommentHtml(item.comment || '');
-
-                        let reactionHtml = '';
-                        if (currentMode !== 'my') {
-                            const liked = likedList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
-                            const useful = usefulList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
-                            const commonReaction = `
-                                <div class="reaction-group">
-                                    <button class="btn-reaction ${liked?'liked':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'like', this)"><span>❤</span> ${likeCount>0 ? likeCount : 'いいね'}</button>
-                                    <button class="btn-reaction ${useful?'useful':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'useful', this)"><span>★</span> ${usefulCount>0 ? usefulCount : '参考'}</button>
-                                </div>
-                            `;
-                            
-                            if(isMobile) {
-                                reactionHtml = `<div class="feed-foot-mobile">${commonReaction}</div>`;
-                            } else {
-                                reactionHtml = `<div class="feed-foot">${commonReaction}</div>`;
-                            }
-                        }
-
-                        const html = `
-                            <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
-                                <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
-                                <div class="feed-content">
-                                    ${userInfoHtml}
-                                    <div class="feed-head">
-                                        <h3 class="feed-title">${escapeHtml(item.target)}${privateMark}</h3>
-                                        <div style="text-align:right;">
-                                            <div class="feed-stars">${stars}</div>
-                                            <div style="font-size:0.75rem; color:#aaa; margin-top:4px;">機材: ${escapeHtml(item.tool)}</div>
-                                        </div>
-                                    </div>
-                                    <div class="log-collapsible-area">
-                                        <div class="feed-text">${commentHtml}</div>
-                                        ${reactionHtml}
-                                        ${myReactionView}
-                                    </div>
-                                    <div class="mobile-toggle-hint"></div>
-                                </div>
-                            </div>
-                        `;
-                        container.insertAdjacentHTML('beforeend', html);
-
-                    } else {
-                        const commentHtml = makeCommentHtml(item.comment || '');
-                        const refList = item.referencedBy || [];
-                        const refCount = refList.length;
-                        const refListJson = encodeURIComponent(JSON.stringify(refList));
-                        
-                        const html = `
-                            <div class="smart-card feed-card plan-type" style="animation-delay:${i*0.05}s" ${clickAttr}>
-                                <div class="feed-content">
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <div style="font-family:var(--font-tech); font-size:1.1rem; color:#00d2ff; font-weight:bold;">
-                                            <img src="assets/img/plan.png" style="width:20px; height:20px; margin-right:4px; vertical-align:middle; opacity:1;"> ${dateStr}
-                                        </div>
-                                        <button class="btn-ref-plan" style="font-size:0.8rem; padding:4px 12px;" onclick="event.stopPropagation(); initiateReference('${item.logId}')">参考にする</button>
-                                    </div>
-                                    
-                                    <div class="feed-head">
-                                        <h3 class="feed-title" style="color:#e0f7ff;">${escapeHtml(item.target)}${privateMark}</h3>
-                                    </div>
-                                    
-                                    <div style="opacity:0.8; margin-bottom:10px; font-size:0.85rem;">
-                                        ${userInfoHtml}
-                                    </div>
-
-                                    <div class="log-collapsible-area">
-                                        <div class="feed-text" style="border-top:rgba(0,210,255,0.2);">${commentHtml}</div>
-                                        <div style="text-align:right; margin-top:5px;">
-                                            ${refCount > 0 ? `<span class="ref-count" onclick="event.stopPropagation(); showRefUsers('${refListJson}', 'useful')">${refCount}人が参考にしています</span>` : ''}
-                                            ${myReactionView}
-                                        </div>
-                                    </div>
-                                    <div class="mobile-toggle-hint"></div>
-                                </div>
-                            </div>
-                        `;
-                        container.insertAdjacentHTML('beforeend', html);
-                    }
-                });
-            } catch (error) {
-                console.error("Render Error:", error);
-                container.innerHTML += `<div style="color:red; padding:1rem;">表示エラーが発生しました</div>`;
+            if (isValidName) {
+                const ts = toTime(d.createdAt) || toTime(d.date);
+                if (!userMap[d.userId] || ts > userMap[d.userId].timestamp) {
+                    userMap[d.userId] = { name: d.authorName, icon: d.authorIcon || '', timestamp: ts };
+                }
             }
-        }
+        });
+    }
+    // ▲▲▲ 改修終わり ▲▲▲
+
+    try {
+        items.forEach((item, i) => {
+            const d = new Date(item.date);
+            const dateStr = `${d.getFullYear()}.${(d.getMonth()+1).toString().padStart(2,'0')}.${d.getDate().toString().padStart(2,'0')}`;
+            
+            let displayAuthorName = item.authorName;
+            let displayAuthorIcon = item.authorIcon;
+
+            // ▼▼▼ 修正: 補完マップ適用ロジック ▼▼▼
+            
+            // 1. 他人の投稿: マップにある「最新の投稿時の名前」で上書き
+            if (item.userId && userMap[item.userId]) {
+                displayAuthorName = userMap[item.userId].name;
+                displayAuthorIcon = userMap[item.userId].icon;
+            }
+
+            // 2. 自分の投稿: 今の自分のプロフィールで強制上書き（最優先）
+            if (currentMode === 'my' || item.userId === myUserId) {
+                displayAuthorName = myProfile.name;
+                displayAuthorIcon = myProfile.icon;
+            }
+
+            // 3. 名前がない場合のフォールバック
+            if (!displayAuthorName || displayAuthorName === "Guest User" || displayAuthorName === "Guest") {
+                displayAuthorName = "表示名設定無し";
+            }
+            // ▲▲▲ 修正終わり ▲▲▲
+
+            // ユーザー情報HTMLの生成
+            let userInfoHtml = '';
+            const iconSrc = displayAuthorIcon || '';
+            
+            if (displayAuthorName !== "表示名設定無し") {
+                const iconImg = iconSrc ? `<img src="${iconSrc}" class="feed-user-icon">` : `<span class="feed-user-icon" style="background:#333; display:inline-block;"></span>`;
+                userInfoHtml = `<div class="feed-user-info">${iconImg} <span>${escapeHtml(displayAuthorName)}</span></div>`;
+            } else {
+                userInfoHtml = `<div class="feed-user-info" style="opacity:0.5;">
+                    <span class="feed-user-icon" style="background:#333; display:inline-block;"></span>
+                    <span>表示名設定無し</span>
+                </div>`;
+            }
+            
+            let deleteBtn = '';
+            let clickAttr = '';
+            let cardClass = 'smart-card feed-card';
+            const hasImg = item.imageUrl ? ' has-image' : '';
+            cardClass += hasImg;
+
+            let privateMark = '';
+            let editBtnHtml = ''; 
+
+            const likedList = item.likedBy || [];
+            const usefulList = item.usefulBy || [];
+            const likeCount = likedList.length;
+            const usefulCount = usefulList.length;
+            const likedJson = encodeURIComponent(JSON.stringify(likedList));
+            const usefulJson = encodeURIComponent(JSON.stringify(usefulList));
+
+            if (isMobile) {
+                clickAttr = `onclick="toggleLogCard(this)"`;
+            }
+
+            let myReactionView = '';
+            if (currentMode === 'my' || (isMobile && (currentMobileTab === 'my-log'))) {
+                if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
+                
+                if (!isMobile) {
+                    clickAttr = `onclick="editLog('${item.logId}')"`;
+                    cardClass += ' clickable';
+                }
+
+                if (isMobile) {
+                    editBtnHtml = `
+                        <button class="btn-edit-log" onclick="event.stopPropagation(); editLog('${item.logId}')">編集</button>
+                        <button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>
+                    `;
+                } else {
+                    deleteBtn = `<button class="btn-del-log" onclick="event.stopPropagation(); deleteItem('${item.logId}', '${item.imageUrl||''}')">削除</button>`;
+                    editBtnHtml = `<button class="btn-edit-log" onclick="event.stopPropagation(); editLog('${item.logId}')">編集</button>`;
+                }
+
+                if (isMobile) {
+                    myReactionView = `
+                        <div class="feed-foot-mobile">
+                            <div class="reaction-group">
+                                <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'like')"><span>❤</span> ${likeCount}</button>
+                                <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'useful')"><span>★</span> ${usefulCount}</button>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                ${editBtnHtml}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    myReactionView = `
+                        <div class="feed-foot">
+                            <div class="reaction-group">
+                                <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'like')"><span>❤</span> ${likeCount}</button>
+                                <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'useful')"><span>★</span> ${usefulCount}</button>
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                ${editBtnHtml}
+                                ${deleteBtn}
+                            </div>
+                        </div>
+                    `;
+                }
+            } 
+
+            if (type === 'log') {
+                const stars = "★".repeat(parseInt(item.rating||0));
+                let thumbHtml = `<div class="feed-no-img">🔭</div>`;
+                if(item.imageUrl) {
+                    thumbHtml = `<img src="${item.imageUrl}" class="feed-img" onclick="event.stopPropagation(); openImageModal(this.src)">`;
+                    if(isMobile) {
+                        thumbHtml += `<div class="img-badge">タップで画像表示</div>`;
+                    }
+                }
+                const commentHtml = makeCommentHtml(item.comment || '');
+
+                let reactionHtml = '';
+                if (currentMode !== 'my') {
+                    const liked = likedList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
+                    const useful = usefulList.some(u => (typeof u === 'string' ? u : u.userId) === myUserId);
+                    const commonReaction = `
+                        <div class="reaction-group">
+                            <button class="btn-reaction ${liked?'liked':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'like', this)"><span>❤</span> ${likeCount>0 ? likeCount : 'いいね'}</button>
+                            <button class="btn-reaction ${useful?'useful':''}" onclick="event.stopPropagation(); toggleReaction('${item.userId}', '${item.logId}', 'useful', this)"><span>★</span> ${usefulCount>0 ? usefulCount : '参考'}</button>
+                        </div>
+                    `;
+                    
+                    if(isMobile) {
+                        reactionHtml = `<div class="feed-foot-mobile">${commonReaction}</div>`;
+                    } else {
+                        reactionHtml = `<div class="feed-foot">${commonReaction}</div>`;
+                    }
+                }
+
+                const html = `
+                    <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
+                        <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
+                        <div class="feed-content">
+                            ${userInfoHtml}
+                            <div class="feed-head">
+                                <h3 class="feed-title">${escapeHtml(item.target)}${privateMark}</h3>
+                                <div style="text-align:right;">
+                                    <div class="feed-stars">${stars}</div>
+                                    <div style="font-size:0.75rem; color:#aaa; margin-top:4px;">機材: ${escapeHtml(item.tool)}</div>
+                                </div>
+                            </div>
+                            <div class="log-collapsible-area">
+                                <div class="feed-text">${commentHtml}</div>
+                                ${reactionHtml}
+                                ${myReactionView}
+                            </div>
+                            <div class="mobile-toggle-hint"></div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+
+            } else {
+                const commentHtml = makeCommentHtml(item.comment || '');
+                const refList = item.referencedBy || [];
+                const refCount = refList.length;
+                const refListJson = encodeURIComponent(JSON.stringify(refList));
+                
+                const html = `
+                    <div class="smart-card feed-card plan-type" style="animation-delay:${i*0.05}s" ${clickAttr}>
+                        <div class="feed-content">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div style="font-family:var(--font-tech); font-size:1.1rem; color:#00d2ff; font-weight:bold;">
+                                    <img src="assets/img/plan.png" style="width:20px; height:20px; margin-right:4px; vertical-align:middle; opacity:1;"> ${dateStr}
+                                </div>
+                                <button class="btn-ref-plan" style="font-size:0.8rem; padding:4px 12px;" onclick="event.stopPropagation(); initiateReference('${item.logId}')">参考にする</button>
+                            </div>
+                            
+                            <div class="feed-head">
+                                <h3 class="feed-title" style="color:#e0f7ff;">${escapeHtml(item.target)}${privateMark}</h3>
+                            </div>
+                            
+                            <div style="opacity:0.8; margin-bottom:10px; font-size:0.85rem;">
+                                ${userInfoHtml}
+                            </div>
+
+                            <div class="log-collapsible-area">
+                                <div class="feed-text" style="border-top:rgba(0,210,255,0.2);">${commentHtml}</div>
+                                <div style="text-align:right; margin-top:5px;">
+                                    ${refCount > 0 ? `<span class="ref-count" onclick="event.stopPropagation(); showRefUsers('${refListJson}', 'useful')">${refCount}人が参考にしています</span>` : ''}
+                                    ${myReactionView}
+                                </div>
+                            </div>
+                            <div class="mobile-toggle-hint"></div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            }
+        });
+    } catch (error) {
+        console.error("Render Error:", error);
+        container.innerHTML += `<div style="color:red; padding:1rem;">表示エラーが発生しました</div>`;
+    }
+}
 
         function toggleLogCard(el) {
             el.classList.toggle('open');
