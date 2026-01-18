@@ -1151,9 +1151,7 @@
                 object-fit: cover;
             }
 
-            .feed-card.open:not(.has-image) .feed-img-col {
-                display: none;
-            }
+            .feed-card.open:not(.has-image):not(.my-log-card) .feed-img-col { display: none; }
             
             .log-collapsible-area {
                 max-height: 0;
@@ -1405,6 +1403,24 @@
 .btn-x-share .x-icon{
   width: 14px;
   height: 14px;
+}
+
+
+@media (max-width: 900px) {
+  .feed-img-wrap.no-image {
+    position: relative;
+    height: 140px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .feed-img-wrap.no-image .reaction-overlay{
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    display: flex;
+    gap: 8px;
+  }
 }
 
 </style>
@@ -2192,7 +2208,9 @@ function renderMainList(items, type) {
             let myReactionView = '';
             let imgOverlayHtml = '';
             if (currentMode === 'my' || (isMobile && (currentMobileTab === 'my-log'))) {
-                if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
+                
+                cardClass += ' my-log-card';
+if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
 
                 const isPrivate = (item.isPublic === false);
                 const xShareBtn = (!isPrivate) ? `
@@ -3214,17 +3232,16 @@ ${url}`;
             if (found) {
                 const card = document.querySelector(`[data-log-id="${CSS.escape(openLogId)}"]`);
                 if (card) {
-                    if (typeof toggleLogCard === 'function') {
-      // Ensure expanded
-      if (!card.classList.contains('open')) toggleLogCard(card);
-    } else {
-      card.classList.add('open');
-    }
-    // Scroll after expansion so the opened content is visible
+                    // Scroll first so the target position is stable, then expand.
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setTimeout(() => {
-      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
-                }
+      if (typeof toggleLogCard === 'function') {
+        if (!card.classList.contains('open')) toggleLogCard(card);
+      } else {
+        card.classList.add('open');
+      }
+    }, 350);
+}
             }
             // found === false の場合は、そのままフィード一覧を表示（要件通り）
 
