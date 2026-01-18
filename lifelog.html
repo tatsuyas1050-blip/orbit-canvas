@@ -337,9 +337,6 @@
         .btn-edit-log { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: #ddd; }
         
         /* X共有ボタン */
-        .btn-x-share { padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-family: var(--font-body); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.25); color: #fff; }
-        .btn-x-share:hover { background: rgba(255, 255, 255, 0.15); }
-        
         .reaction-group { display: flex; gap: 8px; margin-right: auto; }
         .btn-reaction {
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #ccc;
@@ -1199,6 +1196,27 @@
                 border-top: 1px solid rgba(255,255,255,0.1);
             }
 
+
+            /* --- Mobile layout: reactions overlay on image + action buttons under comment (My Logs) --- */
+            .feed-card:not(.open) .feed-img-overlay-actions { display: none; }
+            .feed-card.open .feed-img-overlay-actions { display: flex; }
+            .feed-img-overlay-actions {
+                position: absolute;
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+                z-index: 3;
+            }
+            .feed-img-overlay-actions .reaction-group { margin-right: 0; }
+            .feed-my-actions-mobile {
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                margin-top: 0.8rem;
+                padding-top: 0.5rem;
+                border-top: 1px solid rgba(255,255,255,0.1);
+            }
+
             .mobile-toggle-hint {
                 display: block;
                 margin-top: 0.5rem;
@@ -1367,7 +1385,29 @@
             border-radius: 4px;
             box-shadow: 0 0 20px rgba(0,0,0,0.8);
         }
-    </style>
+    
+.btn-x-share{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: var(--font-body);
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.2);
+  color: #000000;
+}
+.btn-x-share:hover{
+  background: #f2f2f2;
+}
+.btn-x-share .x-icon{
+  width: 14px;
+  height: 14px;
+}
+
+</style>
 </head>
 <body>
 
@@ -2150,12 +2190,16 @@ function renderMainList(items, type) {
             }
 
             let myReactionView = '';
+            let imgOverlayHtml = '';
             if (currentMode === 'my' || (isMobile && (currentMobileTab === 'my-log'))) {
                 if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
 
                 const isPrivate = (item.isPublic === false);
                 const xShareBtn = (!isPrivate) ? `
-                    <button class="btn-x-share" onclick="event.stopPropagation(); shareLogToX('${item.logId}')">Xに投稿</button>
+                    <button class="btn-x-share" onclick="event.stopPropagation(); shareLogToX('${item.logId}')">
+                        <span class="x-icon-wrap"><img src="assets/img/x_logo.png" alt="" class="x-icon" aria-hidden="true"></span>
+                        <span>ポスト</span>
+                    </button>
                 ` : '';
                 
                 if (!isMobile) {
@@ -2174,13 +2218,18 @@ function renderMainList(items, type) {
                 }
 
                 if (isMobile) {
-                    myReactionView = `
-                        <div class="feed-foot-mobile">
+                    imgOverlayHtml = `
+                        <div class="feed-img-overlay-actions">
                             <div class="reaction-group">
                                 <button class="btn-reaction ${likeCount>0?'liked':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'like')"><span>❤</span> ${likeCount}</button>
                                 <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'useful')"><span>★</span> ${usefulCount}</button>
                             </div>
-                            <div style="display:flex; gap:5px;">
+                        </div>
+                    `;
+
+                    myReactionView = `
+                        <div class="feed-my-actions-mobile">
+                            <div style="display:flex; gap:5px; margin-left:auto;">
                                 ${xShareBtn}
                                 ${editBtnHtml}
                             </div>
@@ -2236,7 +2285,7 @@ function renderMainList(items, type) {
 
                 const html = `
                     <div class="${cardClass}" data-log-id="${item.logId}" style="animation-delay:${i*0.05}s" ${clickAttr}>
-                        <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
+                        <div class="feed-img-col">${thumbHtml}${imgOverlayHtml}<div class="feed-date-badge">${dateStr}</div></div>
                         <div class="feed-content">
                             ${userInfoHtml}
                             <div class="feed-head">
@@ -3117,12 +3166,10 @@ function makeCommentHtml(comment) {
 
                 const url = buildLogDeepLink(logId);
 
-                // 投稿フォーマット:
-                // 【タイトル】日付
-                // 感想(文字数制限あり)
-                // URL
-                const header = `【${title}】${date ? date : ''}`;
-                const text = `${header}\n${snippet}\n${url}`;
+                const text = `${title}
+${date}
+${snippet}
+${url}`;
                 const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
                 window.open(intentUrl, '_blank', 'noopener,noreferrer');
             } catch(e) {
