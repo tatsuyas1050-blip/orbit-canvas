@@ -15,11 +15,19 @@
     <link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
     
     <script src="https://unpkg.com/aws-amplify@4.3.43/dist/aws-amplify.min.js">
+
 function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
   if (!el) return;
   const header = document.querySelector('.common-header');
   const headerH = header ? header.getBoundingClientRect().height : 0;
-  const y = window.pageYOffset + el.getBoundingClientRect().top - headerH - 8; // small padding
+
+  // If we were given a card, prefer scrolling to its visible "header" row (author/icon area),
+  // so it won't be covered by the fixed header.
+  const anchor = el.classList && el.classList.contains('feed-card')
+    ? (el.querySelector('.feed-user-info') || el)
+    : el;
+
+  const y = window.pageYOffset + anchor.getBoundingClientRect().top - headerH - 12; // padding
   window.scrollTo({ top: Math.max(0, y), behavior });
 }
 
