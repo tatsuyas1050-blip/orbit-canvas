@@ -440,7 +440,31 @@
         .meta-sep { color: rgba(255,255,255,0.5); }
 
         
-        /* 汎用inputスタイル。詳細度を上げるため列挙していますが、auth-inputクラスを優先させます */
+        
+        /* PC/共通: 機材・観測地のメタ表示（文字数/行数に合わせて枠が伸縮） */
+        .feed-card .mobile-meta-line{
+            display: inline-block;
+            width: fit-content;
+            max-width: 100%;
+            box-sizing: border-box;
+
+            margin: 0.25rem 0 0.45rem;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            line-height: 1.35;
+            color: #ddd;
+
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 8px;
+
+            white-space: normal;
+            overflow: visible;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            text-align: left;
+        }
+/* 汎用inputスタイル。詳細度を上げるため列挙していますが、auth-inputクラスを優先させます */
         input[type="text"], input[type="date"], input[type="password"], input[type="email"], select, textarea {
             width: 100%; 
             max-width: 100%; 
@@ -2195,7 +2219,7 @@ function renderMainList(items, type) {
                     }
                 }
 
-                const mobileMetaHtml = isMobile ? makeMobileMetaHtml(item.tool || '', item.location || '') : '';
+                const mobileMetaHtml = makeMobileMetaHtml(item.tool || '', item.location || '');
 
                 const html = `
                     <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
@@ -2554,14 +2578,19 @@ function renderMainList(items, type) {
         }
 
         function makeMobileMetaHtml(tool, location) {
-            const t = String(tool || '').trim();
-            const loc = String(location || '').trim();
-            if (!t && !loc) return '';
-            const parts = [];
-            if (t) parts.push(`<span class="meta-label">機材:</span> ${escapeHtml(t.replace(/,/g, ' '))}`);
-            if (loc) parts.push(`<span class="meta-label">観測地:</span> ${escapeHtml(loc)}`);
-            return `<div class="mobile-meta-line">${parts.join(' <span class="meta-sep"> / </span> ')}<\/div>`;
-        }
+  if (!tool && !location) return '';
+  const isMobile = window.innerWidth <= 900;
+  if (tool && location) {
+    if (isMobile) {
+      return `<div class="mobile-meta-line"><span class="meta-label">機材</span>：${escapeHtml(tool)}<br><span class="meta-label">観測地</span>：${escapeHtml(location)}</div>`;
+    }
+    return `<div class="mobile-meta-line"><span class="meta-label">機材</span>：${escapeHtml(tool)}<span class="meta-sep"> / </span><span class="meta-label">観測地</span>：${escapeHtml(location)}</div>`;
+  }
+  if (tool) {
+    return `<div class="mobile-meta-line"><span class="meta-label">機材</span>：${escapeHtml(tool)}</div>`;
+  }
+  return `<div class="mobile-meta-line"><span class="meta-label">観測地</span>：${escapeHtml(location)}</div>`;
+}
 
 function validateTitleLengthOrThrow(title) {
             const arr = Array.from(String(title || '').trim());
