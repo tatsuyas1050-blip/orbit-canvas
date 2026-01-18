@@ -3232,15 +3232,46 @@ ${url}`;
             if (found) {
                 const card = document.querySelector(`[data-log-id="${CSS.escape(openLogId)}"]`);
                 if (card) {
-                    // Scroll first so the target position is stable, then expand.
-    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(() => {
-      if (typeof toggleLogCard === 'function') {
-        if (!card.classList.contains('open')) toggleLogCard(card);
-      } else {
-        card.classList.add('open');
-      }
-    }, 350);
+                    // Mobile: reliably jump to the card first, then expand, then adjust scroll.
+    // (Smooth scrolling can be interrupted on some devices; use an immediate jump first.)
+    const tryOpen = (attempt = 0) => {
+      const sel = `[data-log-id="${CSS.escape(openLogId)}"]`;
+      const target = document.querySelector(sel);
+      if (!target) return;
+
+      // 1) Jump to location immediately for stability
+      target.scrollIntoView({ behavior: 'auto', block: 'start' });
+
+      // 2) Expand after the jump is applied
+      setTimeout(() => {
+        const t2 = document.querySelector(sel);
+        if (!t2) return;
+
+        if (typeof toggleLogCard === 'function') {
+          if (!t2.classList.contains('open')) toggleLogCard(t2);
+        } else {
+          t2.classList.add('open');
+        }
+
+        // 3) Then do a smooth scroll so opened content is visible
+        setTimeout(() => {
+          const t3 = document.querySelector(sel);
+          if (t3) t3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
+
+        // Retry once or twice if it didn't open due to a render refresh
+        if (attempt < 3) {
+          setTimeout(() => {
+            const t4 = document.querySelector(sel);
+            if (t4 && !t4.classList.contains('open')) {
+              tryOpen(attempt + 1);
+            }
+          }, 250);
+        }
+      }, 60);
+    };
+
+    tryOpen(0);
 }
             }
             // found === false の場合は、そのままフィード一覧を表示（要件通り）
