@@ -3166,8 +3166,9 @@ function makeCommentHtml(comment) {
 
                 const url = buildLogDeepLink(logId);
 
-                const text = `${title}
-${date}
+                const text =
+`『#宇宙でつながる』に投稿🌌
+【${title}】${date}
 ${snippet}
 ${url}`;
                 const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
