@@ -336,6 +336,10 @@
         .btn-del-log { background: rgba(255, 94, 94, 0.15); border: 1px solid rgba(255, 94, 94, 0.4); color: #ff8888; }
         .btn-edit-log { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: #ddd; }
         
+        /* X共有ボタン */
+        .btn-x-share { padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-family: var(--font-body); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.25); color: #fff; }
+        .btn-x-share:hover { background: rgba(255, 255, 255, 0.15); }
+        
         .reaction-group { display: flex; gap: 8px; margin-right: auto; }
         .btn-reaction {
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: #ccc;
@@ -1762,7 +1766,9 @@
             document.getElementById('display-name').textContent = defaultName;
             myProfile.name = defaultName;
             
-            fetchMyDataAndInit(true);
+            fetchMyDataAndInit(true).then(() => {
+                try { handleDeepLink(); } catch(e) { /* no-op */ }
+            });
             updateViewLayout(); 
         }
 
@@ -2146,6 +2152,11 @@ function renderMainList(items, type) {
             let myReactionView = '';
             if (currentMode === 'my' || (isMobile && (currentMobileTab === 'my-log'))) {
                 if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
+
+                const isPrivate = (item.isPublic === false);
+                const xShareBtn = (!isPrivate) ? `
+                    <button class="btn-x-share" onclick="event.stopPropagation(); shareLogToX('${item.logId}')">Xに投稿</button>
+                ` : '';
                 
                 if (!isMobile) {
                     // PCではカード全体クリックで編集を開かない（誤操作防止）。開閉のみ行う
@@ -2170,6 +2181,7 @@ function renderMainList(items, type) {
                                 <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'useful')"><span>★</span> ${usefulCount}</button>
                             </div>
                             <div style="display:flex; gap:5px;">
+                                ${xShareBtn}
                                 ${editBtnHtml}
                             </div>
                         </div>
@@ -2182,6 +2194,7 @@ function renderMainList(items, type) {
                                 <button class="btn-reaction ${usefulCount>0?'useful':''}" onclick="event.stopPropagation(); showRefUsersFresh('${item.logId}', 'useful')"><span>★</span> ${usefulCount}</button>
                             </div>
                             <div style="display:flex; gap:10px;">
+                                ${xShareBtn}
                                 ${editBtnHtml}
                                 ${deleteBtn}
                             </div>
@@ -2222,7 +2235,7 @@ function renderMainList(items, type) {
                 const mobileMetaHtml = makeMobileMetaHtml(item.tool || '', item.location || '');
 
                 const html = `
-                    <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
+                    <div class="${cardClass}" data-log-id="${item.logId}" style="animation-delay:${i*0.05}s" ${clickAttr}>
                         <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
                         <div class="feed-content">
                             ${userInfoHtml}
@@ -3085,6 +3098,102 @@ function makeCommentHtml(comment) {
 
             document.getElementById('input-comment').value = `${author}さんの予定を参考にしました`;
         }
-    </script>
+    
+
+        // ===== X共有（公開ログのみ） + Deep Link（フィード自動展開） =====
+        function shareLogToX(logId) {
+            try {
+                // 自分のログから該当アイテムを取得
+                const item = (Array.isArray(myDataCache) ? myDataCache : []).find(d => d.logId === logId);
+                if (!item) return;
+
+                // 非公開ログは共有しない（ボタン非表示だが念のため）
+                if (item.isPublic === false) return;
+
+                const title = item.target || '星空ログ';
+                const date = item.date || '';
+                const comment = item.comment || '';
+                const snippet = truncateForX(comment, 70);
+
+                const url = buildLogDeepLink(logId);
+
+                // 投稿フォーマット:
+                // 【タイトル】日付
+                // 感想(文字数制限あり)
+                // URL
+                const header = `【${title}】${date ? date : ''}`;
+                const text = `${header}\n${snippet}\n${url}`;
+                const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+                window.open(intentUrl, '_blank', 'noopener,noreferrer');
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        function truncateForX(str, maxChars) {
+            const s = (str || '').trim().replace(/\s+/g, ' ');
+            const arr = Array.from(s);
+            if (arr.length <= maxChars) return s;
+            return arr.slice(0, Math.max(0, maxChars - 1)).join('') + '…';
+        }
+
+        function buildLogDeepLink(logId) {
+            const u = new URL(window.location.href);
+            // 共有リンクはフィード側で該当ログを開く
+            u.searchParams.set('mode', 'global');
+            u.searchParams.set('openLog', logId);
+            return u.toString();
+        }
+
+        async function handleDeepLink() {
+            const params = new URLSearchParams(window.location.search);
+            const openLogId = params.get('openLog');
+            if (!openLogId) return;
+
+            // フィードへ切り替え（ログイン後に呼ばれる想定）
+            if (isMobile) {
+                switchBottomTab('global-log');
+            } else {
+                try {
+                    await switchMode('global');
+                } catch(e) {
+                    // switchMode が失敗しても一覧表示が残ればOK
+                }
+            }
+
+            // 一覧が描画されるのを待つ（削除/非公開の可能性があるためタイムアウト付き）
+            const found = await waitForLogCard(openLogId, 4000);
+            if (found) {
+                const card = document.querySelector(`[data-log-id="${CSS.escape(openLogId)}"]`);
+                if (card) {
+                    card.classList.add('open');
+                    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+            // found === false の場合は、そのままフィード一覧を表示（要件通り）
+
+            // URLを綺麗にする（繰り返し開こうとしないため）
+            try {
+                const u = new URL(window.location.href);
+                u.searchParams.delete('openLog');
+                u.searchParams.delete('mode');
+                window.history.replaceState({}, '', u.toString());
+            } catch(e) { /* no-op */ }
+        }
+
+        function waitForLogCard(logId, timeoutMs) {
+            return new Promise(resolve => {
+                const start = Date.now();
+                const tick = () => {
+                    const el = document.querySelector(`[data-log-id="${CSS.escape(logId)}"]`);
+                    if (el) return resolve(true);
+                    if (Date.now() - start > timeoutMs) return resolve(false);
+                    setTimeout(tick, 100);
+                };
+                tick();
+            });
+        }
+
+</script>
 </body>
 </html>
