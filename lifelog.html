@@ -321,6 +321,10 @@
         
         .feed-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
         .feed-title { font-size: 1.5rem; margin: 0; font-weight: 500; font-family: var(--font-main); color: #fff; }
+        /* PC表示ではタイトルはフル表示のみ（モバイル用の短縮タイトルは非表示） */
+        .feed-card .feed-title .title-short { display: none; }
+        .feed-card .feed-title .title-full { display: inline; }
+        
         .feed-stars { color: var(--accent-gold); letter-spacing: 2px; }
         .feed-meta { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 1rem; display: flex; gap: 10px; align-items: center; }
         .meta-tag { color: var(--accent-gold); border: 1px solid rgba(212,175,55,0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; background: rgba(212,175,55,0.05); }
@@ -430,6 +434,11 @@
         .form-grp { margin-bottom: 1.5rem; }
         
         label { display: block; font-size: 0.85rem; color: #ccc; margin-bottom: 0.5rem; font-family: var(--font-tech); }
+        .label-row { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+        .char-counter { font-size: 0.75rem; color: #9aa; font-family: var(--font-tech); opacity: 0.9; }
+        .meta-label { color: rgba(255,255,255,0.9); font-weight: 600; }
+        .meta-sep { color: rgba(255,255,255,0.5); }
+
         
         /* 汎用inputスタイル。詳細度を上げるため列挙していますが、auth-inputクラスを優先させます */
         input[type="text"], input[type="date"], input[type="password"], input[type="email"], select, textarea {
@@ -455,6 +464,45 @@
 
         /* --- 修正: モバイルのみカレンダーアイコンを非表示にする（PCでは表示） --- */
         @media (max-width: 900px) {
+            /* --- 追加: モバイル時のログ/フィードカードのタイトル・メタ情報制御 --- */
+            .feed-title {
+                word-break: break-word;
+            }
+            .feed-card:not(.open) .mobile-meta-line {
+                display: none !important;
+            }
+            .feed-card.open .mobile-meta-line {
+                display: inline-block !important;
+                width: fit-content;
+                max-width: 100%;
+                box-sizing: border-box;
+                margin: 6px 0 10px;
+                padding: 8px 10px;
+                font-size: 0.78rem;
+                line-height: 1.4;
+                color: #ddd;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                border-radius: 8px;
+                white-space: normal;
+                overflow: visible;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                text-align: left;
+            }
+            .feed-card .feed-title .title-full {
+                display: none;
+            }
+            .feed-card .feed-title .title-short {
+                display: inline;
+            }
+            .feed-card.open .feed-title .title-short {
+                display: none;
+            }
+            .feed-card.open .feed-title .title-full {
+                display: inline;
+            }
+
             input[type="date"]::-webkit-inner-spin-button,
             input[type="date"]::-webkit-calendar-picker-indicator {
                 display: none;
@@ -465,6 +513,7 @@
                 -webkit-appearance: none;
                 appearance: none;
             }
+            syncFormCounters();
         }
 
         /* PC表示時はカレンダーアイコンが見えるように色を反転（背景が暗いため） */
@@ -479,6 +528,7 @@
                 opacity: 1;
                 transform: scale(1.1);
             }
+            syncFormCounters();
         }
         
         #upload-box { border: 1px dashed rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 2rem; text-align: center; background: rgba(255, 255, 255, 0.03); cursor: pointer; }
@@ -1090,11 +1140,22 @@
                 max-height: 1000px;
                 opacity: 1;
                 margin-top: 0;
-                padding: 15px;
+                padding: 10px 15px 15px;
             }
             
             .feed-content {
                 padding: 15px !important;
+            }
+
+            /* --- 追加: 画像とモバイルメタ情報(機材/観測地)の間隔を詰める --- */
+            .feed-card.open.has-image .feed-content {
+                padding-top: 8px !important;
+            }
+            .feed-card.open.has-image .log-collapsible-area {
+                padding-top: 6px;
+            }
+            .feed-card.open.has-image .mobile-meta-line {
+                margin-top: 2px;
             }
             
             .feed-card.open .feed-head { margin-bottom: 0.2rem; }
@@ -1262,6 +1323,7 @@
                     margin-bottom: 20px;
                 }
             }
+            syncFormCounters();
         }
         
         #img-modal-overlay {
@@ -1479,11 +1541,13 @@
                     <label>日付</label><input type="date" id="input-date" required>
                 </div>
                 <div class="form-grp">
-                    <label>対象 / タイトル</label><input type="text" id="input-target" placeholder="例: オリオン座" required>
+                    <label class="label-row"><span>対象 / タイトル ※25文字まで</span><span class="char-counter" id="counter-target">0/25</span></label>
+                    <input type="text" id="input-target" placeholder="例: オリオン座" required maxlength="25" oninput="clampTitleInput(this)">
                 </div>
                 <div id="log-fields">
                     <div class="form-grp">
-                        <label>観測地</label><input type="text" id="input-location" placeholder="例: 自宅ベランダ / 富士山五合目 / ○○県など">
+                        <label class="label-row"><span>観測地 ※15文字まで</span><span class="char-counter" id="counter-location">0/15</span></label>
+                        <input type="text" id="input-location" maxlength="15" placeholder="例: 自宅ベランダ / 富士山五合目 / ○○県など" oninput="clampLocationInput(this)">
                     </div>
                     <div class="form-grp">
                         <label>機材 (複数選択可)</label>
@@ -1626,6 +1690,13 @@
                 document.getElementById('login-email').value = savedEmail;
                 document.getElementById('remember-me').checked = true;
             }
+
+            const titleInput = document.getElementById('input-target');
+            if (titleInput) {
+                titleInput.setAttribute('maxlength', String(TITLE_MAX_LEN));
+                titleInput.addEventListener('input', () => clampTitleInput(titleInput));
+            }
+            syncFormCounters();
         });
 
         checkUser();
@@ -1639,6 +1710,7 @@
             } catch (err) {
                 document.getElementById('auth-overlay').style.display = 'flex';
             }
+            syncFormCounters();
         }
 
         // 修正: 表示名の初期設定を「表示名設定無し」にする
@@ -1722,6 +1794,7 @@
             } catch(e) {
                 console.error(e);
             }
+            syncFormCounters();
         }
 
 
@@ -1798,6 +1871,7 @@
                     listEl.innerHTML = '<div style="padding:2rem; text-align:center;">読み込みエラー</div>';
                 }
             }
+            syncFormCounters();
         }
 
         function updateViewLayout() {
@@ -1877,6 +1951,7 @@
                 fabLog.style.display = 'none';
                 fabPlan.style.display = 'flex';
             }
+            syncFormCounters();
         }
 
         function renderMyPlans(data) {
@@ -1990,6 +2065,7 @@ function renderMainList(items, type) {
                     };
                 }
             }
+            syncFormCounters();
         });
     }
     // ▲▲▲ 修正終わり ▲▲▲
@@ -2048,8 +2124,8 @@ function renderMainList(items, type) {
                 if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非公開</span>';
                 
                 if (!isMobile) {
-                    clickAttr = `onclick="editLog('${item.logId}')"`;
-                    cardClass += ' clickable';
+                    // PCではカード全体クリックで編集を開かない（誤操作防止）。開閉のみ行う
+                    clickAttr = `onclick="toggleLogCard(this)"`;
                 }
 
                 if (isMobile) {
@@ -2119,20 +2195,18 @@ function renderMainList(items, type) {
                     }
                 }
 
+                const mobileMetaHtml = isMobile ? makeMobileMetaHtml(item.tool || '', item.location || '') : '';
+
                 const html = `
                     <div class="${cardClass}" style="animation-delay:${i*0.05}s" ${clickAttr}>
                         <div class="feed-img-col">${thumbHtml}<div class="feed-date-badge">${dateStr}</div></div>
                         <div class="feed-content">
                             ${userInfoHtml}
                             <div class="feed-head">
-                                <h3 class="feed-title">${escapeHtml(item.target)}${privateMark}</h3>
-<div style="font-size:0.75rem; color:#aaa; margin-top:4px;">
-  <div>機材: ${escapeHtml(item.tool)}</div>
-  ${item.location ? `<div>観測地: ${escapeHtml(item.location)}</div>` : ''}
-</div>
-
+                                <h3 class="feed-title"><span class="title-short">${escapeHtml(truncateTitleForMobilePreview(item.target))}</span><span class="title-full">${escapeHtml(item.target)}</span>${privateMark}</h3>
                             </div>
                             <div class="log-collapsible-area">
+                                ${mobileMetaHtml}
                                 <div class="feed-text">${commentHtml}</div>
                                 ${reactionHtml}
                                 ${myReactionView}
@@ -2160,7 +2234,7 @@ function renderMainList(items, type) {
                             </div>
                             
                             <div class="feed-head">
-                                <h3 class="feed-title" style="color:#e0f7ff;">${escapeHtml(item.target)}${privateMark}</h3>
+                                <h3 class="feed-title" style="color:#e0f7ff;"><span class="title-short">${escapeHtml(truncateTitleForMobilePreview(item.target))}</span><span class="title-full">${escapeHtml(item.target)}</span>${privateMark}</h3>
                             </div>
                             
                             <div style="opacity:0.8; margin-bottom:10px; font-size:0.85rem;">
@@ -2180,6 +2254,7 @@ function renderMainList(items, type) {
                 `;
                 container.insertAdjacentHTML('beforeend', html);
             }
+            syncFormCounters();
         });
     } catch (error) {
         console.error("Render Error:", error);
@@ -2189,6 +2264,8 @@ function renderMainList(items, type) {
 
         function toggleLogCard(el) {
             el.classList.toggle('open');
+            // タイトルの短縮/全表示切り替えはCSSで行うが、
+            // iOS Safari等で再描画が遅れるケースの保険としてクラス付与だけに留める
         }
 
         function openImageModal(src) {
@@ -2247,6 +2324,7 @@ function renderMainList(items, type) {
                             const locEl = document.getElementById('input-location');
                 if(locEl) locEl.value = '';
 }
+            syncFormCounters();
         }
 
         function closeModal() {
@@ -2272,6 +2350,7 @@ function renderMainList(items, type) {
                 btnPub.classList.remove('active');
                 btnPri.classList.add('active');
             }
+            syncFormCounters();
         }
 
         function setTool(val, btnEl) {
@@ -2316,6 +2395,7 @@ function renderMainList(items, type) {
             document.getElementById('rating-text').textContent = texts[val];
         }
 
+        
         document.getElementById('unified-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-save');
@@ -2323,24 +2403,26 @@ function renderMainList(items, type) {
             btn.textContent = "送信中...";
 
             const type = document.getElementById('input-type').value;
-            const data = { 
-                type, 
-                date: document.getElementById('input-date').value, 
-                target: document.getElementById('input-target').value, 
-                comment: document.getElementById('input-comment').value, 
-                authorName: myProfile.name, 
+            syncFormCounters();
+
+            const data = {
+                type,
+                date: document.getElementById('input-date').value,
+                target: document.getElementById('input-target').value,
+                comment: document.getElementById('input-comment').value,
+                authorName: myProfile.name,
                 authorIcon: myProfile.icon,
                 isPublic: document.getElementById('input-public').checked
             };
 
-            if(type === 'log') {
+            if (type === 'log') {
                 data.location = document.getElementById('input-location').value;
                 data.tool = document.getElementById('input-tool').value;
                 data.rating = document.getElementById('input-rating').value;
-                if(selectedImageBase64) { 
-                    data.imageBase64 = selectedImageBase64; 
-                } else if(editingLog && editingLog.imageUrl && document.getElementById('preview-area').style.display !== 'none') {
-                    data.imageUrl = editingLog.imageUrl; 
+                if (selectedImageBase64) {
+                    data.imageBase64 = selectedImageBase64;
+                } else if (editingLog && editingLog.imageUrl && document.getElementById('preview-area').style.display !== 'none') {
+                    data.imageUrl = editingLog.imageUrl;
                 }
             }
 
@@ -2350,23 +2432,28 @@ function renderMainList(items, type) {
                 data.referencedBy = editingLog.referencedBy || [];
                 data.likedBy = editingLog.likedBy || [];
                 data.usefulBy = editingLog.usefulBy || [];
-                data.createdAt = editingLog.createdAt; 
+                data.createdAt = editingLog.createdAt;
             }
 
             try {
+                validateTitleLengthOrThrow(data.target);
+                if (type === 'log') validateLocationLengthOrThrow(data.location);
+
                 await saveItem(data, targetId);
-                if(convertingPlanId) {
+                if (convertingPlanId) {
                     await deleteItem(convertingPlanId, null, true);
                 }
                 closeModal();
                 fetchMyDataAndInit(false);
-            } catch(e) {
+            } catch (e) {
                 alert(e.message);
             } finally {
                 btn.disabled = false;
-                btn.textContent = (type === 'plan') ? "追加" : "保存";
+                btn.textContent = (type === 'plan') ? "追加" : (editingLog ? "更新" : "保存");
             }
         });
+
+
 
         async function saveItem(dataObj, customId) {
             const token = currentSession.getAccessToken().getJwtToken();
@@ -2394,13 +2481,96 @@ function renderMainList(items, type) {
             } catch(e) {
                 alert("Error: " + e.message);
             }
+            syncFormCounters();
         }
 
         function escapeHtml(s) { 
-            return s ? s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','':'&quot;','\'':'&#039;'}[m])) : ""; 
+            return s ? s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;'}[m])) : ""; 
         }
         
-        function makeCommentHtml(comment) {
+        
+        // --- 追加: タイトルの文字数制限(入力:25文字)と、モバイル折りたたみ時の省略表示 ---
+        const TITLE_MAX_LEN = 25;
+        const TITLE_MOBILE_PREVIEW_LEN = 15;
+        const LOC_MAX_LEN = 15;
+
+        function countChars(str){ return Array.from(str || '').length; }
+        function setCounter(counterId, value, max){
+            const el = document.getElementById(counterId);
+            if (!el) return;
+            el.textContent = `${countChars(value)}/${max}`;
+        }
+
+        const LOCATION_MAX_LEN = 15;
+
+        function clampTitleInput(inputEl) {
+            if (!inputEl) return;
+            // maxlength 属性が効かないブラウザ/IME対策の保険
+            const arr = Array.from(inputEl.value || '');
+            if (arr.length > TITLE_MAX_LEN) {
+                inputEl.value = arr.slice(0, TITLE_MAX_LEN).join('');
+            }
+            setCharCounter('counter-target', inputEl.value, TITLE_MAX_LEN);
+        }
+
+        function truncateTitleForMobilePreview(title) {
+            const arr = Array.from(title || '');
+            if (arr.length <= TITLE_MOBILE_PREVIEW_LEN) return title || '';
+            return arr.slice(0, TITLE_MOBILE_PREVIEW_LEN).join('') + '...';
+        }
+
+        function countGraphemes(str) {
+            return Array.from(String(str || '')).length;
+        }
+
+        function setCharCounter(counterId, value, max) {
+            const el = document.getElementById(counterId);
+            if (!el) return;
+            el.textContent = `${countGraphemes(value)}/${max}`;
+        }
+
+        function clampLocationInput(inputEl) {
+            if (!inputEl) return;
+            const arr = Array.from(inputEl.value || '');
+            if (arr.length > LOCATION_MAX_LEN) {
+                inputEl.value = arr.slice(0, LOCATION_MAX_LEN).join('');
+            }
+            setCharCounter('counter-location', inputEl.value, LOCATION_MAX_LEN);
+        }
+
+        function validateLocationLengthOrThrow(location) {
+            const arr = Array.from(String(location || '').trim());
+            if (arr.length > LOCATION_MAX_LEN) {
+                throw new Error(`観測地は${LOCATION_MAX_LEN}文字以内で入力してください。`);
+            }
+            syncFormCounters();
+        }
+
+        function syncFormCounters() {
+            const t = document.getElementById('input-target');
+            const l = document.getElementById('input-location');
+            if (t) clampTitleInput(t);
+            if (l) clampLocationInput(l);
+        }
+
+        function makeMobileMetaHtml(tool, location) {
+            const t = String(tool || '').trim();
+            const loc = String(location || '').trim();
+            if (!t && !loc) return '';
+            const parts = [];
+            if (t) parts.push(`<span class="meta-label">機材:</span> ${escapeHtml(t.replace(/,/g, ' '))}`);
+            if (loc) parts.push(`<span class="meta-label">観測地:</span> ${escapeHtml(loc)}`);
+            return `<div class="mobile-meta-line">${parts.join(' <span class="meta-sep"> / </span> ')}<\/div>`;
+        }
+
+function validateTitleLengthOrThrow(title) {
+            const arr = Array.from(String(title || '').trim());
+            if (arr.length > TITLE_MAX_LEN) {
+                throw new Error(`タイトルは${TITLE_MAX_LEN}文字以内で入力してください。`);
+            }
+            syncFormCounters();
+        }
+function makeCommentHtml(comment) {
             const MAX_LEN = 80;
             if (comment && comment.length > MAX_LEN) {
                 const shortText = escapeHtml(comment.substr(0, MAX_LEN)) + '...';
@@ -2409,6 +2579,7 @@ function renderMainList(items, type) {
             } else {
                 return escapeHtml(comment || '').replace(/\n/g, '<br>');
             }
+            syncFormCounters();
         }
 
         function toggleComment(btn) {
@@ -2424,6 +2595,7 @@ function renderMainList(items, type) {
                 full.style.display = 'none';
                 btn.textContent = 'さらに表示 ≫';
             }
+            syncFormCounters();
         }
 
         function togglePlan(el) {
@@ -2441,6 +2613,7 @@ function renderMainList(items, type) {
                 preview.style.display = 'block';
                 document.getElementById('profile-preview-default').style.display = 'none';
             }
+            syncFormCounters();
         }
         function closeProfileModal() { document.getElementById('profile-modal').style.display = 'none'; profileImageBase64 = null; }
         
@@ -2473,6 +2646,7 @@ function renderMainList(items, type) {
                 btn.disabled = false;
                 btn.textContent = "変更を保存";
             }
+            syncFormCounters();
         });
 
         function processImage(input, cb) {
@@ -2523,6 +2697,7 @@ function renderMainList(items, type) {
                     myProfile.icon = profile.imageUrl;
                 }
             }
+            syncFormCounters();
         }
 
         function initiateConvert(planId) {
@@ -2571,6 +2746,7 @@ function renderMainList(items, type) {
                     selectedImageBase64 = null;
                 }
             }
+            syncFormCounters();
         }
 
         function translateError(err) {
@@ -2614,6 +2790,7 @@ function renderMainList(items, type) {
                 document.getElementById('reset-new-pass').value = '';
                 handleResetInput();
             }
+            syncFormCounters();
         }
 
         function togglePassword(inputId, iconImg) {
@@ -2627,6 +2804,7 @@ function renderMainList(items, type) {
                 iconImg.src = "assets/img/visible.png"; 
                 iconImg.alt = "パスワードを表示";
             }
+            syncFormCounters();
         }
 
         function validatePasswordInput(val) {
@@ -2692,6 +2870,7 @@ function renderMainList(items, type) {
             } catch(err) {
                 showError('login-error', translateError(err));
             }
+            syncFormCounters();
         }
 
         async function signUp() {
@@ -2732,6 +2911,7 @@ function renderMainList(items, type) {
                 }
                 showError('signup-error', translateError(err));
             }
+            syncFormCounters();
         }
 
         async function verifyCode() {
@@ -2742,6 +2922,7 @@ function renderMainList(items, type) {
             } catch(e) {
                 showError('verify-error', translateError(e));
             }
+            syncFormCounters();
         }
 
         async function sendResetCode() {
@@ -2756,6 +2937,7 @@ function renderMainList(items, type) {
             } catch (e) {
                 showError('forgot-error', translateError(e));
             }
+            syncFormCounters();
         }
 
         async function submitResetPassword() {
@@ -2782,6 +2964,7 @@ function renderMainList(items, type) {
             } catch (e) {
                 showError('reset-error', translateError(e));
             }
+            syncFormCounters();
         }
 
         async function signOut() {
@@ -2827,6 +3010,7 @@ function renderMainList(items, type) {
                 const list = (type === 'like') ? (target?.likedBy || []) : (target?.usefulBy || []);
                 showRefUsers(encodeURIComponent(JSON.stringify(list)), type);
             }
+            syncFormCounters();
         }
 
         // 修正: ユーザー名がない場合は「表示名設定無し」にする
