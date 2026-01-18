@@ -3214,8 +3214,16 @@ ${url}`;
             if (found) {
                 const card = document.querySelector(`[data-log-id="${CSS.escape(openLogId)}"]`);
                 if (card) {
-                    card.classList.add('open');
-                    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    if (typeof toggleLogCard === 'function') {
+      // Ensure expanded
+      if (!card.classList.contains('open')) toggleLogCard(card);
+    } else {
+      card.classList.add('open');
+    }
+    // Scroll after expansion so the opened content is visible
+    setTimeout(() => {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
                 }
             }
             // found === false の場合は、そのままフィード一覧を表示（要件通り）
