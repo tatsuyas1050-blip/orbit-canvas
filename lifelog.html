@@ -14,7 +14,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
     
-    <script src="https://unpkg.com/aws-amplify@4.3.43/dist/aws-amplify.min.js"></script>
+    <script src="https://unpkg.com/aws-amplify@4.3.43/dist/aws-amplify.min.js">
+function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
+  if (!el) return;
+  const header = document.querySelector('.common-header');
+  const headerH = header ? header.getBoundingClientRect().height : 0;
+  const y = window.pageYOffset + el.getBoundingClientRect().top - headerH - 8; // small padding
+  window.scrollTo({ top: Math.max(0, y), behavior });
+}
+
+</script>
 
     <style>
         :root {
@@ -1728,7 +1737,16 @@
         </div>
     </div>
 
-    <script src="assets/js/script.js"></script>
+    <script src="assets/js/script.js">
+function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
+  if (!el) return;
+  const header = document.querySelector('.common-header');
+  const headerH = header ? header.getBoundingClientRect().height : 0;
+  const y = window.pageYOffset + el.getBoundingClientRect().top - headerH - 8; // small padding
+  window.scrollTo({ top: Math.max(0, y), behavior });
+}
+
+</script>
     <script>
         const API_URL = "https://ef7yxsmrds7qxjopbqyg5x6omm0uaomt.lambda-url.ap-northeast-1.on.aws/";
         const COGNITO_REGION = 'ap-northeast-1';
@@ -3240,7 +3258,7 @@ ${url}`;
       if (!target) return;
 
       // 1) Jump to location immediately for stability
-      target.scrollIntoView({ behavior: 'auto', block: 'start' });
+      scrollToCardWithHeaderOffset(target, 'auto');
 
       // 2) Expand after the jump is applied
       setTimeout(() => {
@@ -3256,7 +3274,7 @@ ${url}`;
         // 3) Then do a smooth scroll so opened content is visible
         setTimeout(() => {
           const t3 = document.querySelector(sel);
-          if (t3) t3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          if (t3) scrollToCardWithHeaderOffset(t3, 'smooth');
         }, 120);
 
         // Retry once or twice if it didn't open due to a render refresh
@@ -3297,6 +3315,15 @@ ${url}`;
                 tick();
             });
         }
+
+
+function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
+  if (!el) return;
+  const header = document.querySelector('.common-header');
+  const headerH = header ? header.getBoundingClientRect().height : 0;
+  const y = window.pageYOffset + el.getBoundingClientRect().top - headerH - 8; // small padding
+  window.scrollTo({ top: Math.max(0, y), behavior });
+}
 
 </script>
 </body>
