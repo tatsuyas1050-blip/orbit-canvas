@@ -56,13 +56,13 @@
 
         .tab-btn:hover { opacity: 1; background: rgba(255,255,255,0.05); }
         .tab-btn.active {
-            opacity: 1;
-            color: var(--bg-dark);
-            background: var(--accent-gold);
-            border-color: var(--accent-gold);
-            font-weight: bold;
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
-        }
+    opacity: 1;
+    color: #d8ecff;
+    background: linear-gradient(180deg, #1f4067, #16293e);
+    border-color: #3a6ea5;
+    font-weight: bold;
+    box-shadow: 0 0 12px rgba(91, 124, 163, 0.45);
+}
 
         /* --- 1. Radio Styles --- */
         .radio-list { display: flex; flex-direction: column; gap: 1rem; min-height: 200px; }
@@ -184,13 +184,11 @@
         .column-summary {
             padding: 1.2rem 1.2rem 1rem;
             border-bottom: 1px dashed rgba(255,255,255,0.1);
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 1rem;
+            display: block;
         }
         .column-summary-left { flex: 1 1 auto; min-width: 0; }
-        .column-meta { display: flex; gap: 10px; align-items: center; margin-bottom: 0.5rem; }
+        .column-meta-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 0.5rem; }
+        .column-meta-left { display: flex; gap: 10px; align-items: center; min-width: 0; }
         .column-tag {
             font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
             background: var(--accent-gold); color: #000; font-weight: bold;
@@ -208,9 +206,42 @@
             font-size: 0.85rem;
             opacity: 0.85;
             color: var(--accent-gold);
-            padding-top: 0.2rem;
             white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            user-select: none;
         }
+
+        /* Column toggle arrow (≫) rotation */
+        .column-toggle .toggle-arrow,
+        .column-close .close-arrow {
+            display: inline-block;
+            transform-origin: 50% 50%;
+            line-height: 1;
+        }
+        /* 初期は「≫」を時計回りに90度回転（下向き） */
+        .column-toggle .toggle-arrow { transform: rotate(90deg); }
+        /* 展開時は上向き */
+        details.column-article[open] .column-toggle .toggle-arrow { transform: rotate(-90deg); }
+
+        /* Close control shown at the bottom of an opened column */
+        .column-close {
+            text-align: center;
+            color: var(--accent-gold);
+            cursor: pointer;
+            padding: 1.2rem 0 0.2rem;
+            margin: 1.2rem 0 0.8rem;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 1rem;
+            opacity: 0.95;
+        }
+        .column-close:hover { opacity: 1; text-decoration: underline; }
+        .column-close .close-arrow { transform: rotate(-90deg); }
 
         .column-body { padding: 1.5rem; line-height: 1.9; font-size: 1rem; color: #e0e0e0; }
         .column-img-wrap { width: 100%; max-height: 300px; overflow: hidden; border-bottom: 1px solid rgba(255,255,255,0.1); }
@@ -400,7 +431,7 @@
         </div>
 
         <div id="tab-column" class="section-content">
-            <div class="section-header">星空コラム・最新情報</div>
+            <div class="section-header">星空コラム</div>
             <div id="column-container" class="column-list">
                 <div class="loading-msg">読み込み中...</div>
             </div>
@@ -669,29 +700,63 @@
                     <summary>
                         <div class="column-summary">
                             <div class="column-summary-left">
-                                <div class="column-meta">
-                                    <span class="column-tag">COLUMN</span>
-                                    <span class="column-date">${item.date}</span>
+                                <div class="column-meta-row">
+                                    <div class="column-meta-left">
+                                        <span class="column-tag">COLUMN</span>
+                                        <span class="column-date">${item.date}</span>
+                                    </div>
+                                    <div class="column-toggle" aria-hidden="true">
+                                        <span class="toggle-label">全体を読む</span>
+                                        <span class="toggle-arrow">≫</span>
+                                    </div>
                                 </div>
                                 <h3 class="column-title">${safeTitle}</h3>
                             </div>
-                            <div class="column-toggle" aria-hidden="true">▼</div>
                         </div>
                     </summary>
 
                     ${imgSection}
                     <div class="column-body">${safeDesc}</div>
+                    <div class="column-close" role="button" tabindex="0" aria-label="閉じる">
+                        <span class="close-label">閉じる</span>
+                        <span class="close-arrow">≫</span>
+                    </div>
                 `;
 
                 details.addEventListener('toggle', () => {
+                    // ラベル更新
+                    updateColumnToggle(details);
                     if (!details.open) return;
                     container.querySelectorAll('details.column-article').forEach(d => {
                         if (d !== details) d.open = false;
                     });
                 });
 
+                // 「閉じる」クリックで折りたたむ（ボタンではなくテキスト表示）
+                const closeEl = details.querySelector('.column-close');
+                closeEl.addEventListener('click', () => {
+                    details.open = false;
+                    details.querySelector('summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+                closeEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        details.open = false;
+                        details.querySelector('summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+
+                // 初期状態のラベル
+                updateColumnToggle(details);
+
                 container.appendChild(details);
             });
+        }
+
+        function updateColumnToggle(detailsEl) {
+            const label = detailsEl.querySelector('.column-toggle .toggle-label');
+            if (!label) return;
+            label.textContent = detailsEl.open ? '折りたたむ' : '全体を読む';
         }
 
         // --- メッセージ送信処理 ---
