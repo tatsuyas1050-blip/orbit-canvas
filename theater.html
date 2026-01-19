@@ -7,15 +7,31 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
-    
+
     <style>
-         /* --- Sonocky's Room Specific Styles --- */
+        /* --- Sonocky's Room Specific Styles --- */
         .section-content { display: none; animation: fadeIn 0.4s ease; }
         .section-content.active { display: block; }
-        
+
+        .section-subdesc {
+            margin: -0.6rem 0 1.2rem;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            opacity: 0.85;
+            color: #ddd;
+            text-align: center;
+        }
+        /* ヨゾラジ説明文：左寄せ */
+        .section-subdesc-left {
+            text-align: left;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
         /* PC向けベースレイアウト */
         .tab-nav {
             display: flex;
@@ -24,11 +40,11 @@
             padding: 1.5rem 0 2rem;
             border-bottom: 1px solid rgba(255,255,255,0.1);
             margin-bottom: 2rem;
-            flex-wrap: wrap; /* 項目が増えたので折り返し許可 */
+            flex-wrap: wrap;
         }
-        
+
         .tab-btn {
-            background: transparent; 
+            background: transparent;
             color: var(--text-white); font-family: var(--font-main);
             font-size: 1rem; cursor: pointer;
             padding: 0.6rem 1.2rem; opacity: 0.7;
@@ -37,11 +53,11 @@
             border: 1px solid rgba(255,255,255,0.1);
             white-space: nowrap;
         }
-        
+
         .tab-btn:hover { opacity: 1; background: rgba(255,255,255,0.05); }
-        .tab-btn.active { 
-            opacity: 1; 
-            color: var(--bg-dark); 
+        .tab-btn.active {
+            opacity: 1;
+            color: var(--bg-dark);
             background: var(--accent-gold);
             border-color: var(--accent-gold);
             font-weight: bold;
@@ -75,7 +91,6 @@
             color: #666;
             position: relative; overflow: hidden;
         }
-        /* ノイズエフェクト用の背景 */
         .live-frame::before {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: repeating-linear-gradient(0deg, transparent, transparent 1px, #111 1px, #111 2px);
@@ -84,7 +99,7 @@
 
         .live-status-badge {
             display: inline-flex; align-items: center; gap: 6px;
-            padding: 4px 12px; border-radius: 20px; 
+            padding: 4px 12px; border-radius: 20px;
             font-size: 0.8rem; font-weight: bold; letter-spacing: 0.05em;
             margin-bottom: 1rem;
         }
@@ -108,7 +123,7 @@
         .gallery-card:hover { transform: translateY(-5px); border-color: var(--accent-gold); }
         .gallery-img-container {
             width: 100%;
-            aspect-ratio: 1 / 1; /* 正方形 */
+            aspect-ratio: 1 / 1;
             overflow: hidden;
             background: #000;
             cursor: pointer;
@@ -137,37 +152,75 @@
             content: ''; position: absolute; left: -32px; top: 6px;
             width: 12px; height: 12px; background: var(--accent-gold);
             border-radius: 50%; box-shadow: 0 0 8px var(--accent-gold);
-            border: 2px solid var(--bg-dark); 
+            border: 2px solid var(--bg-dark);
         }
         .devlog-date { font-size: 0.85rem; color: var(--accent-gold); opacity: 0.9; margin-bottom: 0.4rem; font-family: monospace; letter-spacing: 0.1em; }
         .devlog-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 0.8rem; line-height: 1.4; }
-        .devlog-content { 
-            font-size: 0.95rem; line-height: 1.8; 
+        .devlog-content {
+            font-size: 0.95rem; line-height: 1.8;
             background: rgba(255,255,255,0.03); padding: 1.2rem; border-radius: 8px;
             border: 1px solid rgba(255,255,255,0.05);
-            white-space: pre-wrap; 
+            white-space: pre-wrap;
         }
 
-        /* --- 5. Column (New) Styles --- */
-        .column-list { display: flex; flex-direction: column; gap: 2rem; min-height: 200px; }
+        /* --- 5. Column (Accordion) Styles --- */
+        .column-list { display: flex; flex-direction: column; gap: 1.2rem; min-height: 200px; }
+
         .column-article {
             background: rgba(30, 40, 60, 0.4);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px; overflow: hidden;
+            border-radius: 8px;
+            overflow: hidden;
             animation: fadeIn 0.5s ease;
         }
-        .column-header { padding: 1.5rem 1.5rem 1rem; border-bottom: 1px dashed rgba(255,255,255,0.1); }
+
+        .column-article summary {
+            list-style: none;
+            cursor: pointer;
+            outline: none;
+        }
+        .column-article summary::-webkit-details-marker { display: none; }
+
+        .column-summary {
+            padding: 1.2rem 1.2rem 1rem;
+            border-bottom: 1px dashed rgba(255,255,255,0.1);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .column-summary-left { flex: 1 1 auto; min-width: 0; }
         .column-meta { display: flex; gap: 10px; align-items: center; margin-bottom: 0.5rem; }
-        .column-tag { 
-            font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; 
-            background: var(--accent-gold); color: #000; font-weight: bold; 
+        .column-tag {
+            font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
+            background: var(--accent-gold); color: #000; font-weight: bold;
         }
         .column-date { font-size: 0.8rem; color: #aaa; }
-        .column-title { font-size: 1.4rem; font-family: var(--font-main); font-weight: bold; line-height: 1.4; }
-        
+        .column-title {
+            font-size: 1.2rem;
+            font-family: var(--font-main);
+            font-weight: bold;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .column-toggle {
+            flex: 0 0 auto;
+            font-size: 0.85rem;
+            opacity: 0.85;
+            color: var(--accent-gold);
+            padding-top: 0.2rem;
+            white-space: nowrap;
+        }
+
         .column-body { padding: 1.5rem; line-height: 1.9; font-size: 1rem; color: #e0e0e0; }
         .column-img-wrap { width: 100%; max-height: 300px; overflow: hidden; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .column-img { width: 100%; height: 100%; object-fit: cover; }
+
+        .column-article[open] {
+            border-color: rgba(212,175,55,0.35);
+            box-shadow: 0 0 14px rgba(212,175,55,0.12);
+        }
+        .column-article[open] .column-toggle { opacity: 1; }
 
         /* --- 6. Message Form Styles --- */
         .message-form {
@@ -175,7 +228,86 @@
             max-width: 600px; margin: 0 auto;
         }
         .form-group label { display: block; margin-bottom: 0.5rem; color: var(--accent-gold); font-size: 0.9rem; }
-        
+
+        .category-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem 0.6rem;
+            margin-top: 0.2rem;
+        }
+        .cat-break {
+            display: none;
+            flex-basis: 100%;
+            height: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        .cat-toggle {
+            appearance: none;
+            -webkit-appearance: none;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            width: auto;
+            max-width: 100%;
+
+            border: 1px solid rgba(255,255,255,0.22);
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.92);
+
+            border-radius: 999px;
+            padding: 0.48rem 0.78rem;
+
+            cursor: pointer;
+            font-family: var(--font-main);
+            font-size: 0.92rem;
+            line-height: 1;
+            text-align: center;
+
+            transition:
+                transform 0.15s ease,
+                background 0.18s ease,
+                border-color 0.18s ease,
+                color 0.18s ease,
+                box-shadow 0.18s ease,
+                filter 0.18s ease;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .cat-toggle:hover {
+            background: rgba(255,255,255,0.09);
+            border-color: rgba(255,255,255,0.32);
+        }
+        .cat-toggle:active { transform: translateY(1px); }
+
+        /* ON時：強い青 + 反転 + 発光（チェック表示なし） */
+        .cat-toggle.is-on,
+        .cat-toggle[aria-pressed="true"] {
+            background: linear-gradient(180deg, rgba(40, 125, 255, 0.95), rgba(25, 85, 210, 0.95));
+            border-color: rgba(120, 195, 255, 0.95);
+            color: #ffffff;
+            box-shadow:
+                0 0 0 2px rgba(120, 195, 255, 0.25),
+                0 10px 22px rgba(0, 0, 0, 0.35),
+                0 0 18px rgba(50, 150, 255, 0.35);
+            filter: saturate(1.15);
+        }
+        .cat-toggle.is-on:active,
+        .cat-toggle[aria-pressed="true"]:active {
+            transform: translateY(2px);
+        }
+
+        .category-note {
+            font-size: 0.85rem;
+            opacity: 0.75;
+            margin-top: 0.6rem;
+            line-height: 1.6;
+        }
+
         .loading-msg { text-align: center; color: rgba(255,255,255,0.5); padding: 2rem; }
         .empty-msg { text-align: center; color: rgba(255,255,255,0.4); padding: 3rem; font-size: 0.9rem; }
 
@@ -183,17 +315,15 @@
            スマートフォン向け最適化 (Mobile Styles)
            ========================================= */
         @media (max-width: 768px) {
-            .container {
-                width: 100%; padding: 0 1rem 6rem; margin-top: 1rem;
-            }
-            .page-title { 
-                font-size: clamp(14px, 4.2vw, 1.5rem); 
+            .container { width: 100%; padding: 0 1rem 6rem; margin-top: 1rem; }
+
+            .page-title {
+                font-size: clamp(14px, 4.2vw, 1.5rem);
                 white-space: nowrap; overflow: hidden; line-height: 1.2; padding: 0 4px;
             }
-            .page-title span { 
-                font-size: 0.7em; margin-left: 6px;
-            }
-            .tab-nav { 
+            .page-title span { font-size: 0.7em; margin-left: 6px; }
+
+            .tab-nav {
                 justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto;
                 padding-bottom: 0.8rem; gap: 0.6rem;
                 -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -201,43 +331,48 @@
                 padding-left: 1rem; padding-right: 1rem; border-bottom: none;
             }
             .tab-nav::-webkit-scrollbar { display: none; }
-            .tab-btn { 
+            .tab-btn {
                 flex: 0 0 auto; font-size: 0.9rem; padding: 0.5rem 1.2rem;
                 background: rgba(255,255,255,0.05); border-radius: 20px;
             }
-            /* Gallery Mobile Adjustment */
-            .gallery-grid {
-                grid-template-columns: 1fr; /* スマホでは1列で大きく見せる */
-                gap: 1.5rem;
-            }
-            
+
+            .gallery-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+
             .devlog-timeline { margin-left: 0; padding-left: 20px; }
             .devlog-entry::before { left: -26px; width: 10px; height: 10px; top: 7px; }
             .devlog-content { padding: 1rem; font-size: 0.9rem; }
             .panel-bg { padding: 1.5rem 1rem; }
-            
-            .column-title { font-size: 1.2rem; }
+
+            .column-title { font-size: 1.05rem; }
             .column-body { padding: 1rem; font-size: 0.95rem; }
+
+            /* 1行目「質問/要望/感想」→ 2行目「ラジオリクエスト/その他」 */
+            .cat-break { display: block; }
+
+            .cat-toggle {
+                padding: 0.52rem 0.85rem;
+                font-size: 0.92rem;
+            }
         }
     </style>
 </head>
 <body>
-    
+
     <div class="menu-container">
         <button id="menu-toggle" class="menu-toggle" aria-label="メニューを開く">
             <span class="line"></span>
             <span class="line"></span>
             <span class="line"></span>
         </button>
-        
+
         <nav id="nav-overlay" class="nav-overlay">
-<ul class="nav-list">
-    <li><a href="/" class="nav-link">トップページ<span>Home</span></a></li>
-    <li><a href="/stars" class="nav-link">星を探す<span>Star Chart</span></a></li>
-    <li><a href="/events" class="nav-link">星空情報局<span>Sky Events</span></a></li>
-    <li><a href="/lifelog" class="nav-link">星空ライフログ<span>My Starry Sky Log</span></a></li>
-    <li><a href="/theater" class="nav-link" style="display:none;">ソノッキーの部屋<span>Sonocky's Room</span></a></li>
-</ul>
+            <ul class="nav-list">
+                <li><a href="/" class="nav-link">トップページ<span>Home</span></a></li>
+                <li><a href="/stars" class="nav-link">星を探す<span>Star Chart</span></a></li>
+                <li><a href="/events" class="nav-link">星空情報局<span>Sky Events</span></a></li>
+                <li><a href="/lifelog" class="nav-link">星空ライフログ<span>My Starry Sky Log</span></a></li>
+                <li><a href="/theater" class="nav-link" style="display:none;">ソノッキーの部屋<span>Sonocky's Room</span></a></li>
+            </ul>
         </nav>
     </div>
 
@@ -248,7 +383,7 @@
 
     <div class="container">
         <nav class="tab-nav">
-            <button class="tab-btn active" data-target="tab-radio">ラジオ</button>
+            <button class="tab-btn active" data-target="tab-radio">ヨゾラジ</button>
             <button class="tab-btn" data-target="tab-column">星空コラム</button>
             <button class="tab-btn" data-target="tab-live">ライブ配信</button>
             <button class="tab-btn" data-target="tab-gallery">ギャラリー</button>
@@ -257,12 +392,13 @@
         </nav>
 
         <div id="tab-radio" class="section-content active">
-            <div class="section-header">星降る夜の独り言 (ラジオ)</div>
+            <div class="section-header">ヨゾラジ (ラジオ)</div>
+            <p class="section-subdesc section-subdesc-left">『夜空のラジオ』略して『ヨゾラジ』。星の下でふっと浮かんだことを、気ままに話します。</p>
             <div id="radio-container" class="radio-list">
                 <div class="loading-msg">読み込み中...</div>
             </div>
         </div>
-        
+
         <div id="tab-column" class="section-content">
             <div class="section-header">星空コラム・最新情報</div>
             <div id="column-container" class="column-list">
@@ -313,19 +449,40 @@
                     アプリの不具合報告、機能の要望、あるいは単なる星の感想など、<br>
                     お気軽にメッセージをお送りください。
                 </p>
+
                 <form class="message-form" id="msg-form" onsubmit="submitMessage(event)">
                     <div class="form-group">
                         <label>お名前 (ニックネーム可)</label>
                         <input type="text" id="msg-name" placeholder="例: 星見 太郎" required>
                     </div>
+
                     <div class="form-group">
                         <label>メールアドレス (返信が必要な場合)</label>
                         <input type="email" id="msg-email" placeholder="example@email.com" required>
                     </div>
+
+                    <div class="form-group">
+                        <label>カテゴリ (複数選択可)</label>
+
+                        <div class="category-wrap" role="group" aria-label="カテゴリ選択">
+                            <button type="button" class="cat-toggle" data-value="質問" aria-pressed="false">ご質問</button>
+                            <button type="button" class="cat-toggle" data-value="要望" aria-pressed="false">ご要望</button>
+                            <button type="button" class="cat-toggle" data-value="感想" aria-pressed="false">ご感想</button>
+
+                            <span class="cat-break" aria-hidden="true"></span>
+
+                            <button type="button" class="cat-toggle" data-value="ラジオリクエスト" aria-pressed="false">ラジオリクエスト</button>
+                            <button type="button" class="cat-toggle" data-value="その他" aria-pressed="false">その他</button>
+                        </div>
+
+                        <div class="category-note">※押すとオン/オフが切り替わり、選択したカテゴリも一緒に送信されます。</div>
+                    </div>
+
                     <div class="form-group">
                         <label>メッセージ</label>
                         <textarea id="msg-body" rows="5" placeholder="ここにメッセージを入力してください..." required></textarea>
                     </div>
+
                     <button type="submit" class="btn-submit" id="msg-btn">送信する</button>
                     <p id="msg-status" style="text-align:center; font-size:0.9rem; margin-top:10px; min-height:1.2em;"></p>
                 </form>
@@ -342,9 +499,8 @@
     <script src="assets/js/script.js"></script>
     <script>
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
-        // メッセージ送信用の新しい関数URL
         const POST_URL = "https://3vtporkgipspcqyo3frdeesdu40gkmqw.lambda-url.ap-northeast-1.on.aws/";
-        
+
         // --- タブ切り替え ---
         const tabBtns = document.querySelectorAll('.tab-btn');
         const sections = document.querySelectorAll('.section-content');
@@ -354,7 +510,7 @@
                 tabBtns.forEach(b => b.classList.remove('active'));
                 sections.forEach(s => s.classList.remove('active'));
                 btn.classList.add('active');
-                
+
                 const targetId = btn.getAttribute('data-target');
                 const targetSection = document.getElementById(targetId);
                 if (targetSection) targetSection.classList.add('active');
@@ -362,6 +518,15 @@
                 if (window.innerWidth <= 768) {
                     btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                 }
+            });
+        });
+
+        // --- カテゴリ（オンオフボタン） ---
+        const catButtons = document.querySelectorAll('.cat-toggle');
+        catButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const isOn = btn.classList.toggle('is-on');
+                btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
             });
         });
 
@@ -373,11 +538,10 @@
                 const res = await fetch(GET_URL);
                 if (!res.ok) throw new Error("通信エラー");
                 const allData = await res.json();
-                
+
                 let items = [];
-                // カテゴリーに 'column' を追加
                 const targets = ['radio', 'gallery', 'devlog', 'column'];
-                
+
                 Object.keys(allData).forEach(date => {
                     allData[date].forEach(item => {
                         if (item.category && targets.includes(item.category)) {
@@ -390,7 +554,7 @@
                 renderRadio(items.filter(i => i.category === 'radio'));
                 renderGallery(items.filter(i => i.category === 'gallery'));
                 renderDevLog(items.filter(i => i.category === 'devlog'));
-                renderColumn(items.filter(i => i.category === 'column')); 
+                renderColumn(items.filter(i => i.category === 'column'));
 
             } catch (err) {
                 console.error(err);
@@ -413,7 +577,7 @@
                 const div = document.createElement('div');
                 div.className = 'radio-card';
                 let playerHtml = '';
-                if (item.image) { 
+                if (item.image) {
                     playerHtml = `<audio controls src="${item.image}" class="radio-player"></audio>`;
                 } else {
                     playerHtml = `<p style="font-size:0.8rem; color:#aaa;">音声ファイルがありません</p>`;
@@ -441,10 +605,10 @@
             items.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'gallery-card';
-                const imgHtml = item.image 
+                const imgHtml = item.image
                     ? `<div class="gallery-img-container" onclick="openImageModal('${item.image}')"><img src="${item.image}" class="gallery-img" alt="Photo"></div>`
                     : '';
-                
+
                 div.innerHTML = `
                     ${imgHtml}
                     <div class="gallery-content">
@@ -487,10 +651,12 @@
                 container.innerHTML = '<div class="empty-msg">まだ記事はありません</div>';
                 return;
             }
-            items.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'column-article';
-                
+
+            items.forEach((item, idx) => {
+                const details = document.createElement('details');
+                details.className = 'column-article';
+                details.dataset.idx = String(idx);
+
                 let imgSection = '';
                 if(item.image) {
                     imgSection = `
@@ -499,37 +665,62 @@
                         </div>`;
                 }
 
-                div.innerHTML = `
-                    ${imgSection}
-                    <div class="column-header">
-                        <div class="column-meta">
-                            <span class="column-tag">COLUMN</span>
-                            <span class="column-date">${item.date}</span>
+                const safeTitle = escapeHtml(item.title);
+                const safeDesc = escapeHtml(item.desc).replace(/\n/g, '<br>');
+
+                details.innerHTML = `
+                    <summary>
+                        <div class="column-summary">
+                            <div class="column-summary-left">
+                                <div class="column-meta">
+                                    <span class="column-tag">COLUMN</span>
+                                    <span class="column-date">${item.date}</span>
+                                </div>
+                                <h3 class="column-title">${safeTitle}</h3>
+                            </div>
+                            <div class="column-toggle" aria-hidden="true">▼</div>
                         </div>
-                        <h3 class="column-title">${escapeHtml(item.title)}</h3>
-                    </div>
-                    <div class="column-body">${escapeHtml(item.desc).replace(/\n/g, '<br>')}</div>
+                    </summary>
+
+                    ${imgSection}
+                    <div class="column-body">${safeDesc}</div>
                 `;
-                container.appendChild(div);
+
+                details.addEventListener('toggle', () => {
+                    if (!details.open) return;
+                    container.querySelectorAll('details.column-article').forEach(d => {
+                        if (d !== details) d.open = false;
+                    });
+                });
+
+                container.appendChild(details);
             });
         }
 
         // --- メッセージ送信処理 ---
         async function submitMessage(e) {
             e.preventDefault();
-            
+
             const btn = document.getElementById('msg-btn');
             const status = document.getElementById('msg-status');
             const name = document.getElementById('msg-name').value;
             const email = document.getElementById('msg-email').value;
             const body = document.getElementById('msg-body').value;
 
+            const selectedCategories = Array.from(document.querySelectorAll('.cat-toggle.is-on'))
+                .map(el => el.dataset.value)
+                .filter(Boolean);
+
+            const categoryLine = selectedCategories.length > 0
+                ? `【カテゴリ】${selectedCategories.join(' / ')}\n\n`
+                : `【カテゴリ】未選択\n\n`;
+            const messageWithCategory = categoryLine + body;
+
             btn.disabled = true;
             btn.textContent = "送信中...";
             status.textContent = "";
 
             try {
-                // バックエンドAPIへPOSTリクエスト
                 const res = await fetch(POST_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -537,7 +728,8 @@
                         action: 'send_message',
                         name: name,
                         email: email,
-                        message: body
+                        message: messageWithCategory,
+                        categories: selectedCategories
                     })
                 });
 
@@ -547,6 +739,12 @@
                     status.textContent = "✅ メッセージを送信しました！";
                     status.style.color = "var(--accent-gold)";
                     document.getElementById('msg-form').reset();
+
+                    document.querySelectorAll('.cat-toggle').forEach(b => {
+                        b.classList.remove('is-on');
+                        b.setAttribute('aria-pressed', 'false');
+                    });
+
                     alert("ありがとうございます。メッセージを受け付けました。");
                 } else {
                     throw new Error(result.message || "送信エラー");
