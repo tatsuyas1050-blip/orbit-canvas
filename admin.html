@@ -251,6 +251,41 @@
         // --- Configuration ---
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
+
+
+        // --- CloudFront settings (audio delivery) ---
+        // NOTE: If you recreate the CloudFront distribution, update the domain below.
+        // CloudFront Origin path is set to "/events". Therefore the CloudFront URL SHOULD NOT include "/events".
+        const CLOUDFRONT_BASE = "https://d1lcefeb8rw1vj.cloudfront.net";
+
+        /**
+         * Convert an S3 object URL to the CloudFront URL.
+         * - Only used for radio (audio) posts.
+         * - If the S3 path starts with /events/, it will be stripped because Origin path=/events already adds it.
+         * - Non-S3 URLs are returned as-is.
+         */
+        function toCloudFrontUrlIfS3(url) {
+            try {
+                const u = new URL(url);
+                const host = (u.hostname || "").toLowerCase();
+
+                const looksLikeS3 =
+                    host.includes(".s3.") ||
+                    host === "s3.amazonaws.com" ||
+                    host.startsWith("s3.") ||
+                    (host.endsWith(".amazonaws.com") && host.includes("s3"));
+
+                if (!looksLikeS3) return url;
+
+                let path = u.pathname || "/";
+                // Origin path=/events 対応: 二重にならないように先頭の /events/ を剥がす
+                path = path.replace(/^\/events\//, "/");
+
+                return `${CLOUDFRONT_BASE}${path}`;
+            } catch (e) {
+                return url;
+            }
+        }
         
         // 音声ファイルのみサイズ制限 (10MB)
         const AUDIO_MAX_SIZE = 10 * 1024 * 1024; 
@@ -520,7 +555,8 @@
             if(fileUrl) {
                 previewArea.style.display = 'block';
                 if (currentTheaterCat === 'radio') {
-                    previewContent.innerHTML = `<audio controls src="${fileUrl}" style="width:100%;"></audio>`;
+                    // 日本語や"#"などを含むURLでもプレビュー再生できるようにエンコードしてから渡す
+                    previewContent.innerHTML = `<audio controls src="${encodeURI(fileUrl)}" style="width:100%;"></audio>`;
                 } else {
                     previewContent.innerHTML = `<img src="${fileUrl}" class="preview-img">`;
                 }
@@ -713,6 +749,12 @@
                 const newFile = await handleFileUpload(document.getElementById('theater-file'), constraint);
                 if(newFile) fileUrl = newFile;
             } catch(err) { alert(err.message); statusMsg.textContent = "エラー"; return; }
+
+            
+            // Radio audio is delivered via CloudFront (S3 direct URLs will 403 with OAC).
+            if (cat === 'radio' && fileUrl) {
+                fileUrl = toCloudFrontUrlIfS3(fileUrl);
+            }
 
             const data = {
                 id: document.getElementById('theater-id').value,

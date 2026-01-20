@@ -71,7 +71,7 @@
         .radio-card {
             background: linear-gradient(180deg, rgba(31, 64, 103, 0.35), rgba(14, 22, 34, 0.35));
             border: 1px solid rgba(255,255,255,0.10);
-            border-radius: 14px;
+            border-radius: 30px;
             padding: 0.85rem 0.95rem;
             display: flex;
             flex-direction: column;
@@ -81,7 +81,7 @@
         }
         .radio-card:hover {
             transform: translateY(-2px);
-            border-color: rgba(212,175,55,0.35);
+            border-color: rgba(43, 91, 140, 0.35);
             box-shadow: 0 12px 26px rgba(0,0,0,0.35);
         }
 
@@ -100,8 +100,8 @@
             color: rgba(216, 236, 255, 0.9);
             padding: 0.18rem 0.55rem;
             border-radius: 999px;
-            border: 1px solid rgba(58, 110, 165, 0.35);
-            background: rgba(10, 16, 26, 0.35);
+            border: 1px solid rgba(217, 203, 73, 0.35);
+            background: rgba(121, 94, 35, 0.488);
         }
         .radio-title {
             flex: 1 1 auto;
@@ -134,10 +134,51 @@
         .radio-card {
             cursor: pointer;
         }
-        .radio-card.is-selected {
-            border-color: rgba(212,175,55,0.45);
-            box-shadow: 0 14px 30px rgba(0,0,0,0.40);
+
+        /* Smooth expand/collapse for selected radio card */
+        .radio-expand {
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: max-height 320ms ease, opacity 220ms ease, transform 220ms ease;
+            pointer-events: none;
         }
+        .radio-expand-inner {
+            padding-top: 0.35rem;
+        }
+        .radio-card.is-selected .radio-expand {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        /* Keyboard focus */
+        .radio-card:focus-visible {
+            outline: 2px solid rgba(212, 175, 55, 0.65);
+            outline-offset: 3px;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .radio-card, .radio-expand {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+        .radio-card.is-selected {
+    background: linear-gradient(
+        180deg,
+        rgba(40, 90, 150, 0.55),
+        rgba(20, 40, 70, 0.55)
+    );
+    border-color: rgba(120, 180, 255, 0.65);
+    box-shadow:
+        0 0 0 1px rgba(120, 180, 255, 0.25),
+        0 16px 34px rgba(0, 0, 0, 0.45);
+}
+
+
         .radio-noaudio {
             margin: 0.15rem 0 0;
             font-size: 0.8rem;
@@ -607,6 +648,8 @@
         
         // ソララジ：選択中の投稿キー（1件だけ再生UIを表示）
         let selectedRadioKey = null;
+        let radioItems = [];
+        let radioItemByKey = new Map();
 // --- タブ切り替え ---
         const tabBtns = document.querySelectorAll('.tab-btn');
         const sections = document.querySelectorAll('.section-content');
@@ -662,7 +705,7 @@
                     }
                 });
 
-                renderRadio(items.filter(i => i.category === 'radio'));
+                initRadio(items.filter(i => i.category === 'radio'));
                 renderGallery(items.filter(i => i.category === 'gallery'));
                 renderDevLog(items.filter(i => i.category === 'devlog'));
                 renderColumn(items.filter(i => i.category === 'column'));
@@ -677,10 +720,14 @@
             }
         }
 
-        function renderRadio(items) {
+        function initRadio(items) {
             const container = document.getElementById('radio-container');
             container.innerHTML = '';
-            if (items.length === 0) {
+
+            radioItems = items || [];
+            radioItemByKey = new Map();
+
+            if (!radioItems || radioItems.length === 0) {
                 container.innerHTML = '<div class="empty-msg">まだ投稿はありません</div>';
                 return;
             }
@@ -688,17 +735,16 @@
             // 1件だけ「選択中」として再生UIを表示（未選択は日付＋タイトルのみ）
             const makeKey = (item) => `${item.date}__${item.title || ''}__${item.image || ''}`;
 
-            items.forEach(item => {
+            radioItems.forEach(item => {
                 const key = makeKey(item);
-                const isSelected = (selectedRadioKey === key);
+                radioItemByKey.set(key, item);
 
                 const div = document.createElement('div');
-                div.className = 'radio-card' + (isSelected ? ' is-selected' : '');
+                div.className = 'radio-card';
+                div.dataset.key = key;
                 div.setAttribute('role', 'button');
                 div.setAttribute('tabindex', '0');
-                div.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
 
-                // 未選択時は「日付＋タイトル」だけ
                 const topHtml = `
                     <div class="radio-top">
                         <span class="radio-date">${item.date}</span>
@@ -706,22 +752,24 @@
                     </div>
                 `;
 
-                // 選択時のみプレイヤーを表示
-                let playerHtml = '';
-                if (isSelected) {
-                    if (item.image) {
-                        playerHtml = `<audio controls src="${item.image}" class="radio-player"></audio>`;
-                    } else {
-                        playerHtml = `<p class="radio-noaudio">音声ファイルがありません</p>`;
-                    }
+                // Expand area (kept in DOM for smooth transition)
+                let expandInner = '';
+                if (item.image) {
+                    expandInner = `<audio controls class="radio-player" preload="none"></audio>`;
+                } else {
+                    expandInner = `<p class="radio-noaudio">音声ファイルがありません</p>`;
                 }
 
-                div.innerHTML = topHtml + playerHtml;
+                div.innerHTML = topHtml + `
+                    <div class="radio-expand" aria-hidden="true">
+                        <div class="radio-expand-inner">${expandInner}</div>
+                    </div>
+                `;
 
-                // クリック/Enter/Space で選択切り替え
+                // Click / keyboard toggle
                 const toggleSelect = () => {
                     selectedRadioKey = (selectedRadioKey === key) ? null : key;
-                    renderRadio(items);
+                    updateRadioSelection();
                 };
 
                 div.addEventListener('click', (e) => {
@@ -729,6 +777,7 @@
                     if (e.target && (e.target.tagName === 'AUDIO' || e.target.closest('audio'))) return;
                     toggleSelect();
                 });
+
                 div.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
@@ -740,9 +789,60 @@
                 const audio = div.querySelector('audio');
                 if (audio) {
                     audio.addEventListener('click', (e) => e.stopPropagation());
+                    audio.addEventListener('keydown', (e) => e.stopPropagation());
                 }
 
                 container.appendChild(div);
+            });
+
+            updateRadioSelection();
+        }
+
+        function updateRadioSelection() {
+            const container = document.getElementById('radio-container');
+            const cards = Array.from(container.querySelectorAll('.radio-card'));
+
+            cards.forEach(card => {
+                const key = card.dataset.key;
+                const item = radioItemByKey.get(key);
+                const isSelected = (selectedRadioKey === key);
+
+                card.classList.toggle('is-selected', isSelected);
+                card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+
+                // Expand/collapse smoothly by animating max-height to content height
+                const expand = card.querySelector('.radio-expand');
+                if (expand) {
+                    if (isSelected) {
+                        expand.setAttribute('aria-hidden', 'false');
+                        // Ensure height is measured after any content changes
+                        requestAnimationFrame(() => {
+                            expand.style.maxHeight = expand.scrollHeight + 'px';
+                        });
+                    } else {
+                        expand.setAttribute('aria-hidden', 'true');
+                        expand.style.maxHeight = '0px';
+                    }
+                }
+
+                // Manage audio src only for selected to avoid unnecessary loading
+                const audio = card.querySelector('audio.radio-player');
+                if (audio) {
+                    if (isSelected && item && item.image) {
+                        const nextSrc = encodeURI(item.image);
+                        if (audio.getAttribute('src') !== nextSrc) {
+                            audio.setAttribute('src', nextSrc);
+                            audio.load();
+                        }
+                    } else {
+                        // Stop and unload
+                        try { audio.pause(); } catch (e) {}
+                        if (audio.getAttribute('src')) {
+                            audio.removeAttribute('src');
+                            audio.load();
+                        }
+                    }
+                }
             });
         }
 
