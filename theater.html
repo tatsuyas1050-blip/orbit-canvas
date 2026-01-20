@@ -126,9 +126,15 @@
             color-scheme: dark;
             accent-color: var(--accent-gold);
         }
-        audio.radio-player:focus {
-            outline: 2px solid rgba(212, 175, 55, 0.55);
-            outline-offset: 2px;
+        /*
+           Remove focus rings around the native audio controls.
+           (Tapping play/scrubber can show a gold outline on mobile/desktop.)
+        */
+        audio.radio-player:focus,
+        audio.radio-player:focus-visible {
+            outline: none !important;
+            outline-offset: 0 !important;
+            box-shadow: none !important;
         }
 
         .radio-card {
@@ -153,10 +159,14 @@
             pointer-events: auto;
         }
 
-        /* Keyboard focus */
-        .radio-card:focus-visible {
-            outline: 2px solid rgba(212, 175, 55, 0.65);
-            outline-offset: 3px;
+        /* Remove focus rings for card/buttons as requested */
+        .radio-card:focus,
+        .radio-card:focus-visible,
+        .tab-btn:focus,
+        .tab-btn:focus-visible {
+            outline: none !important;
+            outline-offset: 0 !important;
+            box-shadow: none !important;
         }
 
         /* Reduced motion */
@@ -197,6 +207,33 @@
             filter: drop-shadow(0 0 6px rgba(216, 236, 255, 0.20));
         }
 
+
+
+        /* --- Mobile: iPhone/Safari audio controls cleanup (no bg/border) --- */
+        @media (max-width: 768px), (hover: none) and (pointer: coarse) {
+            /* Remove the outer box behind play button / scrubber on mobile */
+            audio.radio-player {
+                border: none !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+            /* iOS/Safari sometimes paints a panel background inside the native controls */
+            audio.radio-player::-webkit-media-controls-enclosure,
+            audio.radio-player::-webkit-media-controls-panel {
+                background: transparent !important;
+                background-color: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+            }
+            /* Remove tap highlight flash on iOS */
+            audio.radio-player,
+            .radio-card,
+            .tab-btn {
+                -webkit-tap-highlight-color: transparent;
+            }
+        }
         /* --- 2. Live Styles --- */
         .live-frame {
             width: 100%; aspect-ratio: 16 / 9;
