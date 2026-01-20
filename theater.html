@@ -570,14 +570,19 @@
                 let items = [];
                 const targets = ['radio', 'gallery', 'devlog', 'column'];
 
-                Object.keys(allData).forEach(date => {
-                    allData[date].forEach(item => {
+                // 日付キーを「新しい日付 → 古い日付」に並べ替え
+                const dates = Object.keys(allData).sort((a, b) => new Date(b) - new Date(a));
+
+                // 同じ日付内は「配列の後ろ（最新）→前（古い）」の順で詰める
+                dates.forEach(date => {
+                    const arr = allData[date] || [];
+                    for (let i = arr.length - 1; i >= 0; i--) {
+                        const item = arr[i];
                         if (item.category && targets.includes(item.category)) {
                             items.push({ ...item, date: date });
                         }
-                    });
+                    }
                 });
-                items.sort((a, b) => new Date(b.date) - new Date(a.date));
 
                 renderRadio(items.filter(i => i.category === 'radio'));
                 renderGallery(items.filter(i => i.category === 'gallery'));
