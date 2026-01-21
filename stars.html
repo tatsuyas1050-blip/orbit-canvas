@@ -37,6 +37,12 @@
 
     <div class="ui-layer">
         <a href="/" class="glass-back-btn">トップへ戻る</a>
+
+        <!-- ★ 追加：上部ジャイロ切替アイコン（スマホのみ表示：CSS側で制御） -->
+        <button id="gyro-icon-btn" class="gyro-icon-btn off" aria-label="ジャイロ切替">
+            <!-- ※ このパスは運用側に合わせてください（例：assets/img/on_icon.png / off_icon.png） -->
+            <img id="gyro-icon-img" src="assets/img/off_icon.png" alt="gyro toggle">
+        </button>
         
         <div id="screen-clock" class="pc-only-clock">----/--/-- --:--</div>
 

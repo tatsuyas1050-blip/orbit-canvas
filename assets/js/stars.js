@@ -415,6 +415,31 @@ function setControlsEnabledForCurrentMode() {
     controls.enabled = (state.viewControlMode !== 'gyro');
 }
 
+
+function updateGyroUI() {
+    const btnMobileGyro = document.getElementById('btn-mobile-gyro');
+
+    const gyroIconBtn = document.getElementById('gyro-icon-btn');
+    const gyroIconImg = document.getElementById('gyro-icon-img');
+    const iconBtn = document.getElementById('gyro-icon-btn');
+    const iconImg = document.getElementById('gyro-icon-img');
+
+    const isOn = (state.viewControlMode === 'gyro' && state.gyroEnabled);
+
+    if (btnMobileGyro) btnMobileGyro.classList.toggle('active', isOn);
+
+    if (iconBtn) {
+        iconBtn.classList.toggle('on', isOn);
+        iconBtn.classList.toggle('off', !isOn);
+        iconBtn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+    }
+
+    if (iconImg) {
+        // ※実際の画像パスは運用側に合わせてください
+        iconImg.src = isOn ? 'assets/img/on_icon.png' : 'assets/img/off_icon.png';
+    }
+}
+
 async function setViewControlMode(mode) {
     state.viewControlMode = mode;
 
@@ -462,15 +487,14 @@ async function setViewControlMode(mode) {
                     alert('この端末/ブラウザでは「北基準の方位（コンパス）」が取得できないため、ジャイロは相対モード（ON時基準）で動作します。端末のコンパス許可/設定、HTTPS配信をご確認ください。');
                 }
             }
-
-            if (btnMobileGyro) btnMobileGyro.classList.add('active');
+            updateGyroUI();
         } catch (e) {
             state.gyroEnabled = false;
             state.gyroHasOffset = false;
             state.gyroIsAbsolute = false;
             stopGyro();
             if (controls) setControlsEnabledForCurrentMode();
-            if (btnMobileGyro) btnMobileGyro.classList.remove('active');
+            updateGyroUI();
 
             alert('ジャイロを有効化できませんでした（ブラウザ設定/HTTPS/許可をご確認ください）');
             state.viewControlMode = 'touch';
@@ -482,7 +506,7 @@ async function setViewControlMode(mode) {
         state.gyroIsAbsolute = false;
         stopGyro();
         if (controls) setControlsEnabledForCurrentMode();
-        if (btnMobileGyro) btnMobileGyro.classList.remove('active');
+            updateGyroUI();
     }
 
     setControlsEnabledForCurrentMode();
@@ -551,6 +575,64 @@ function injectCustomStyles() {
                 font-size: 1.0rem; padding: 10px 40px;
                 background: radial-gradient(ellipse at center, rgba(5, 10, 20, 0.95) 0%, rgba(5, 10, 20, 0.6) 30%, rgba(5, 10, 20, 0) 70%);
             }
+        }
+
+        /* --- ジャイロ切替アイコン（上部） --- */
+        #gyro-icon-btn {
+            position: absolute;
+            z-index: 6000;
+            left: 16px;
+            top: calc(env(safe-area-inset-top, 0px) + 60px);
+            width: 46px;
+            height: 46px;
+            padding: 0;
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 999px;
+            background: rgba(5, 10, 20, 0.55);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: none; /* PCは非表示、スマホのみ */
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.12s ease, opacity 0.2s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        #gyro-icon-btn img {
+            width: 28px;
+            height: 28px;
+            display: block;
+            pointer-events: none;
+            transition: filter 0.25s ease, opacity 0.25s ease;
+        }
+        #gyro-icon-btn::before {
+            content: "";
+            position: absolute;
+            inset: -10px;
+            border-radius: 999px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+            background: radial-gradient(circle, rgba(120, 190, 255, 0.55) 0%, rgba(120, 190, 255, 0.18) 35%, rgba(120, 190, 255, 0.0) 70%);
+        }
+        #gyro-icon-btn.on {
+            border-color: rgba(120, 190, 255, 0.65);
+            box-shadow: 0 0 16px rgba(120, 190, 255, 0.35), inset 0 0 12px rgba(120, 190, 255, 0.12);
+        }
+        #gyro-icon-btn.on::before { opacity: 1; }
+        #gyro-icon-btn.on img {
+            filter: drop-shadow(0 0 8px rgba(120, 190, 255, 0.9)) drop-shadow(0 0 14px rgba(120, 190, 255, 0.55));
+            opacity: 1;
+        }
+        #gyro-icon-btn.off img {
+            filter: grayscale(1) brightness(0.85);
+            opacity: 0.7;
+        }
+        #gyro-icon-btn:active { transform: scale(0.94); }
+
+        /* 既存の画面下「ジャイロ」ボタンは非表示（ロジックは残す） */
+        @media (max-width: 900px) {
+            #btn-mobile-gyro { display: none !important; }
+            #gyro-icon-btn { display: flex; }
         }
     `;
     document.head.appendChild(style);
@@ -955,13 +1037,26 @@ function setupUI() {
     btnMobileSunlight.addEventListener('click', toggleSunlight);
     btnMobileSunlight.classList.add('active');
 
-    // --- スマホ「ジャイロ」ボタン（タッチ/ジャイロ切替） ---
+    // --- ジャイロ切替（タッチ/ジャイロ） ---
+    const toggleGyro = async () => {
+        const next = (state.viewControlMode === 'gyro') ? 'touch' : 'gyro';
+        await setViewControlMode(next);
+        updateGyroUI();
+    };
+
+    // 既存のスマホ下部ボタン（非表示だがロジックは残す）
     if (btnMobileGyro) {
-        btnMobileGyro.addEventListener('click', async () => {
-            const next = (state.viewControlMode === 'gyro') ? 'touch' : 'gyro';
-            await setViewControlMode(next);
-        });
+        btnMobileGyro.addEventListener('click', toggleGyro);
     }
+
+    // 追加：上部アイコンボタン
+    const gyroIconBtn = document.getElementById('gyro-icon-btn');
+    if (gyroIconBtn) {
+        gyroIconBtn.addEventListener('click', toggleGyro);
+    }
+
+    // 初期表示の整合
+    updateGyroUI();
 
 
     const updateLocation = (rawLat, rawLon) => {
