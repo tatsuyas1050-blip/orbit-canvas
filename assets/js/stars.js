@@ -104,7 +104,11 @@ const state = {
 viewControlMode: 'touch',   // 'touch' | 'gyro'
 gyroEnabled: false,
 gyroPermissionGranted: false,
-gyroSlerp: 0.15
+gyroSlerp: 0.15,
+
+    // ジャイロ基準合わせ（ON時の視点に合わせるオフセット）
+    gyroOffset: new THREE.Quaternion(),
+    gyroHasOffset: false
 
 };
 
@@ -271,28 +275,54 @@ function getScreenOrientationAngleDeg() {
     return 0;
 }
 
-function applyGyroToCamera() {
-    if (!_lastDeviceEvent) return;
-
-    const alpha = THREE.MathUtils.degToRad(_lastDeviceEvent.alpha); // z
-    const beta  = THREE.MathUtils.degToRad(_lastDeviceEvent.beta);  // x
-    const gamma = THREE.MathUtils.degToRad(_lastDeviceEvent.gamma); // y
+function gyroEventToQuaternion(e, outQuat) {
+    // alpha(z), beta(x), gamma(y) をラジアンへ
+    const alpha = THREE.MathUtils.degToRad(e.alpha);
+    const beta  = THREE.MathUtils.degToRad(e.beta);
+    const gamma = THREE.MathUtils.degToRad(e.gamma);
 
     // スクリーン回転補正
     const so = THREE.MathUtils.degToRad(getScreenOrientationAngleDeg());
 
-    // 端末姿勢→カメラ姿勢（近い感覚になる順序）
+    // 端末姿勢→クォータニオン（近い感覚になる順序）
     // beta(x), alpha(z), -gamma(y) を YXZ として適用
     _gyroEuler.set(beta, alpha, -gamma, 'YXZ');
-    _gyroQuat.setFromEuler(_gyroEuler);
+    outQuat.setFromEuler(_gyroEuler);
 
     _gyroQuatScreen.setFromAxisAngle(_gyroZAxis, -so);
-    _gyroQuat.multiply(_gyroQuatScreen);
+    outQuat.multiply(_gyroQuatScreen);
 
-    // 必要なら反転補正（端末向きが逆に感じた場合に使う）
-    // _gyroQuat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
+    return outQuat.normalize();
+}
 
-    camera.quaternion.slerp(_gyroQuat, state.gyroSlerp);
+async function calibrateGyroToCurrentView() {
+    if (!_lastDeviceEvent) return false;
+
+    // 現在のジャイロ姿勢
+    const qGyro0 = gyroEventToQuaternion(_lastDeviceEvent, new THREE.Quaternion());
+
+    // 現在のカメラ姿勢（見た目を維持したい）
+    const qCam0 = camera.quaternion.clone();
+
+    // offset = qCam0 * inverse(qGyro0)
+    const invGyro0 = qGyro0.clone().invert();
+    state.gyroOffset.copy(qCam0.multiply(invGyro0)).normalize();
+    state.gyroHasOffset = true;
+    return true;
+}
+
+function applyGyroToCamera() {
+    if (!_lastDeviceEvent) return;
+    if (!state.gyroHasOffset) return;
+
+    // その瞬間のジャイロ姿勢
+    gyroEventToQuaternion(_lastDeviceEvent, _gyroQuat);
+
+    // 視点オフセットを適用して、ON時の見た目を基準にする
+    const qTarget = _gyroQuat.clone();
+    qTarget.premultiply(state.gyroOffset).normalize();
+
+    camera.quaternion.slerp(qTarget, state.gyroSlerp);
 }
 
 function setControlsEnabledForCurrentMode() {
@@ -322,12 +352,20 @@ async function setViewControlMode(mode) {
             startGyro();
             state.gyroEnabled = true;
 
+
+            // ジャイロON時に「今見ている方向」を基準にする（北へ吸い寄せられるズレ対策）
+            state.gyroHasOffset = false;
+            for (let i = 0; i < 20; i++) {
+                await new Promise(r => setTimeout(r, 16)); // 最大 ~20フレーム待つ
+                if (await calibrateGyroToCurrentView()) break;
+            }
             setControlsEnabledForCurrentMode();
             if (btnMobileGyro) btnMobileGyro.classList.add('active');
         } catch (e) {
             // 許可NG/非対応
             state.gyroEnabled = false;
-            stopGyro();
+        stopGyro();
+        state.gyroHasOffset = false;
 
             state.viewControlMode = 'touch';
             setControlsEnabledForCurrentMode();
@@ -339,6 +377,7 @@ async function setViewControlMode(mode) {
         // touch
         state.gyroEnabled = false;
         stopGyro();
+        state.gyroHasOffset = false;
 
         setControlsEnabledForCurrentMode();
         if (btnMobileGyro) btnMobileGyro.classList.remove('active');
