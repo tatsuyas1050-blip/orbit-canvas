@@ -132,7 +132,8 @@ function init() {
     scene.background = new THREE.Color(CONFIG.bgColor);
     scene.fog = new THREE.FogExp2(CONFIG.bgColor, 0.0008); 
 
-    camera = new THREE.PerspectiveCamera(CONFIG.cameraFov, window.innerWidth / window.innerHeight, 1, 20000);
+    camera = new THREE.PerspectiveCamera(CONFIG.maxFov, window.innerWidth / window.innerHeight, 1, 20000);
+    
     const initialAlt = 15 * (Math.PI / 180);
     const dist = 1.0;
     camera.position.set(0, -Math.sin(initialAlt) * dist, -Math.cos(initialAlt) * dist);
@@ -1481,7 +1482,7 @@ function createStarPoints(type, data, parentGroup) {
         uniforms: {
             pointTexture: { value: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/spark1.png') },
             magLimit: { value: state.magLimit }, 
-            uTime: { value: 0.0 }, uFov: { value: CONFIG.cameraFov } 
+            uTime: { value: 0.0 }, uFov: { value: (camera ? camera.fov : CONFIG.cameraFov) } 
         },
         vertexShader: `
             attribute float size; attribute vec3 color; attribute float aMagnitude;
