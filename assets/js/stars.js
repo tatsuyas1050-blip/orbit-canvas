@@ -100,15 +100,21 @@ const state = {
     // ピンチズーム用
     pinchStartDist: 0,
     pinchStartFov: 0,
-// 視点操作モード（スマホで切替可能）
-viewControlMode: 'touch',   // 'touch' | 'gyro'
-gyroEnabled: false,
-    // ジャイロ較正用（ON時の視点に合わせる）
+    // --- 視点操作モード ---
+    viewControlMode: 'touch',   // 'touch' | 'gyro'
+    gyroEnabled: false,
+    gyroPermissionGranted: false,
+    gyroPreferAbsolute: true,   // 可能なら北基準（absolute）を優先
+    gyroIsAbsolute: false,      // 現在のイベントが北基準を提供できているか
+    gyroFallbackWarned: false,  // 相対フォールバック警告の多重表示防止
+
+    // ジャイロ用スムージング
+    gyroSlerp: 0.15,
+
+    // 相対フォールバック用（absoluteが取れない端末向け）
     gyroOffset: new THREE.Quaternion(),
     gyroHasOffset: false,
 
-gyroPermissionGranted: false,
-gyroSlerp: 0.15
 
 };
 
@@ -219,24 +225,79 @@ function onTouchEnd(e) {
     }
 }
 
-// --- ジャイロ(デバイス姿勢)制御 ---
-// 注意: iOS Safariではユーザー操作をトリガーに許可要求が必要です。
 
-let _onDeviceOrientation = null;
-let _lastDeviceEvent = null;
-
-// GC削減用の一時変数
-const _gyroEuler = new THREE.Euler();
-const _gyroQuat = new THREE.Quaternion();
-const _gyroQuatScreen = new THREE.Quaternion();
-const _gyroZAxis = new THREE.Vector3(0, 0, 1);
+// ------------------------------------------------------------
+// ジャイロ（端末の向き＝視点の向き）制御
+// - 可能なら北基準（absolute / webkitCompassHeading）で「実際に向けている方向」を反映
+// - 取得できない端末では、相対（ON時基準）にフォールバック（仕様制約）
+// ------------------------------------------------------------
 
 function isMobileDevice() {
     return window.innerWidth <= 900;
 }
 
+let _onDeviceOrientation = null;
+let _lastDeviceEvent = null;
+
+// DeviceOrientationControls（three.js）由来の変換を最小実装
+const _zee = new THREE.Vector3(0, 0, 1);
+const _eulerDO = new THREE.Euler();
+const _q0 = new THREE.Quaternion();
+const _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -PI/2 around X
+
+function _getScreenOrientationRad() {
+    const angle =
+        (screen.orientation && typeof screen.orientation.angle === 'number')
+            ? screen.orientation.angle
+            : (typeof window.orientation === 'number' ? window.orientation : 0);
+    return THREE.MathUtils.degToRad(angle);
+}
+
+// iOS Safari: webkitCompassHeading (0=N, 90=E...) が取れる場合はこれを優先。
+// alpha は定義上の向きが異なるため、iOSは 360 - heading へ変換する。
+function _getHeadingDegFromEvent(e) {
+    if (typeof e.webkitCompassHeading === 'number') {
+        return 360 - e.webkitCompassHeading; // iOS向け補正
+    }
+    if (e.absolute === true && typeof e.alpha === 'number') {
+        return e.alpha; // absolute true の alpha は北基準になり得る
+    }
+    return null;
+}
+
+function _hasAbsoluteHeading(e) {
+    return (typeof e?.webkitCompassHeading === 'number') || (e?.absolute === true);
+}
+
+function setObjectQuaternionFromDevice(quaternion, alphaRad, betaRad, gammaRad, orientRad) {
+    // Z-X'-Y''（YXZ）で組む
+    _eulerDO.set(betaRad, alphaRad, -gammaRad, 'YXZ');
+    quaternion.setFromEuler(_eulerDO);
+    quaternion.multiply(_q1);
+    quaternion.multiply(_q0.setFromAxisAngle(_zee, -orientRad));
+    return quaternion.normalize();
+}
+
+function deviceEventToQuaternion(e) {
+    if (!e || e.alpha == null || e.beta == null || e.gamma == null) return null;
+
+    const orient = _getScreenOrientationRad();
+
+    // 可能なら北基準（absolute）を使用
+    const headingDeg = _getHeadingDegFromEvent(e);
+    const alphaDeg = (headingDeg != null) ? headingDeg : e.alpha;
+
+    const alphaRad = THREE.MathUtils.degToRad(alphaDeg);
+    const betaRad = THREE.MathUtils.degToRad(e.beta);
+    const gammaRad = THREE.MathUtils.degToRad(e.gamma);
+
+    const q = new THREE.Quaternion();
+    setObjectQuaternionFromDevice(q, alphaRad, betaRad, gammaRad, orient);
+    return q;
+}
+
 async function requestGyroPermissionIfNeeded() {
-    // iOS 13+ Safari: DeviceOrientationEvent.requestPermission が必要
+    // iOS 13+ Safari
     if (typeof DeviceOrientationEvent !== 'undefined' &&
         typeof DeviceOrientationEvent.requestPermission === 'function') {
         const res = await DeviceOrientationEvent.requestPermission();
@@ -263,49 +324,16 @@ function stopGyro() {
     _lastDeviceEvent = null;
 }
 
-function getScreenOrientationAngleDeg() {
-    // screen.orientation.angle が使える環境を優先
-    if (screen.orientation && typeof screen.orientation.angle === 'number') {
-        return screen.orientation.angle;
-    }
-    // iOS Safariの旧API
-    if (typeof window.orientation === 'number') {
-        return window.orientation;
-    }
-    return 0;
-}
-
-function gyroEventToQuaternion(e) {
-    const a = THREE.MathUtils.degToRad(e.alpha);
-    const b = THREE.MathUtils.degToRad(e.beta);
-    const g = THREE.MathUtils.degToRad(e.gamma);
-
-    const screenOrientation =
-        (screen.orientation && typeof screen.orientation.angle === 'number')
-            ? screen.orientation.angle
-            : (typeof window.orientation === 'number' ? window.orientation : 0);
-    const so = THREE.MathUtils.degToRad(screenOrientation);
-
-    const euler = new THREE.Euler(b, a, -g, 'YXZ');
-    const q = new THREE.Quaternion().setFromEuler(euler);
-
-    // 画面回転補正
-    const qScreen = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(0, 0, 1), -so
-    );
-    q.multiply(qScreen);
-
-    return q.normalize();
-}
-
+// 絶対方位が取れない端末向け：ON時の向きを基準にするフォールバック
 async function calibrateGyroToCurrentView() {
     if (!_lastDeviceEvent) return false;
 
-    const qGyro0 = gyroEventToQuaternion(_lastDeviceEvent);
-    const qCam0 = camera.quaternion.clone();
+    const qGyro0 = deviceEventToQuaternion(_lastDeviceEvent);
+    if (!qGyro0) return false;
 
-    // offset = qCam0 * inverse(qGyro0)
+    const qCam0 = camera.quaternion.clone();
     const invGyro0 = qGyro0.clone().invert();
+
     state.gyroOffset = qCam0.multiply(invGyro0).normalize();
     state.gyroHasOffset = true;
     return true;
@@ -314,27 +342,34 @@ async function calibrateGyroToCurrentView() {
 function applyGyroToCamera() {
     if (!_lastDeviceEvent) return;
 
-    const qGyro = gyroEventToQuaternion(_lastDeviceEvent);
+    const qGyro = deviceEventToQuaternion(_lastDeviceEvent);
+    if (!qGyro) return;
 
-    // offset 未確定の間は反映しない（ON直後の吸い寄せを防ぐ）
+    // 絶対方位が取れるなら、そのまま端末向き＝視点向きにする（時間に依存しない）
+    if (state.gyroIsAbsolute) {
+        camera.quaternion.slerp(qGyro, state.gyroSlerp);
+        return;
+    }
+
+    // 取れない場合は相対にフォールバック
     if (!state.gyroHasOffset) return;
-
     const qTarget = state.gyroOffset.clone().multiply(qGyro).normalize();
-
-    // 平滑化（好み）
     camera.quaternion.slerp(qTarget, state.gyroSlerp);
 }
 
 function setControlsEnabledForCurrentMode() {
     if (!controls) return;
+
     // メニューが開いているときは常に無効
     const navOverlay = document.getElementById('nav-overlay');
     const menuOpen = navOverlay && navOverlay.classList.contains('open');
     if (menuOpen) {
-        controls.enabled = false;
+        setControlsEnabledForCurrentMode();
         return;
     }
-    controls.enabled = (state.viewControlMode === 'touch');
+
+    // ジャイロ中は OrbitControls を無効、それ以外は有効
+    controls.enabled = (state.viewControlMode !== 'gyro');
 }
 
 async function setViewControlMode(mode) {
@@ -352,36 +387,56 @@ async function setViewControlMode(mode) {
             startGyro();
             state.gyroEnabled = true;
 
-            
-      // ジャイロON時に「今見ている方向」を基準に較正する
-      state.gyroHasOffset = false;
-      for (let i = 0; i < 20; i++) {           // 最大 ~20フレーム待つ
-        await new Promise(r => setTimeout(r, 16));
-        if (await calibrateGyroToCurrentView()) break;
-      }
-setControlsEnabledForCurrentMode();
+            // タッチ回転は止める（ピンチズーム等の既存タッチ処理は独立のため影響なし）
+            if (controls) setControlsEnabledForCurrentMode();
+
+            // 最初のイベントを待って absolute か判定
+            state.gyroIsAbsolute = false;
+            for (let i = 0; i < 20; i++) {
+                await new Promise(r => setTimeout(r, 16));
+                if (_lastDeviceEvent) {
+                    state.gyroIsAbsolute = _hasAbsoluteHeading(_lastDeviceEvent);
+                    break;
+                }
+            }
+
+            // absolute が取れない場合のみ相対フォールバック
+            state.gyroHasOffset = false;
+            if (!state.gyroIsAbsolute) {
+                for (let i = 0; i < 20; i++) {
+                    await new Promise(r => setTimeout(r, 16));
+                    if (await calibrateGyroToCurrentView()) break;
+                }
+                if (!state.gyroFallbackWarned) {
+                    state.gyroFallbackWarned = true;
+                    alert('この端末/ブラウザでは「北基準の方位（コンパス）」が取得できないため、ジャイロは相対モード（ON時基準）で動作します。端末のコンパス許可/設定、HTTPS配信をご確認ください。');
+                }
+            }
+
             if (btnMobileGyro) btnMobileGyro.classList.add('active');
         } catch (e) {
-            // 許可NG/非対応
             state.gyroEnabled = false;
+            state.gyroHasOffset = false;
+            state.gyroIsAbsolute = false;
             stopGyro();
-
-            state.viewControlMode = 'touch';
-            setControlsEnabledForCurrentMode();
-
+            if (controls) setControlsEnabledForCurrentMode();
             if (btnMobileGyro) btnMobileGyro.classList.remove('active');
-            alert('ジャイロを有効化できませんでした（ブラウザの許可/HTTPS/対応状況をご確認ください）');
+
+            alert('ジャイロを有効化できませんでした（ブラウザ設定/HTTPS/許可をご確認ください）');
+            state.viewControlMode = 'touch';
         }
     } else {
         // touch
         state.gyroEnabled = false;
+        state.gyroHasOffset = false;
+        state.gyroIsAbsolute = false;
         stopGyro();
-
-        setControlsEnabledForCurrentMode();
+        if (controls) setControlsEnabledForCurrentMode();
         if (btnMobileGyro) btnMobileGyro.classList.remove('active');
     }
-}
 
+    setControlsEnabledForCurrentMode();
+}
 
 function createStarNameDisplay() {
     if (document.getElementById('selected-star-name-display')) return;
@@ -495,10 +550,11 @@ function setupUI() {
     const btnMobileLabels = document.getElementById('btn-mobile-labels');
     const btnMobileGrid = document.getElementById('btn-mobile-grid');
     const btnMobileSunlight = document.getElementById('btn-mobile-sunlight'); 
-    const btnMobileGyro = document.getElementById('btn-mobile-gyro');
     const btnMobileNow = document.getElementById('btn-mobile-now');
     const btnMobileTonight = document.getElementById('btn-mobile-tonight');
     const btnMobileLocation = document.getElementById('btn-mobile-location'); 
+
+    const btnMobileGyro = document.getElementById('btn-mobile-gyro');
 
     if (magSlider) magSlider.value = state.magLimit;
     if (mobileMagSlider) mobileMagSlider.value = state.magLimit;
@@ -512,7 +568,7 @@ function setupUI() {
             menuToggle.classList.toggle('active');
             navOverlay.classList.toggle('open');
             if (navOverlay.classList.contains('open')) {
-                if (controls) controls.enabled = false;
+                setControlsEnabledForCurrentMode();
             } else {
                 setControlsEnabledForCurrentMode();
             }
@@ -686,15 +742,6 @@ function setupUI() {
     btnMobileTonight.addEventListener('click', setTonight);
     btnMobileNow.addEventListener('click', setNow);
 
-// --- スマホ: 視点操作モード切替（タッチ/ジャイロ） ---
-if (btnMobileGyro) {
-    btnMobileGyro.addEventListener('click', async () => {
-        const next = (state.viewControlMode === 'gyro') ? 'touch' : 'gyro';
-        await setViewControlMode(next);
-    });
-    btnMobileGyro.classList.toggle('active', state.viewControlMode === 'gyro');
-}
-
     const btnGrid = document.getElementById('btn-grid');
     const toggleGrid = () => {
         state.gridVisible = !state.gridVisible;
@@ -857,6 +904,15 @@ if (btnMobileGyro) {
     if(pcSunlightBtn) pcSunlightBtn.addEventListener('click', toggleSunlight);
     btnMobileSunlight.addEventListener('click', toggleSunlight);
     btnMobileSunlight.classList.add('active');
+
+    // --- スマホ「ジャイロ」ボタン（タッチ/ジャイロ切替） ---
+    if (btnMobileGyro) {
+        btnMobileGyro.addEventListener('click', async () => {
+            const next = (state.viewControlMode === 'gyro') ? 'touch' : 'gyro';
+            await setViewControlMode(next);
+        });
+    }
+
 
     const updateLocation = (rawLat, rawLon) => {
         let displayLat = Math.max(-90, Math.min(90, rawLat));
