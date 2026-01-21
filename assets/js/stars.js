@@ -116,6 +116,10 @@ const state = {
     gyroHasOffset: false,
 
 
+    // コンパス（北基準）のオフセットを「ONした瞬間だけ」取得して以後固定（ジッタ低減）
+    gyroCompassLocked: false,
+    gyroCompassOffsetDeg: 0,
+
 };
 
 function init() {
@@ -269,6 +273,28 @@ function _hasAbsoluteHeading(e) {
     return (typeof e?.webkitCompassHeading === 'number') || (e?.absolute === true);
 }
 
+
+function _normalizeDeg360(d) {
+    let x = d % 360;
+    if (x < 0) x += 360;
+    return x;
+}
+
+// コンパス値（webkitCompassHeading）を使って、alpha（ジャイロ）に対する北基準オフセットを1回だけ決める。
+// 以後は alpha + offset で北基準の見かけ方位を作り、webkitCompassHeadingは参照しない（ジッタ低減）。
+function lockCompassOffsetOnce(e) {
+    if (state.gyroCompassLocked) return false;
+    if (typeof e?.webkitCompassHeading !== 'number') return false;
+    if (typeof e?.alpha !== 'number') return false;
+
+    const headingDeg = 360 - e.webkitCompassHeading; // iOS補正（0=N）
+    const alphaDeg = e.alpha;
+
+    state.gyroCompassOffsetDeg = _normalizeDeg360(headingDeg - alphaDeg);
+    state.gyroCompassLocked = true;
+    return true;
+}
+
 function setObjectQuaternionFromDevice(quaternion, alphaRad, betaRad, gammaRad, orientRad) {
     // Z-X'-Y''（YXZ）で組む
     _eulerDO.set(betaRad, alphaRad, -gammaRad, 'YXZ');
@@ -283,9 +309,26 @@ function deviceEventToQuaternion(e) {
 
     const orient = _getScreenOrientationRad();
 
-    // 可能なら北基準（absolute）を使用
-    const headingDeg = _getHeadingDegFromEvent(e);
-    const alphaDeg = (headingDeg != null) ? headingDeg : e.alpha;
+    // 方位（ヨー）の決め方：
+    // 1) コンパスON直後にロックしたオフセットがあれば alpha + offset で北基準にする（以後コンパス参照しない）
+    // 2) まだロックしておらず webkitCompassHeading が取れるなら、それを一度だけロックして同様に扱う
+    // 3) e.absolute === true の場合は alpha を北基準として扱う
+    // 4) それ以外は alpha（相対）をそのまま使う（フォールバック）
+    let alphaDeg;
+    if (state.gyroCompassLocked) {
+        alphaDeg = _normalizeDeg360(e.alpha + state.gyroCompassOffsetDeg);
+    } else if (typeof e.webkitCompassHeading === 'number') {
+        lockCompassOffsetOnce(e);
+        if (state.gyroCompassLocked) {
+            alphaDeg = _normalizeDeg360(e.alpha + state.gyroCompassOffsetDeg);
+        } else {
+            alphaDeg = 360 - e.webkitCompassHeading;
+        }
+    } else if (e.absolute === true && typeof e.alpha === 'number') {
+        alphaDeg = e.alpha;
+    } else {
+        alphaDeg = e.alpha;
+    }
 
     const alphaRad = THREE.MathUtils.degToRad(alphaDeg);
     const betaRad = THREE.MathUtils.degToRad(e.beta);
@@ -387,7 +430,11 @@ async function setViewControlMode(mode) {
             startGyro();
             state.gyroEnabled = true;
 
-            // タッチ回転は止める（ピンチズーム等の既存タッチ処理は独立のため影響なし）
+            
+            // 毎回ONするたびに「その瞬間だけ」方位（コンパス）を再取得する
+            state.gyroCompassLocked = false;
+            state.gyroCompassOffsetDeg = 0;
+// タッチ回転は止める（ピンチズーム等の既存タッチ処理は独立のため影響なし）
             if (controls) setControlsEnabledForCurrentMode();
 
             // 最初のイベントを待って absolute か判定
@@ -395,7 +442,10 @@ async function setViewControlMode(mode) {
             for (let i = 0; i < 20; i++) {
                 await new Promise(r => setTimeout(r, 16));
                 if (_lastDeviceEvent) {
-                    state.gyroIsAbsolute = _hasAbsoluteHeading(_lastDeviceEvent);
+                    if (typeof _lastDeviceEvent.webkitCompassHeading === 'number') {
+                        lockCompassOffsetOnce(_lastDeviceEvent);
+                    }
+                    state.gyroIsAbsolute = _hasAbsoluteHeading(_lastDeviceEvent) || state.gyroCompassLocked;
                     break;
                 }
             }
