@@ -106,10 +106,6 @@ gyroEnabled: false,
     // ジャイロ較正用（ON時の視点に合わせる）
     gyroOffset: new THREE.Quaternion(),
     gyroHasOffset: false,
-    // モード切替時に元のカメラ姿勢を復帰するため
-    touchCameraPos: new THREE.Vector3(),
-    touchCameraQuat: new THREE.Quaternion(),
-
 
 gyroPermissionGranted: false,
 gyroSlerp: 0.15
@@ -229,141 +225,104 @@ function onTouchEnd(e) {
 let _onDeviceOrientation = null;
 let _lastDeviceEvent = null;
 
-function isMobile() {
-  return window.innerWidth <= 900;
+// GC削減用の一時変数
+const _gyroEuler = new THREE.Euler();
+const _gyroQuat = new THREE.Quaternion();
+const _gyroQuatScreen = new THREE.Quaternion();
+const _gyroZAxis = new THREE.Vector3(0, 0, 1);
+
+function isMobileDevice() {
+    return window.innerWidth <= 900;
 }
 
-// iOS向け：許可が必要な場合あり
 async function requestGyroPermissionIfNeeded() {
-  // iOS 13+ Safari
-  if (typeof DeviceOrientationEvent !== 'undefined' &&
-      typeof DeviceOrientationEvent.requestPermission === 'function') {
-    const res = await DeviceOrientationEvent.requestPermission();
-    if (res !== 'granted') throw new Error('permission denied');
-  }
-  return true;
+    // iOS 13+ Safari: DeviceOrientationEvent.requestPermission が必要
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const res = await DeviceOrientationEvent.requestPermission();
+        if (res !== 'granted') throw new Error('permission denied');
+    }
+    return true;
 }
 
-/**
- * 端末の向きイベントを開始する。
- * - deviceorientationabsolute があれば優先（方位が得られる可能性が高い）
- * - なければ deviceorientation
- */
 function startGyro() {
-  if (_onDeviceOrientation) return;
+    if (_onDeviceOrientation) return;
 
-  _onDeviceOrientation = (e) => {
-    // alpha(z), beta(x), gamma(y)
-    if (e.alpha == null || e.beta == null || e.gamma == null) return;
-    _lastDeviceEvent = e;
-  };
+    _onDeviceOrientation = (e) => {
+        if (e.alpha == null || e.beta == null || e.gamma == null) return;
+        _lastDeviceEvent = e;
+    };
 
-  // absoluteイベントがあれば優先。無ければ通常イベント。
-  const supportsAbsolute = ('ondeviceorientationabsolute' in window);
-  window.addEventListener(supportsAbsolute ? 'deviceorientationabsolute' : 'deviceorientation', _onDeviceOrientation, true);
+    window.addEventListener('deviceorientation', _onDeviceOrientation, true);
 }
 
 function stopGyro() {
-  if (!_onDeviceOrientation) return;
-  window.removeEventListener('deviceorientationabsolute', _onDeviceOrientation, true);
-  window.removeEventListener('deviceorientation', _onDeviceOrientation, true);
-  _onDeviceOrientation = null;
-  _lastDeviceEvent = null;
+    if (!_onDeviceOrientation) return;
+    window.removeEventListener('deviceorientation', _onDeviceOrientation, true);
+    _onDeviceOrientation = null;
+    _lastDeviceEvent = null;
 }
 
-/**
- * デバイス方位（北基準のヘディング角）を取得する。
- * - iOS: webkitCompassHeading が最優先（北=0°）
- * - その他: event.absolute===true のとき alpha を北基準として扱う（実装差あり）
- * 返り値: degree（0..360）または null
- */
-function getHeadingDeg(e) {
-  // iOS Safari (磁気コンパス)
-  if (typeof e.webkitCompassHeading === 'number') {
-    return e.webkitCompassHeading; // 北=0, 東=90
-  }
-  // 一部ブラウザは absolute=true のとき alpha が北基準になる
-  if (e.absolute === true && typeof e.alpha === 'number') {
-    return e.alpha; // 実装差があるので、合わない端末では null扱いにしたいが一旦採用
-  }
-  return null;
+function getScreenOrientationAngleDeg() {
+    // screen.orientation.angle が使える環境を優先
+    if (screen.orientation && typeof screen.orientation.angle === 'number') {
+        return screen.orientation.angle;
+    }
+    // iOS Safariの旧API
+    if (typeof window.orientation === 'number') {
+        return window.orientation;
+    }
+    return 0;
 }
 
-// three.js DeviceOrientationControls 相当の変換（角度→クォータニオン）
-// ここで yaw(alpha) を差し替え可能にする（北基準ヘディングを使う）
-const _zee = new THREE.Vector3(0, 0, 1);
-const _q0 = new THREE.Quaternion();
-const _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -PI/2 around X
-const _euler = new THREE.Euler();
+function gyroEventToQuaternion(e) {
+    const a = THREE.MathUtils.degToRad(e.alpha);
+    const b = THREE.MathUtils.degToRad(e.beta);
+    const g = THREE.MathUtils.degToRad(e.gamma);
 
-function deviceAnglesToQuaternion(alphaDeg, betaDeg, gammaDeg) {
-  const alpha = THREE.MathUtils.degToRad(alphaDeg); // Z
-  const beta  = THREE.MathUtils.degToRad(betaDeg);  // X'
-  const gamma = THREE.MathUtils.degToRad(gammaDeg); // Y''
+    const screenOrientation =
+        (screen.orientation && typeof screen.orientation.angle === 'number')
+            ? screen.orientation.angle
+            : (typeof window.orientation === 'number' ? window.orientation : 0);
+    const so = THREE.MathUtils.degToRad(screenOrientation);
 
-  const screenOrientation =
-    (screen.orientation && typeof screen.orientation.angle === 'number')
-      ? screen.orientation.angle
-      : (typeof window.orientation === 'number' ? window.orientation : 0);
-  const orient = THREE.MathUtils.degToRad(screenOrientation);
+    const euler = new THREE.Euler(b, a, -g, 'YXZ');
+    const q = new THREE.Quaternion().setFromEuler(euler);
 
-  // 'YXZ' は DeviceOrientationControls の標準
-  _euler.set(beta, alpha, -gamma, 'YXZ');
-  const q = new THREE.Quaternion().setFromEuler(_euler);
+    // 画面回転補正
+    const qScreen = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 0, 1), -so
+    );
+    q.multiply(qScreen);
 
-  // cameraが「画面の外（奥）」を見る向きに補正
-  q.multiply(_q1);
-
-  // 画面回転補正
-  _q0.setFromAxisAngle(_zee, -orient);
-  q.multiply(_q0);
-
-  return q.normalize();
+    return q.normalize();
 }
 
-// --- ジャイロ較正（フォールバック用） ---
 async function calibrateGyroToCurrentView() {
-  if (!_lastDeviceEvent) return false;
+    if (!_lastDeviceEvent) return false;
 
-  // 現在の生クォータニオン（headingが無い場合はalphaをそのまま使う）
-  const e = _lastDeviceEvent;
-  const qGyro0 = deviceAnglesToQuaternion(e.alpha, e.beta, e.gamma);
-  const qCam0 = camera.quaternion.clone();
+    const qGyro0 = gyroEventToQuaternion(_lastDeviceEvent);
+    const qCam0 = camera.quaternion.clone();
 
-  // offset = qCam0 * inverse(qGyro0)
-  const invGyro0 = qGyro0.clone().invert();
-  state.gyroOffset = qCam0.multiply(invGyro0).normalize();
-  state.gyroHasOffset = true;
-  return true;
+    // offset = qCam0 * inverse(qGyro0)
+    const invGyro0 = qGyro0.clone().invert();
+    state.gyroOffset = qCam0.multiply(invGyro0).normalize();
+    state.gyroHasOffset = true;
+    return true;
 }
 
-/**
- * ジャイロをカメラへ反映する。
- * 優先順位:
- *  1) 北基準ヘディングが取得できる → 絶対方位で動く（実際の空に一致しやすい）
- *  2) 取得できない → 既存の較正（ON時の視点を基準）で相対的に動く
- */
 function applyGyroToCamera() {
-  if (!_lastDeviceEvent) return;
+    if (!_lastDeviceEvent) return;
 
-  const e = _lastDeviceEvent;
+    const qGyro = gyroEventToQuaternion(_lastDeviceEvent);
 
-  // 1) 北基準のヘディングが取れればそれをalphaに採用
-  const heading = getHeadingDeg(e);
-  let qTarget;
-
-  if (heading != null) {
-    // 北=0°、東=90° のはず。アプリの方位系も Nが -Z なので整合が取りやすい。
-    qTarget = deviceAnglesToQuaternion(heading, e.beta, e.gamma);
-    state.gyroHasOffset = false; // 絶対モードではoffset不要
-  } else {
-    // 2) フォールバック（相対モード）
+    // offset 未確定の間は反映しない（ON直後の吸い寄せを防ぐ）
     if (!state.gyroHasOffset) return;
-    const qGyro = deviceAnglesToQuaternion(e.alpha, e.beta, e.gamma);
-    qTarget = state.gyroOffset.clone().multiply(qGyro).normalize();
-  }
 
-  camera.quaternion.slerp(qTarget, state.gyroSlerp);
+    const qTarget = state.gyroOffset.clone().multiply(qGyro).normalize();
+
+    // 平滑化（好み）
+    camera.quaternion.slerp(qTarget, state.gyroSlerp);
 }
 
 function setControlsEnabledForCurrentMode() {
@@ -385,9 +344,6 @@ async function setViewControlMode(mode) {
 
     if (mode === 'gyro') {
         try {
-      // 現在のカメラ姿勢を保存（タッチモードへ戻す用）
-      state.touchCameraPos.copy(camera.position);
-      state.touchCameraQuat.copy(camera.quaternion);
             if (!isMobileDevice()) throw new Error('not mobile');
 
             await requestGyroPermissionIfNeeded();
@@ -396,17 +352,11 @@ async function setViewControlMode(mode) {
             startGyro();
             state.gyroEnabled = true;
 
-      // ジャイロ時はカメラを原点に置く（視線ベースで扱うと誤差が減り、他機能への影響も小さい）
-      camera.position.set(0, 0, 0);
-
-      // 北基準ヘディングが取れない端末ではフォールバック較正（ON時の視点を基準）
+            
+      // ジャイロON時に「今見ている方向」を基準に較正する
       state.gyroHasOffset = false;
       for (let i = 0; i < 20; i++) {           // 最大 ~20フレーム待つ
         await new Promise(r => setTimeout(r, 16));
-        if (_lastDeviceEvent && getHeadingDeg(_lastDeviceEvent) != null) {
-          // 絶対方位が取れた → 較正不要
-          break;
-        }
         if (await calibrateGyroToCurrentView()) break;
       }
 setControlsEnabledForCurrentMode();
