@@ -526,7 +526,7 @@ function injectCustomStyles() {
     const style = document.createElement('style');
     style.innerHTML = `
         #selected-star-name-display {
-            position: absolute;
+            position: fixed;
             bottom: 70px; 
             left: 50%;
             transform: translateX(-50%);
@@ -548,7 +548,7 @@ function injectCustomStyles() {
         }
         #selected-star-name-display.visible { opacity: 1; }
         #star-reticle {
-            position: absolute; z-index: 1000; display: none; pointer-events: none !important;
+            position: fixed; z-index: 1000; display: none; pointer-events: none !important;
         }
         #star-reticle.visible { display: block; }
         #reticle-name { display: none !important; }
@@ -558,6 +558,9 @@ function injectCustomStyles() {
             border: 1px solid rgba(212, 175, 55, 0.8) !important;
             background: rgba(5, 10, 20, 0.85) !important;
             border-radius: 20px; cursor: pointer;
+            pointer-events: auto;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
             backdrop-filter: blur(4px); white-space: nowrap; transition: all 0.2s;
             pointer-events: auto !important;
@@ -579,7 +582,7 @@ function injectCustomStyles() {
 
         /* --- ジャイロ切替アイコン（上部） --- */
         #gyro-icon-btn {
-            position: absolute;
+            position: fixed;
             z-index: 6000;
             left: 16px;
             top: calc(env(safe-area-inset-top, 0px) + 60px);
@@ -595,6 +598,9 @@ function injectCustomStyles() {
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            pointer-events: auto;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
             transition: transform 0.12s ease, opacity 0.2s ease, box-shadow 0.25s ease, border-color 0.25s ease;
         }
         #gyro-icon-btn img {
@@ -606,7 +612,7 @@ function injectCustomStyles() {
         }
         #gyro-icon-btn::before {
             content: "";
-            position: absolute;
+            position: fixed;
             inset: -10px;
             border-radius: 999px;
             opacity: 0;
@@ -1052,7 +1058,11 @@ function setupUI() {
     // 追加：上部アイコンボタン
     const gyroIconBtn = document.getElementById('gyro-icon-btn');
     if (gyroIconBtn) {
-        gyroIconBtn.addEventListener('click', toggleGyro);
+        // キャンバス側のドラッグ/タップ判定に吸われないようにイベントを止める
+        gyroIconBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); }, { passive: true });
+        gyroIconBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
+        gyroIconBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleGyro(); });
+
     }
 
     // 初期表示の整合
