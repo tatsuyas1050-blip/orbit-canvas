@@ -99,7 +99,13 @@ const state = {
 
     // ピンチズーム用
     pinchStartDist: 0,
-    pinchStartFov: 0
+    pinchStartFov: 0,
+// 視点操作モード（スマホで切替可能）
+viewControlMode: 'touch',   // 'touch' | 'gyro'
+gyroEnabled: false,
+gyroPermissionGranted: false,
+gyroSlerp: 0.15
+
 };
 
 function init() {
@@ -208,6 +214,137 @@ function onTouchEnd(e) {
         state.pinchStartDist = 0;
     }
 }
+
+// --- ジャイロ(デバイス姿勢)制御 ---
+// 注意: iOS Safariではユーザー操作をトリガーに許可要求が必要です。
+
+let _onDeviceOrientation = null;
+let _lastDeviceEvent = null;
+
+// GC削減用の一時変数
+const _gyroEuler = new THREE.Euler();
+const _gyroQuat = new THREE.Quaternion();
+const _gyroQuatScreen = new THREE.Quaternion();
+const _gyroZAxis = new THREE.Vector3(0, 0, 1);
+
+function isMobileDevice() {
+    return window.innerWidth <= 900;
+}
+
+async function requestGyroPermissionIfNeeded() {
+    // iOS 13+ Safari: DeviceOrientationEvent.requestPermission が必要
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const res = await DeviceOrientationEvent.requestPermission();
+        if (res !== 'granted') throw new Error('permission denied');
+    }
+    return true;
+}
+
+function startGyro() {
+    if (_onDeviceOrientation) return;
+
+    _onDeviceOrientation = (e) => {
+        if (e.alpha == null || e.beta == null || e.gamma == null) return;
+        _lastDeviceEvent = e;
+    };
+
+    window.addEventListener('deviceorientation', _onDeviceOrientation, true);
+}
+
+function stopGyro() {
+    if (!_onDeviceOrientation) return;
+    window.removeEventListener('deviceorientation', _onDeviceOrientation, true);
+    _onDeviceOrientation = null;
+    _lastDeviceEvent = null;
+}
+
+function getScreenOrientationAngleDeg() {
+    // screen.orientation.angle が使える環境を優先
+    if (screen.orientation && typeof screen.orientation.angle === 'number') {
+        return screen.orientation.angle;
+    }
+    // iOS Safariの旧API
+    if (typeof window.orientation === 'number') {
+        return window.orientation;
+    }
+    return 0;
+}
+
+function applyGyroToCamera() {
+    if (!_lastDeviceEvent) return;
+
+    const alpha = THREE.MathUtils.degToRad(_lastDeviceEvent.alpha); // z
+    const beta  = THREE.MathUtils.degToRad(_lastDeviceEvent.beta);  // x
+    const gamma = THREE.MathUtils.degToRad(_lastDeviceEvent.gamma); // y
+
+    // スクリーン回転補正
+    const so = THREE.MathUtils.degToRad(getScreenOrientationAngleDeg());
+
+    // 端末姿勢→カメラ姿勢（近い感覚になる順序）
+    // beta(x), alpha(z), -gamma(y) を YXZ として適用
+    _gyroEuler.set(beta, alpha, -gamma, 'YXZ');
+    _gyroQuat.setFromEuler(_gyroEuler);
+
+    _gyroQuatScreen.setFromAxisAngle(_gyroZAxis, -so);
+    _gyroQuat.multiply(_gyroQuatScreen);
+
+    // 必要なら反転補正（端末向きが逆に感じた場合に使う）
+    // _gyroQuat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
+
+    camera.quaternion.slerp(_gyroQuat, state.gyroSlerp);
+}
+
+function setControlsEnabledForCurrentMode() {
+    if (!controls) return;
+    // メニューが開いているときは常に無効
+    const navOverlay = document.getElementById('nav-overlay');
+    const menuOpen = navOverlay && navOverlay.classList.contains('open');
+    if (menuOpen) {
+        controls.enabled = false;
+        return;
+    }
+    controls.enabled = (state.viewControlMode === 'touch');
+}
+
+async function setViewControlMode(mode) {
+    state.viewControlMode = mode;
+
+    const btnMobileGyro = document.getElementById('btn-mobile-gyro');
+
+    if (mode === 'gyro') {
+        try {
+            if (!isMobileDevice()) throw new Error('not mobile');
+
+            await requestGyroPermissionIfNeeded();
+            state.gyroPermissionGranted = true;
+
+            startGyro();
+            state.gyroEnabled = true;
+
+            setControlsEnabledForCurrentMode();
+            if (btnMobileGyro) btnMobileGyro.classList.add('active');
+        } catch (e) {
+            // 許可NG/非対応
+            state.gyroEnabled = false;
+            stopGyro();
+
+            state.viewControlMode = 'touch';
+            setControlsEnabledForCurrentMode();
+
+            if (btnMobileGyro) btnMobileGyro.classList.remove('active');
+            alert('ジャイロを有効化できませんでした（ブラウザの許可/HTTPS/対応状況をご確認ください）');
+        }
+    } else {
+        // touch
+        state.gyroEnabled = false;
+        stopGyro();
+
+        setControlsEnabledForCurrentMode();
+        if (btnMobileGyro) btnMobileGyro.classList.remove('active');
+    }
+}
+
 
 function createStarNameDisplay() {
     if (document.getElementById('selected-star-name-display')) return;
@@ -321,6 +458,7 @@ function setupUI() {
     const btnMobileLabels = document.getElementById('btn-mobile-labels');
     const btnMobileGrid = document.getElementById('btn-mobile-grid');
     const btnMobileSunlight = document.getElementById('btn-mobile-sunlight'); 
+    const btnMobileGyro = document.getElementById('btn-mobile-gyro');
     const btnMobileNow = document.getElementById('btn-mobile-now');
     const btnMobileTonight = document.getElementById('btn-mobile-tonight');
     const btnMobileLocation = document.getElementById('btn-mobile-location'); 
@@ -337,9 +475,9 @@ function setupUI() {
             menuToggle.classList.toggle('active');
             navOverlay.classList.toggle('open');
             if (navOverlay.classList.contains('open')) {
-                controls.enabled = false;
+                if (controls) controls.enabled = false;
             } else {
-                controls.enabled = true;
+                setControlsEnabledForCurrentMode();
             }
         });
         const navLinks = document.querySelectorAll('.nav-link');
@@ -347,7 +485,7 @@ function setupUI() {
             link.addEventListener('click', () => {
                 menuToggle.classList.remove('active');
                 navOverlay.classList.remove('open');
-                controls.enabled = true;
+                setControlsEnabledForCurrentMode();
             });
         });
     }
@@ -510,6 +648,15 @@ function setupUI() {
     document.getElementById('btn-now').addEventListener('click', setNow);
     btnMobileTonight.addEventListener('click', setTonight);
     btnMobileNow.addEventListener('click', setNow);
+
+// --- スマホ: 視点操作モード切替（タッチ/ジャイロ） ---
+if (btnMobileGyro) {
+    btnMobileGyro.addEventListener('click', async () => {
+        const next = (state.viewControlMode === 'gyro') ? 'touch' : 'gyro';
+        await setViewControlMode(next);
+    });
+    btnMobileGyro.classList.toggle('active', state.viewControlMode === 'gyro');
+}
 
     const btnGrid = document.getElementById('btn-grid');
     const toggleGrid = () => {
@@ -1805,7 +1952,11 @@ function animate() {
             if(mobileClockDisplay) mobileClockDisplay.textContent = dateStr;
         }
     }
-    controls.update();
+    if (state.viewControlMode === 'gyro' && state.gyroEnabled) {
+        applyGyroToCamera();
+    } else {
+        controls.update();
+    }
     renderer.render(scene, camera);
     updateReticle();
 }
