@@ -28,7 +28,8 @@ const CONFIG = {
         EmissionNebula: { label: '散光星雲', color: '#ff9999', type: 'square', isLabelGroup: true },
         ReflectionNebula: { label: '反射星雲', color: '#99ccff', type: 'square_stroke', isLabelGroup: true },
         PlanetaryNebula: { label: '惑星状星雲', color: '#88ffcc', type: 'circle_cross', isLabelGroup: true },
-        SupernovaRemnant: { label: '超新星残骸', color: '#cc99ff', type: 'diamond', isLabelGroup: true }
+        SupernovaRemnant: { label: '超新星残骸', color: '#cc99ff', type: 'diamond', isLabelGroup: true },
+        Comets: { label: '彗星', color: '#a0e0ff', type: 'comet' }
     },
 
     starColors: {
@@ -941,9 +942,10 @@ function setupUI() {
         btn.style.fontFamily = "'Shippori Mincho', serif";
         btn.style.width = '100%'; 
 
-        // 初期状態ON
-        btn.classList.add('active');
-        setButtonStyle(btn, cat.color, true);
+        // 初期状態：レイヤーの visible に合わせる（彗星は初期OFFなど）
+        const initialActive = (layers[key] && typeof layers[key].visible === 'boolean') ? layers[key].visible : true;
+        btn.classList.toggle('active', initialActive);
+        setButtonStyle(btn, cat.color, initialActive);
         
         // ボタン管理用オブジェクトに保存
         filterButtons[key] = btn;
@@ -955,6 +957,17 @@ function setupUI() {
                 layers[key].mesh.visible = isActive;
             }
             setButtonStyle(btn, cat.color, isActive);
+
+
+            // 彗星はONにした瞬間に最新を取得（OFF時は何もしない）
+            if (key === 'Comets' && isActive) {
+                try {
+                    lastCometFetchKey = null;
+                    refreshCometsIfNeeded();
+                } catch (e) {
+                    console.warn('refreshCometsIfNeeded failed:', e);
+                }
+            }
             
             // 個別ボタン操作時にスマホボタンの状態を更新
             updateMobileButtonStates();
@@ -2332,57 +2345,29 @@ function clearComets() {
 
 
 function createCometLabelSprite(text) {
-    // 彗星名を常時表示するためのラベル（彗星レイヤー内で完結、他機能に影響しない）
-    const paddingX = 16;
-    const paddingY = 10;
-    const fontSize = 36;
-    const fontFamily = "'Shippori Mincho', serif";
-
-    // 計測用キャンバス
-    const measure = document.createElement("canvas");
-    const mctx = measure.getContext("2d");
-    mctx.font = `Bold ${fontSize}px ${fontFamily}`;
-    const metrics = mctx.measureText(text);
-    const textW = Math.ceil(metrics.width);
-    const w = Math.min(1024, Math.max(256, textW + paddingX * 2));
-    const h = 128;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-
-    // 背景（半透明）
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
-    const radius = 18;
-    roundRect(ctx, 0, 0, w, h, radius);
-    ctx.fill();
-
-    // 文字
-    ctx.font = `Bold ${fontSize}px ${fontFamily}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = "rgba(0,0,0,0.65)";
-    ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.strokeText(text, w / 2, h / 2);
-    ctx.fillText(text, w / 2, h / 2);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+    // 他の天体名ラベルと揃える（背景なしのシンプル表示）
+    // 既存の createLabelTexture を使い、Constellation/SolarSystem のラベルと同じ作りにする
+    const labelMap = createLabelTexture(text, '#ffffff', 32);
+    const material = new THREE.SpriteMaterial({
+        map: labelMap,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        opacity: 0.9,
+        fog: false
+    });
     const sprite = new THREE.Sprite(material);
 
-    // 画面上で読みやすい大きさ（必要なら調整）
-    // 横幅が長いときは少し小さくする
-    const scaleBase = 26;
-    const scale = (w > 512) ? scaleBase * 0.85 : scaleBase;
-    sprite.scale.set(scale * (w / 512), scale * (h / 128), 1);
+    const aspect = labelMap.image.width / labelMap.image.height;
+    const baseH = 12; // 他のラベルと合わせる
+    const baseW = baseH * aspect;
 
-    // ラベル判定（既存の選択ロジックがあればそれに乗る）
-    sprite.userData = { isLabel: true, labelType: "comet" };
+    sprite.scale.set(baseW, baseH, 1);
 
+    // updatePositions のラベル拡大縮小ロジックに乗せる
+    sprite.userData.baseScale = { x: baseW, y: baseH };
+    sprite.userData.isLabel = true;
+    sprite.userData.labelType = "comet";
     return sprite;
 }
 
@@ -2432,7 +2417,7 @@ function addCometObject(cometData) {
     // 彗星名ラベル（彗星ONの間は常時表示）
     try {
         const label = createCometLabelSprite(cometData.name || cometData.cometId || 'Comet');
-        label.position.set(0, 16, 0); // マーカーの少し上
+        label.position.set(14, -10, 0); // 他の天体名ラベルと揃える（右下寄せ）
         group.add(label);
     } catch (e) {
         // ラベル生成に失敗しても既存機能は止めない
