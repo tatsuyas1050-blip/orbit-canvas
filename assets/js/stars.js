@@ -43,6 +43,11 @@ const CONFIG = {
     }
 };
 
+// --- 彗星 API (NASA/JPL Horizons を AWS 経由で利用) ---
+// API Gateway の Invoke URL をここに設定
+const COMET_API_BASE = "https://erd043r1x3.execute-api.ap-northeast-1.amazonaws.com";
+
+
 // --- 空の色設定 (高度に応じたベースカラー) ---
 const SKY_GRADIENT = [
     { alt: -18, color: new THREE.Color('#050a14') }, 
@@ -131,6 +136,13 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(CONFIG.bgColor);
     scene.fog = new THREE.FogExp2(CONFIG.bgColor, 0.0008); 
+
+    // ---- Comets layer (added) ----
+    layers.Comets = { data: [], mesh: new THREE.Group(), visible: false };
+    layers.Comets.mesh.name = "Comets";
+    layers.Comets.mesh.visible = false;
+    scene.add(layers.Comets.mesh);
+ 
 
     camera = new THREE.PerspectiveCamera(CONFIG.maxFov, window.innerWidth / window.innerHeight, 1, 20000);
     
@@ -419,6 +431,7 @@ function setControlsEnabledForCurrentMode() {
 
 function updateGyroUI() {
     const btnMobileGyro = document.getElementById('btn-mobile-gyro');
+    const btnMobileComets = document.getElementById('btn-mobile-comets');
 
     const gyroIconBtn = document.getElementById('gyro-icon-btn');
     const gyroIconImg = document.getElementById('gyro-icon-img');
@@ -654,6 +667,8 @@ function onMouseWheel(event) {
 }
 
 function setupUI() {
+    const btnMobileComets = document.getElementById('btn-mobile-comets');
+
     const isMobile = window.innerWidth <= 900;
 
     const btnMore = document.getElementById('btn-more');
@@ -1055,6 +1070,34 @@ function setupUI() {
     if (btnMobileGyro) {
         btnMobileGyro.addEventListener('click', toggleGyro);
     }
+
+
+    // --- 彗星表示切替 ---
+    const toggleComets = () => {
+    const btnDockComets = document.getElementById('btn-toggle-comets'); // もしPC側にも追加していれば同期
+    const syncCometsBtnState = () => {
+        const isOn = !!(layers.Comets && layers.Comets.visible);
+        if (btnMobileComets) btnMobileComets.classList.toggle('active', isOn);
+        if (btnDockComets) btnDockComets.classList.toggle('active', isOn);
+    };
+
+        if (!layers.Comets) return;
+        layers.Comets.visible = !layers.Comets.visible;
+        layers.Comets.mesh.visible = layers.Comets.visible;
+        syncCometsBtnState();
+        if (layers.Comets.visible) {
+            lastCometFetchKey = null;
+            refreshCometsIfNeeded();
+        
+        try { updatePositions(); } catch (e) {}
+}
+
+    };
+    if (btnMobileComets) {
+        btnMobileComets.addEventListener('click', toggleComets);
+    }
+    // 初期状態を反映
+    try { (document.getElementById('btn-mobile-comets')) && (document.getElementById('btn-mobile-comets').classList.toggle('active', !!(layers.Comets && layers.Comets.visible))); } catch(e) {}
 
     // 追加：上部アイコンボタン
     const gyroIconBtn = document.getElementById('gyro-icon-btn');
@@ -1646,6 +1689,10 @@ function updatePositions() {
         });
     }
 
+    // --- 彗星の位置更新（表示中のみ） ---
+    updateCometObjectsPosition(r, lstRad, sinLat, cosLat);
+
+
     // --- 天の川の回転制御 ---
     if (milkyWayGroup && milkyWayMesh) {
         // 1. 緯度に合わせてコンテナを傾ける (天の北極を合わせる)
@@ -1658,6 +1705,10 @@ function updatePositions() {
     if(state.shuttleValue !== 0) {
         updateSolarSystemData();
     }
+
+
+    // --- 彗星データ更新（表示中のみ、分単位でキャッシュ） ---
+    refreshCometsIfNeeded();
 }
 
 function calcHorizontalCoord(raDeg, decDeg, lstRad, sinLat, cosLat, radius) {
@@ -2209,5 +2260,299 @@ function animate() {
     renderer.render(scene, camera);
     updateReticle();
 }
+
+
+// ============================
+// Comets (NASA/JPL Horizons via AWS) 追加機能
+// 既存機能に影響を与えないよう、彗星表示は明示的にONにした時だけ通信します。
+// ============================
+
+let lastCometFetchKey = null;
+let cometObjects = []; // { group, sprite, data }
+let cometTexture = null;
+
+function initCometTexture() {
+    if (cometTexture) return cometTexture;
+
+    const size = 128;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d");
+
+    // nucleus
+    const cx = size * 0.60;
+    const cy = size * 0.50;
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.22);
+    core.addColorStop(0.0, "rgba(255,255,255,1.0)");
+    core.addColorStop(1.0, "rgba(255,255,255,0.0)");
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+
+    // tail (to left)
+    const tail = ctx.createLinearGradient(size * 0.05, cy, cx, cy);
+    tail.addColorStop(0.0, "rgba(200,255,240,0.0)");
+    tail.addColorStop(0.6, "rgba(200,255,240,0.18)");
+    tail.addColorStop(1.0, "rgba(200,255,240,0.0)");
+    ctx.fillStyle = tail;
+    ctx.beginPath();
+    ctx.ellipse(size * 0.25, cy, size * 0.42, size * 0.14, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    cometTexture = new THREE.CanvasTexture(canvas);
+    cometTexture.needsUpdate = true;
+    return cometTexture;
+}
+
+async function fetchCometsFromApi(lat, lon, dateObj, signal) {
+    const timeIso = dateObj.toISOString();
+    const url = new URL(COMET_API_BASE + "/comets");
+    url.searchParams.set("lat", String(lat));
+    url.searchParams.set("lon", String(lon));
+    url.searchParams.set("time", timeIso);
+
+    const res = await fetch(url.toString(), { method: "GET", signal });
+    if (!res.ok) throw new Error("Comet API error: " + res.status);
+    const json = await res.json();
+    return json.comets || [];
+}
+
+function clearComets() {
+    if (!layers.Comets) return;
+
+    for (const obj of cometObjects) {
+        layers.Comets.mesh.remove(obj.group);
+        // テクスチャは共有なので dispose しない
+        obj.sprite.material?.dispose?.();
+    }
+    cometObjects = [];
+    layers.Comets.data = [];
+}
+
+
+function createCometLabelSprite(text) {
+    // 彗星名を常時表示するためのラベル（彗星レイヤー内で完結、他機能に影響しない）
+    const paddingX = 16;
+    const paddingY = 10;
+    const fontSize = 36;
+    const fontFamily = "'Shippori Mincho', serif";
+
+    // 計測用キャンバス
+    const measure = document.createElement("canvas");
+    const mctx = measure.getContext("2d");
+    mctx.font = `Bold ${fontSize}px ${fontFamily}`;
+    const metrics = mctx.measureText(text);
+    const textW = Math.ceil(metrics.width);
+    const w = Math.min(1024, Math.max(256, textW + paddingX * 2));
+    const h = 128;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+
+    // 背景（半透明）
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    const radius = 18;
+    roundRect(ctx, 0, 0, w, h, radius);
+    ctx.fill();
+
+    // 文字
+    ctx.font = `Bold ${fontSize}px ${fontFamily}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "rgba(0,0,0,0.65)";
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.strokeText(text, w / 2, h / 2);
+    ctx.fillText(text, w / 2, h / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+    const sprite = new THREE.Sprite(material);
+
+    // 画面上で読みやすい大きさ（必要なら調整）
+    // 横幅が長いときは少し小さくする
+    const scaleBase = 26;
+    const scale = (w > 512) ? scaleBase * 0.85 : scaleBase;
+    sprite.scale.set(scale * (w / 512), scale * (h / 128), 1);
+
+    // ラベル判定（既存の選択ロジックがあればそれに乗る）
+    sprite.userData = { isLabel: true, labelType: "comet" };
+
+    return sprite;
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+}
+
+function addCometObject(cometData) {
+    if (!layers.Comets) return;
+
+    const tex = initCometTexture();
+    const mat = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        depthWrite: false
+    });
+
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(18, 18, 1);
+
+    // 既存のクリック判定ロジックは「子を持つGroup」をターゲットにする設計なので、
+    // 彗星も Group に userData を載せ、子に Sprite を入れる形に合わせます。
+    const group = new THREE.Group();
+    // 初期位置は未確定なので、1フレームでもカメラ原点に重なって白くならないよう非表示
+    group.visible = false;
+
+    // 既存UIに馴染むため、name / ra / dec / distance_au など既存のキーに寄せる
+    group.userData = {
+        type: "comet",
+        objType: "Comet",
+        name: cometData.name,
+        cometId: cometData.cometId,
+        ra: cometData.raDeg,
+        dec: cometData.decDeg,
+        distance_au: cometData.distanceAu
+    };
+
+    group.add(sprite);
+
+    // 彗星名ラベル（彗星ONの間は常時表示）
+    try {
+        const label = createCometLabelSprite(cometData.name || cometData.cometId || 'Comet');
+        label.position.set(0, 16, 0); // マーカーの少し上
+        group.add(label);
+    } catch (e) {
+        // ラベル生成に失敗しても既存機能は止めない
+        console.warn('Comet label create failed:', e);
+    }
+
+    layers.Comets.mesh.add(group);
+
+    cometObjects.push({ group, sprite, data: cometData });
+}
+
+function updateCometObjectsPosition(r, lstRad, sinLat, cosLat) {
+    if (!layers.Comets || !layers.Comets.visible) return;
+    if (!cometObjects || cometObjects.length === 0) return;
+
+    for (const obj of cometObjects) {
+        const raDeg = obj.data.raDeg;
+        const decDeg = obj.data.decDeg;
+        const coord = calcHorizontalCoord(raDeg, decDeg, lstRad, sinLat, cosLat, r);
+
+        if (!Number.isFinite(coord.x) || !Number.isFinite(coord.y) || !Number.isFinite(coord.z)) {
+            // 座標計算に失敗したら表示しない（既存描画への影響を避ける）
+            obj.group.visible = false;
+            continue;
+        }
+
+        obj.group.position.set(coord.x, coord.y, coord.z);
+        obj.group.visible = true;
+
+        // 地平線下は薄く（完全非表示にしたければ 0 に）
+        obj.sprite.material.opacity = (coord.y < 0) ? 0.25 : 1.0;
+    }
+}
+
+// 分単位で時刻を丸める（キャッシュと整合）
+function floorToMinuteDate(d) {
+    const t = new Date(d);
+    t.setSeconds(0, 0);
+    return t;
+}
+
+async function refreshCometsIfNeeded() {
+    // 彗星表示がOFFなら何もしない（既存機能への影響を避ける）
+    if (!layers.Comets || !layers.Comets.visible) return;
+
+    // Debounce + throttle: 時間シャトル等で連続更新されても API を連打しない
+    const t = floorToMinuteDate(state.date);
+    const key = `${state.lat.toFixed(3)}:${state.lon.toFixed(3)}:${t.toISOString()}`;
+    if (key === lastCometFetchKey) return;
+
+    // “取得対象が変わった” ことだけ記録し、取得はまとめて行う
+    lastCometFetchKey = key;
+
+    scheduleCometFetch(t);
+}
+
+// ---- fetch control (added) ----
+let cometFetchInProgress = false;
+let cometLastFetchAt = 0;
+let cometFetchTimer = null;
+let cometAbortController = null;
+
+// 取得の最小間隔（ms）: 時間移動中の 500/レート制限を防ぐ
+const COMET_MIN_FETCH_INTERVAL_MS = 1500;
+// 連続操作の“落ち着き待ち”
+const COMET_DEBOUNCE_MS = 350;
+
+function scheduleCometFetch(timeObj) {
+    if (cometFetchTimer) {
+        clearTimeout(cometFetchTimer);
+        cometFetchTimer = null;
+    }
+
+    const now = Date.now();
+    const since = now - cometLastFetchAt;
+    const waitThrottle = Math.max(0, COMET_MIN_FETCH_INTERVAL_MS - since);
+    const wait = Math.max(COMET_DEBOUNCE_MS, waitThrottle);
+
+    cometFetchTimer = setTimeout(() => {
+        cometFetchTimer = null;
+        runCometFetch(timeObj);
+    }, wait);
+}
+
+async function runCometFetch(timeObj) {
+    if (!layers.Comets || !layers.Comets.visible) return;
+
+    // すでに取得中なら、次の schedule が発火するのを待つ（連打しない）
+    if (cometFetchInProgress) return;
+
+    cometFetchInProgress = true;
+    cometLastFetchAt = Date.now();
+
+    // 前回が残っていれば中断（最新の操作を優先）
+    if (cometAbortController) {
+        try { cometAbortController.abort(); } catch (e) {}
+    }
+    cometAbortController = new AbortController();
+
+    try {
+        const comets = await fetchCometsFromApi(state.lat, state.lon, timeObj, cometAbortController.signal);
+        layers.Comets.data = comets;
+
+        clearComets();
+        for (const c of comets) addCometObject(c);
+
+        // 取得直後に1回だけ再配置して、他UI操作なしでも即表示されるようにする
+        try { updatePositions(); } catch (e) {}
+
+    } catch (e) {
+        // Abort は想定内（時間移動中に前の通信を切る）
+        if (e && (e.name === "AbortError" || String(e).includes("AbortError"))) {
+            // no-op
+        } else {
+            console.warn("Comet refresh failed:", e);
+        }
+    } finally {
+        cometFetchInProgress = false;
+    }
+}
+
 
 init();
