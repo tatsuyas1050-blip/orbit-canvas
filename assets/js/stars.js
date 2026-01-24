@@ -2347,7 +2347,7 @@ function clearComets() {
 function createCometLabelSprite(text) {
     // 他の天体名ラベルと揃える（背景なしのシンプル表示）
     // 既存の createLabelTexture を使い、Constellation/SolarSystem のラベルと同じ作りにする
-    const labelMap = createLabelTexture(text, '#ffffff', 32);
+    const labelMap = createLabelTexture(text, '#7CFF7C', 32);
     const material = new THREE.SpriteMaterial({
         map: labelMap,
         transparent: true,
