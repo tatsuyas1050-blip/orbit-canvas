@@ -44,6 +44,18 @@ const CONFIG = {
     }
 };
 
+// --- 物理定数と倍率設定（日食再現用） ---
+const SOLAR_CONSTANTS = {
+    AU_KM: 149597871,       // 1天文単位 (km)
+    SUN_DIAMETER_KM: 1392700, // 太陽の直径 (km)
+    MOON_DIAMETER_KM: 3474.8, // 月の直径 (km)
+    
+    // 【重要】拡大倍率
+    // 1.0 にすると「現実の視直径（豆粒サイズ）」になります。
+    // 10.0 程度にすると、迫力を保ちつつ比率が正しい状態になります。
+    MAGNIFICATION: 10.0 
+};
+
 // --- 彗星 API (NASA/JPL Horizons を AWS 経由で利用) ---
 // API Gateway の Invoke URL をここに設定
 const COMET_API_BASE = "https://erd043r1x3.execute-api.ap-northeast-1.amazonaws.com";
@@ -1270,24 +1282,187 @@ function updateSolarSystemData() {
     }
 }
 
+// --- 太陽用の新テクスチャ生成関数（日食対応版） ---
+// eclipseInfo がある場合は、その情報に基づいて太陽の一部を黒く塗りつぶします
+function createSunDiscTexture(eclipseInfo = null) {
+    const canvas = document.createElement('canvas');
+    const size = 256; 
+    canvas.width = size; 
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    
+    // 背景透明
+    ctx.clearRect(0, 0, size, size);
+    
+    const center = size / 2;
+    const radius = size * 0.4; // 太陽の描画半径
+
+    // 1. 太陽本体（光球）を描画
+    ctx.beginPath();
+    ctx.arc(center, center, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffcf70';
+    ctx.fill();
+
+    // 2. 日食がある場合、重なっている部分を「黒く」塗りつぶす（シルエット）
+    if (eclipseInfo && eclipseInfo.isEclipsing) {
+        
+        // Use source-atop to restrict drawing to the existing sun shape
+        ctx.globalCompositeOperation = 'source-atop';
+
+        // 太陽の中心から見た月の相対位置（ピクセル単位）
+        const dx = eclipseInfo.xOffset * radius; 
+        const dy = -eclipseInfo.yOffset * radius; // 座標系のY軸反転に対応
+        
+        // 月の見た目の半径（太陽半径に対する比率から計算）
+        const moonRadius = radius * eclipseInfo.radiusRatio;
+
+        ctx.beginPath();
+        ctx.arc(center + dx, center + dy, moonRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#000000'; // 黒（シルエット）
+        ctx.fill();
+
+        // Reset composite operation
+        ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // 3. 縁取り（アンチエイリアス用）
+    if (!eclipseInfo || !eclipseInfo.isEclipsing) {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(255, 170, 0, 0.5)';
+        ctx.stroke();
+    }
+
+    return new THREE.CanvasTexture(canvas);
+}
+
+// --- 描画ロジックの置き換え ---
 function createSolarSystemSprites(data, parentGroup) {
     const r = CONFIG.radius;
+    const TEXTURE_RATIO = 0.8; 
+
+    // --- [Step 1] 太陽と月を特定し、厳密な日食計算を行う ---
+    let sunObj = data.find(o => o.name === '太陽');
+    let moonObj = data.find(o => o.name === '月');
+    let eclipseInfo = { isEclipsing: false };
+
+    if (sunObj && moonObj) {
+        // A. 実際の視直径(rad)を計算
+        const sunDistKm = sunObj.distance_au * SOLAR_CONSTANTS.AU_KM;
+        const moonDistKm = moonObj.distance_au * SOLAR_CONSTANTS.AU_KM;
+        const sunAngRad = Math.atan(SOLAR_CONSTANTS.SUN_DIAMETER_KM / sunDistKm); // 厳密には 2*atan(r/d) だが近似で十分
+        const moonAngRad = Math.atan(SOLAR_CONSTANTS.MOON_DIAMETER_KM / moonDistKm);
+
+        // B. 天球上の角距離(rad)を計算 (Az/Alt差分から近似)
+        const azDiff = (moonObj.az - sunObj.az) * (Math.PI / 180);
+        const altDiff = (moonObj.alt - sunObj.alt) * (Math.PI / 180);
+        // 球面三角法を簡略化したユークリッド距離近似（視直径が小さいため有効）
+        // 緯度(Alt)によるAzの縮尺補正: cos(alt)
+        const xAng = azDiff * Math.cos(sunObj.alt * (Math.PI / 180));
+        const yAng = altDiff;
+        const angularDistance = Math.sqrt(xAng * xAng + yAng * yAng);
+
+        // C. 接触判定（実際の大きさで判定）
+        // 実際には「太陽半径 + 月半径」より距離が近ければ接触
+        const sunRadiusRad = sunAngRad / 2;
+        const moonRadiusRad = moonAngRad / 2;
+        
+        if (angularDistance < (sunRadiusRad + moonRadiusRad)) {
+            eclipseInfo = {
+                isEclipsing: true,
+                // 太陽中心に対する月の中心のオフセット量（太陽半径を1.0とした場合）
+                xOffset: xAng / sunRadiusRad,
+                yOffset: yAng / sunRadiusRad,
+                // 太陽に対する月の大きさの比率
+                radiusRatio: moonRadiusRad / sunRadiusRad
+            };
+        }
+    }
+
+    // --- [Step 1.5] 見た目の重なりによる月のフェード計算 (新規) ---
+    // 物理的な日食計算とは別に、「描画上で」重なりそうなら月を透明にする
+    let moonOpacity = 1.0;
+    if (sunObj && moonObj && sunObj.alt > -5 && moonObj.alt > -5) {
+         // 太陽の描画パラメータ予測
+         const sDistKm = sunObj.distance_au * SOLAR_CONSTANTS.AU_KM;
+         const sAngSize = SOLAR_CONSTANTS.SUN_DIAMETER_KM / sDistKm;
+         const sScale = (r * sAngSize / TEXTURE_RATIO) * SOLAR_CONSTANTS.MAGNIFICATION;
+         const sAltRad = sunObj.alt * (Math.PI/180);
+         const sAzRad = sunObj.az * (Math.PI/180);
+         const sPos = new THREE.Vector3(
+             r * Math.cos(sAltRad) * Math.sin(sAzRad),
+             r * Math.sin(sAltRad),
+             -r * Math.cos(sAltRad) * Math.cos(sAzRad)
+         );
+
+         // 月の描画パラメータ予測
+         const mDistKm = moonObj.distance_au * SOLAR_CONSTANTS.AU_KM;
+         const mAngSize = SOLAR_CONSTANTS.MOON_DIAMETER_KM / mDistKm;
+         const mScale = (r * mAngSize / TEXTURE_RATIO) * SOLAR_CONSTANTS.MAGNIFICATION;
+         const mAltRad = moonObj.alt * (Math.PI/180);
+         const mAzRad = moonObj.az * (Math.PI/180);
+         const mPos = new THREE.Vector3(
+             r * Math.cos(mAltRad) * Math.sin(mAzRad),
+             r * Math.sin(mAltRad),
+             -r * Math.cos(mAltRad) * Math.cos(mAzRad)
+         );
+
+         // 描画上の中心間距離
+         const dist = sPos.distanceTo(mPos);
+         
+         // 描画上の半径の和 (スプライトサイズ * 0.4 が 見た目の半径)
+         const sumRadius = (sScale * 0.4) + (mScale * 0.4);
+         
+         // フェード開始のマージン (半径和の1.02倍の距離から開始: ギリギリまで表示)
+         const fadeStartDist = sumRadius * 0.5;
+         const fadeEndDist = sumRadius * 0.3; // 接触したら完全透明
+
+         if (dist < fadeStartDist) {
+             if (dist <= fadeEndDist) {
+                 moonOpacity = 0.0;
+             } else {
+                 // 線形補間
+                 moonOpacity = (dist - fadeEndDist) / (fadeStartDist - fadeEndDist);
+             }
+         }
+    }
+
+
+    // --- [Step 2] 各天体の描画 ---
     data.forEach(obj => {
         if(obj.alt < -5) return;
         let texture, scale, rotation = 0;
+        let renderOrder = 0; 
+        let opacity = 1.0;
 
         if (obj.name === '月') {
             texture = createMoonPhaseTexture(obj.phase_frac);
-            scale = 45; 
+            
+            const distKm = obj.distance_au * SOLAR_CONSTANTS.AU_KM;
+            const angularSizeRad = SOLAR_CONSTANTS.MOON_DIAMETER_KM / distKm;
+            const objectSizeOnSphere = r * angularSizeRad;
+            scale = (objectSizeOnSphere / TEXTURE_RATIO) * SOLAR_CONSTANTS.MAGNIFICATION;
+
             const azDiff = (obj.sunAz - obj.az) * (Math.PI/180);
             const altDiff = (obj.sunAlt - obj.alt) * (Math.PI/180);
             const dx = azDiff * Math.cos(obj.alt * (Math.PI/180));
             const dy = altDiff;
             rotation = Math.atan2(dy, dx); 
+            
+            renderOrder = 998; 
+            opacity = moonOpacity; // ★計算したフェード値を適用
+
         } else if (obj.name === '太陽') {
-            texture = createPlanetTexture('#ffaa00', false, true); 
-            scale = 250; 
+            texture = createSunDiscTexture(eclipseInfo);
+            
+            const distKm = obj.distance_au * SOLAR_CONSTANTS.AU_KM;
+            const angularSizeRad = SOLAR_CONSTANTS.SUN_DIAMETER_KM / distKm;
+            const objectSizeOnSphere = r * angularSizeRad;
+            scale = (objectSizeOnSphere / TEXTURE_RATIO) * SOLAR_CONSTANTS.MAGNIFICATION;
+            
+            renderOrder = 999;
+
         } else {
+            // 惑星
             let color = '#ffffff';
             if (obj.name === '火星') color = '#ff5555';
             else if (obj.name === '金星') color = '#eeeeaa';
@@ -1296,13 +1471,25 @@ function createSolarSystemSprites(data, parentGroup) {
             else if (obj.name === '水星') color = '#aaaaaa';
             else if (obj.name === '天王星') color = '#aaeeff';
             else if (obj.name === '海王星') color = '#5588ff';
+            
             texture = createPlanetTexture(color, true, false); 
             scale = Math.max(2, (8.0 - obj.mag) * 2.5);
+            renderOrder = 900;
         }
 
-        const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, rotation: rotation, fog: false });
+        const material = new THREE.SpriteMaterial({ 
+            map: texture, 
+            depthTest: false, 
+            rotation: rotation, 
+            fog: false,
+            opacity: opacity, // ★透明度を適用
+            transparent: true
+        });
+        
         const sprite = new THREE.Sprite(material);
         sprite.scale.set(scale, scale, 1);
+        sprite.renderOrder = renderOrder;
+
         const altRad = obj.alt * (Math.PI / 180);
         const azRad = obj.az * (Math.PI / 180);
         const x = r * Math.cos(altRad) * Math.sin(azRad);
@@ -1310,15 +1497,18 @@ function createSolarSystemSprites(data, parentGroup) {
         const z = -r * Math.cos(altRad) * Math.cos(azRad);
         sprite.position.set(x, y, z);
 
+        // ラベル作成（変更なし）
         const labelMap = createLabelTexture(obj.name, obj.name==='太陽'?'#ffaa00':'#ffffff', 32);
         const labelMat = new THREE.SpriteMaterial({ map: labelMap, depthTest: false, transparent: true, fog: false });
         const labelSprite = new THREE.Sprite(labelMat);
+        labelSprite.renderOrder = 9999; 
+
         const aspect = labelMap.image.width / labelMap.image.height;
         const baseH = 12; 
         const baseW = baseH * aspect;
         labelSprite.scale.set(baseW, baseH, 1);
         
-        if (obj.name === '太陽') labelSprite.position.set(40, 0, 0); 
+        if (obj.name === '太陽') labelSprite.position.set(scale/2 + 10, 0, 0); 
         else labelSprite.position.set(scale/2 + 5, -scale/2, 0);
         
         const wrapper = new THREE.Group();
