@@ -1241,6 +1241,40 @@ function updateSolarSystemData() {
         const date = state.date;
         const observer = new Astronomy.Observer(state.lat, state.lon, 0);
         
+        // --- [追加] 日食による空の明るさ変化計算 ---
+        // ループ前に太陽と月の位置を先行計算して「食の進行度」を算出します
+        const sunEquPre = Astronomy.Equator(Astronomy.Body.Sun, date, observer, true, true);
+        const sunHorPre = Astronomy.Horizon(date, observer, sunEquPre.ra, sunEquPre.dec, Astronomy.Refraction.Normal);
+        const moonEquPre = Astronomy.Equator(Astronomy.Body.Moon, date, observer, true, true);
+        const moonHorPre = Astronomy.Horizon(date, observer, moonEquPre.ra, moonEquPre.dec, Astronomy.Refraction.Normal);
+
+        // 物理的な距離と視半径の計算
+        const sDist = sunEquPre.dist * SOLAR_CONSTANTS.AU_KM;
+        const mDist = moonEquPre.dist * SOLAR_CONSTANTS.AU_KM;
+        const sRadRad = Math.atan(SOLAR_CONSTANTS.SUN_DIAMETER_KM / sDist) / 2;
+        const mRadRad = Math.atan(SOLAR_CONSTANTS.MOON_DIAMETER_KM / mDist) / 2;
+
+        // 中心間の角距離
+        const azDiff = (moonHorPre.azimuth - sunHorPre.azimuth) * (Math.PI / 180);
+        const altDiff = (moonHorPre.altitude - sunHorPre.altitude) * (Math.PI / 180);
+        const sepRad = Math.sqrt(Math.pow(azDiff * Math.cos(sunHorPre.altitude * (Math.PI/180)), 2) + Math.pow(altDiff, 2));
+
+        // 食の進行度 (0.0:なし -> 1.0:中心が重なる)
+        let eclipseFactor = 0.0;
+        const contactRad = sRadRad + mRadRad; // 接触距離
+        
+        if (sepRad < contactRad) {
+            // 重なっている割合（線形）
+            const linearFactor = 1.0 - (sepRad / contactRad);
+            // 視覚的な明るさ変化に合わせるため指数関数を適用
+            // (欠け始めは明るく、深く欠けると急に暗くなる)
+            eclipseFactor = Math.pow(linearFactor, 4.0); 
+        }
+
+        // 空の更新（日食度合いを渡す）
+        updateSky(sunHorPre.altitude, sunHorPre.azimuth, eclipseFactor);
+        // -------------------------------------------
+
         const bodies = [
             { id: Astronomy.Body.Sun, name: '太陽' },
             { id: Astronomy.Body.Moon, name: '月' },
@@ -1254,14 +1288,8 @@ function updateSolarSystemData() {
         ];
 
         const results = [];
-        let sunAz, sunAlt;
-
-        const sunEqu = Astronomy.Equator(Astronomy.Body.Sun, date, observer, true, true);
-        const sunHor = Astronomy.Horizon(date, observer, sunEqu.ra, sunEqu.dec, Astronomy.Refraction.Normal);
-        sunAz = sunHor.azimuth;
-        sunAlt = sunHor.altitude;
-        updateSky(sunAlt, sunAz);
-
+        
+        // 天体データの作成ループ（既存処理）
         bodies.forEach(body => {
             const equ = Astronomy.Equator(body.id, date, observer, true, true);
             const hor = Astronomy.Horizon(date, observer, equ.ra, equ.dec, Astronomy.Refraction.Normal);
@@ -1269,7 +1297,7 @@ function updateSolarSystemData() {
             results.push({
                 name: body.name, alt: hor.altitude, az: hor.azimuth, distance_au: equ.dist,
                 mag: illum.mag, phase_frac: illum.phase_fraction, type: 'SolarSystem',
-                sunAz: sunAz, sunAlt: sunAlt
+                sunAz: sunHorPre.azimuth, sunAlt: sunHorPre.altitude
             });
         });
 
@@ -2017,15 +2045,16 @@ function createMilkyWay() {
     milkyWayGroup.add(milkyWayMesh);
 }
 
-function updateSky(sunAlt, sunAz) {
+function updateSky(sunAlt, sunAz, eclipseFactor = 0.0) {
     if (!skyMesh) return;
     let targetColor;
+    
     // 昼の強さを計算 (0.0:夜 〜 1.0:昼)
     const dayStrength = Math.min(1.0, Math.max(0.0, sunAlt / 25.0));
 
     if (state.sunlightVisible) {
-        if (sunAlt <= SKY_GRADIENT[0].alt) targetColor = SKY_GRADIENT[0].color;
-        else if (sunAlt >= SKY_GRADIENT[SKY_GRADIENT.length - 1].alt) targetColor = SKY_GRADIENT[SKY_GRADIENT.length - 1].color;
+        if (sunAlt <= SKY_GRADIENT[0].alt) targetColor = SKY_GRADIENT[0].color.clone();
+        else if (sunAlt >= SKY_GRADIENT[SKY_GRADIENT.length - 1].alt) targetColor = SKY_GRADIENT[SKY_GRADIENT.length - 1].color.clone();
         else {
             for (let i = 0; i < SKY_GRADIENT.length - 1; i++) {
                 const lower = SKY_GRADIENT[i]; const upper = SKY_GRADIENT[i + 1];
@@ -2038,10 +2067,23 @@ function updateSky(sunAlt, sunAz) {
     } else {
         targetColor = new THREE.Color(0x050a14);
     }
+
     if (targetColor) {
+        // --- [追加] 日食による減光処理 ---
+        if (eclipseFactor > 0.001) {
+            // 夜の色（真っ黒ではなく深い青）
+            const nightColor = new THREE.Color(0x020408);
+            
+            // 最大でも完全な真っ暗(1.0)にはせず、0.95くらいにして薄明かりを残す
+            const darkness = Math.min(0.95, eclipseFactor * 1.5); // 係数1.5で早めに暗くする
+            
+            targetColor.lerp(nightColor, darkness);
+        }
+        
         skyMesh.material.uniforms.baseColor.value.copy(targetColor);
         scene.fog.color.copy(targetColor);
     }
+
     const altRad = sunAlt * (Math.PI / 180);
     const azRad = sunAz * (Math.PI / 180);
     const x = Math.cos(altRad) * Math.sin(azRad);
@@ -2049,27 +2091,28 @@ function updateSky(sunAlt, sunAz) {
     const z = -Math.cos(altRad) * Math.cos(azRad);
     skyMesh.material.uniforms.sunDirection.value.set(x, y, z);
     skyMesh.material.uniforms.sunAlt.value = sunAlt;
-    skyMesh.material.uniforms.uSunlightEnabled.value = state.sunlightVisible ? 1.0 : 0.0;
+    
+    // 太陽光の強さ（グレア）も日食に合わせて弱める
+    // 日食率が高いほど 0 に近づける
+    const eclipseDimming = Math.max(0, 1.0 - eclipseFactor * 3.0); // グレアは早めに消す
+    skyMesh.material.uniforms.uSunlightEnabled.value = state.sunlightVisible ? eclipseDimming : 0.0;
 
-    // --- 天の川の透明度制御 (更新箇所) ---
+    // --- 天の川の透明度制御 ---
     if (milkyWayMesh) {
-        // 1. 太陽高度によるフェード (Day/Night)
         let dayFactor = 1.0;
         if (state.sunlightVisible) {
-            dayFactor = 1.0 - dayStrength;
+            // 通常の昼の明るさに、日食による「暗さ」を加味する
+            // eclipseFactorが大きい(暗い)ほど、dayStrengthの影響を無効化して夜に近づける
+            const effectiveDayStrength = dayStrength * (1.0 - eclipseFactor); 
+            dayFactor = 1.0 - effectiveDayStrength;
         }
 
-        // 2. 星の等級によるフェード (Magnitude)
-        // 3.0以下で0%、7.5以上で100%
         const magFadeThreshold = 3.0;
-        const magFullThreshold = 7.5; // 最大値
+        const magFullThreshold = 7.5; 
         let magFactor = (state.magLimit - magFadeThreshold) / (magFullThreshold - magFadeThreshold);
-        magFactor = Math.max(0, Math.min(1, magFactor)); // 0.0〜1.0に制限
+        magFactor = Math.max(0, Math.min(1, magFactor)); 
 
-        // 最大不透明度 (100%に近づけるため高く設定)
-        // AdditiveBlendingで1.0はかなり明るくなりますが、ご要望に合わせて視認性を上げます。
         const maxOpacity = 0.85; 
-        
         const targetOpacity = maxOpacity * dayFactor * magFactor;
         
         milkyWayMesh.material.opacity = targetOpacity;
