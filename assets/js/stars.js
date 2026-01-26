@@ -801,7 +801,7 @@ function setupUI() {
     sliderLat.value = state.lat;
     sliderLon.value = state.lon;
 
-    const updateDateInput = () => {
+const updateDateInput = () => {
         const d = state.date;
         const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
         dateInput.value = local.toISOString().slice(0, 16);
@@ -811,7 +811,9 @@ function setupUI() {
         const day = d.getDate().toString().padStart(2, '0');
         const hour = d.getHours().toString().padStart(2, '0');
         const min = d.getMinutes().toString().padStart(2, '0');
-        const dateStr = `${year}/${month}/${day} ${hour}:${min}`;
+
+        // ▼ 変更：末尾に (JST) を追加
+        const dateStr = `${year}/${month}/${day} ${hour}:${min} (日本時間)`;
         
         if(screenClock) screenClock.textContent = dateStr;
         if(mobileClockDisplay) mobileClockDisplay.textContent = dateStr;
@@ -2612,7 +2614,10 @@ function animate() {
             const day = d.getDate().toString().padStart(2, '0');
             const hour = d.getHours().toString().padStart(2, '0');
             const min = d.getMinutes().toString().padStart(2, '0');
-            const dateStr = `${year}/${month}/${day} ${hour}:${min}`;
+            
+            // ▼ 変更：ここも末尾に (JST) を追加
+            const dateStr = `${year}/${month}/${day} ${hour}:${min} (日本時間)`;
+            
             if(screenClock) screenClock.textContent = dateStr;
             if(mobileClockDisplay) mobileClockDisplay.textContent = dateStr;
         }
