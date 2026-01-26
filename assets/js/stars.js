@@ -2228,14 +2228,26 @@ function updateSky(sunAlt, sunAz, eclipseFactor = 0.0) {
 }
 
 function createGround() {
+    // 地面（半球）の生成
     const geometry = new THREE.SphereGeometry(CONFIG.radius - 10, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-    const material = new THREE.MeshBasicMaterial({ color: 0x020408, side: THREE.BackSide, transparent: true, opacity: 0.95 });
+    const material = new THREE.MeshBasicMaterial({ color: 0x020408, side: THREE.BackSide, transparent: true, opacity: 0.7 });
     groundMesh = new THREE.Mesh(geometry, material);
+    
+    // ★追加：描画順序を最前面にする
+    // 天体ラベルが 9999 なので、それより大きい値を設定して上から被せる
+    groundMesh.renderOrder = 20000; 
+
     scene.add(groundMesh);
+
+    // 地平線のライン
     const lineGeo = new THREE.RingGeometry(CONFIG.radius - 12, CONFIG.radius - 10, 64);
     const lineMat = new THREE.MeshBasicMaterial({ color: CONFIG.starColors.default, opacity: 0.2, transparent: true, side: THREE.DoubleSide });
     const horizonLine = new THREE.Mesh(lineGeo, lineMat);
     horizonLine.rotation.x = Math.PI / 2;
+
+    // ★追加：地平線ラインも最前面へ
+    horizonLine.renderOrder = 20001;
+
     scene.add(horizonLine);
 }
 
