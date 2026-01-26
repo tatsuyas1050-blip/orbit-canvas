@@ -1403,15 +1403,19 @@ function createSolarSystemSprites(data, parentGroup) {
     const r = CONFIG.radius;
     const TEXTURE_RATIO = 0.8; 
 
-    // ★★★ 追加：パララクティックアングル計算用の共通変数（LSTと緯度）
+    // ★ パララクティックアングル計算用の共通変数
     const lstRad = calculateLST(state.date, state.lon);
     const latRad = state.lat * (Math.PI / 180);
 
-    // --- [Step 1] 日食（太陽と月）の判定 ---
+    // --- [Step 1] 日食（太陽と月）の判定とフェード値計算 ---
     let sunObj = data.find(o => o.name === '太陽');
     let moonObj = data.find(o => o.name === '月');
     
+    // 物理的な日食情報（太陽のテクスチャ生成用）
     let solarEclipseInfo = { isEclipsing: false };
+    
+    // 月の不透明度（初期値 1.0 = 不透明）
+    let moonOpacity = 1.0;
     
     let lunarEclipseInfo = { isEclipsing: false, opacity: 1.0 };
     if (moonObj && moonObj.lunarEclipseData) {
@@ -1419,9 +1423,10 @@ function createSolarSystemSprites(data, parentGroup) {
     }
 
     if (sunObj && moonObj) {
-        // --- A. 日食計算 (Solar Eclipse) ---
+        // --- 距離と視直径の計算 ---
         const sunDistKm = sunObj.distance_au * SOLAR_CONSTANTS.AU_KM;
         const moonDistKm = moonObj.distance_au * SOLAR_CONSTANTS.AU_KM;
+        
         const sunAngRad = Math.atan(SOLAR_CONSTANTS.SUN_DIAMETER_KM / sunDistKm);
         const moonAngRad = Math.atan(SOLAR_CONSTANTS.MOON_DIAMETER_KM / moonDistKm);
 
@@ -1432,11 +1437,14 @@ function createSolarSystemSprites(data, parentGroup) {
 
         const xAng = azDiff * Math.cos(sunObj.alt * (Math.PI / 180));
         const yAng = altDiff;
+        
+        // 中心間の角距離
         const angularDistance = Math.sqrt(xAng * xAng + yAng * yAng);
 
         const sunRadiusRad = sunAngRad / 2;
         const moonRadiusRad = moonAngRad / 2;
         
+        // 1. 物理的な日食判定（太陽の欠け具合用 - 変更なし）
         if (angularDistance < (sunRadiusRad + moonRadiusRad)) {
             solarEclipseInfo = {
                 isEclipsing: true,
@@ -1445,12 +1453,24 @@ function createSolarSystemSprites(data, parentGroup) {
                 radiusRatio: moonRadiusRad / sunRadiusRad
             };
         }
-    }
 
-    // --- [Step 1.5] 日食時の月のフェード計算 ---
-    let moonOpacity = 1.0;
-    if (sunObj && moonObj && sunObj.alt > -5 && moonObj.alt > -5 && solarEclipseInfo.isEclipsing) {
-         moonOpacity = 0.0; 
+        // 2. 月のフェード計算（拡大倍率を考慮）
+        // 接触開始距離（係数 1.0）：ここから薄くなり始める
+        const fadeStartDist = (sunRadiusRad + moonRadiusRad) * SOLAR_CONSTANTS.MAGNIFICATION * 0.8;
+        
+        // 完全に消える距離（係数 0.5）：ここまで近づいたら完全に透明
+        const fadeEndDist = (sunRadiusRad + moonRadiusRad) * SOLAR_CONSTANTS.MAGNIFICATION * 0.5;
+
+        // 地平線より上にある場合のみ計算
+        if (sunObj.alt > -5 && moonObj.alt > -5) {
+            if (angularDistance < fadeEndDist) {
+                // 完全に重なった（指定範囲内）なら透明
+                moonOpacity = 0.0;
+            } else if (angularDistance < fadeStartDist) {
+                // 接触開始から消える位置までの間で滑らかにフェード (1.0 -> 0.0)
+                moonOpacity = (angularDistance - fadeEndDist) / (fadeStartDist - fadeEndDist);
+            }
+        }
     }
 
     // --- [Step 2] 各天体の描画 ---
@@ -1458,9 +1478,13 @@ function createSolarSystemSprites(data, parentGroup) {
         if(obj.alt < -5) return;
         let texture, scale, rotation = 0;
         let renderOrder = 0; 
-        let opacity = 1.0;
+        
+        // その天体の不透明度（デフォルト 1.0）
+        let currentOpacity = 1.0;
 
         if (obj.name === '月') {
+            currentOpacity = moonOpacity; // 計算したフェード値を適用
+
             if (lunarEclipseInfo.isEclipsing) {
                 // ★ 月食描画モード
                 texture = createLunarEclipseTexture(
@@ -1469,34 +1493,27 @@ function createSolarSystemSprites(data, parentGroup) {
                     lunarEclipseInfo.yOffset
                 );
                 
-                // ★★★ 修正箇所：パララクティック・アングルによる回転補正 ★★★
-                // これにより、東の空では左回転、西の空では右回転がかかります。
-                const raRad = obj.ra * 15 * (Math.PI / 180); // 赤経 (Hours -> Rad)
-                const decRad = obj.dec * (Math.PI / 180);    // 赤緯 (Degrees -> Rad)
+                const raRad = obj.ra * 15 * (Math.PI / 180);
+                const decRad = obj.dec * (Math.PI / 180);
                 
-                // 時角 H = LST - RA
                 let haRad = lstRad - raRad;
                 while (haRad > Math.PI) haRad -= 2 * Math.PI;
                 while (haRad < -Math.PI) haRad += 2 * Math.PI;
 
-                // パララクティックアングル q の計算
                 const y = Math.sin(haRad);
                 const x = Math.tan(latRad) * Math.cos(decRad) - Math.sin(decRad) * Math.cos(haRad);
                 const q = Math.atan2(y, x);
 
-                // 北基準(q)を打ち消す方向に回転 (-q)
                 rotation = -q; 
-
-                opacity = 1.0;
+                // 月食時は日食（太陽との重なり）は起き得ないので opacity は 1.0 のままでOK
             } else {
-                // 通常モード（満ち欠け）
+                // 通常モード
                 texture = createMoonPhaseTexture(obj.phase_frac);
                 const azDiff = (obj.sunAz - obj.az) * (Math.PI/180);
                 const altDiff = (obj.sunAlt - obj.alt) * (Math.PI/180);
                 const dx = azDiff * Math.cos(obj.alt * (Math.PI/180));
                 const dy = altDiff;
                 rotation = Math.atan2(dy, dx); 
-                opacity = moonOpacity;
             }
             
             const distKm = obj.distance_au * SOLAR_CONSTANTS.AU_KM;
@@ -1506,6 +1523,7 @@ function createSolarSystemSprites(data, parentGroup) {
             renderOrder = 998; 
 
         } else if (obj.name === '太陽') {
+           // 太陽
            texture = createSunDiscTexture(solarEclipseInfo);
            const distKm = obj.distance_au * SOLAR_CONSTANTS.AU_KM;
            const angularSizeRad = SOLAR_CONSTANTS.SUN_DIAMETER_KM / distKm;
@@ -1513,7 +1531,7 @@ function createSolarSystemSprites(data, parentGroup) {
            scale = (objectSizeOnSphere / TEXTURE_RATIO) * SOLAR_CONSTANTS.MAGNIFICATION;
            renderOrder = 999;
         } else {
-           // 惑星の処理
+           // 惑星
             let color = '#ffffff';
             if (obj.name === '火星') color = '#ff5555';
             else if (obj.name === '金星') color = '#eeeeaa';
@@ -1528,12 +1546,13 @@ function createSolarSystemSprites(data, parentGroup) {
             renderOrder = 900;
         }
 
+        // スプライト生成（不透明度を適用）
         const material = new THREE.SpriteMaterial({ 
             map: texture, 
             depthTest: false, 
             rotation: rotation, 
             fog: false,
-            opacity: opacity,
+            opacity: currentOpacity, // ★ここが変わりました
             transparent: true
         });
         
@@ -1548,9 +1567,16 @@ function createSolarSystemSprites(data, parentGroup) {
         const z = -r * Math.cos(altRad) * Math.cos(azRad);
         sprite.position.set(x, y, z);
 
-        // ラベル作成
+        // ラベル生成
         const labelMap = createLabelTexture(obj.name, obj.name==='太陽'?'#ffaa00':'#ffffff', 32);
-        const labelMat = new THREE.SpriteMaterial({ map: labelMap, depthTest: false, transparent: true, fog: false });
+        const labelMat = new THREE.SpriteMaterial({ 
+            map: labelMap, 
+            depthTest: false, 
+            transparent: true, 
+            fog: false,
+            // ★追加: 月の場合、ラベルも同じようにフェードさせる
+            opacity: (obj.name === '月') ? currentOpacity : 1.0 
+        });
         const labelSprite = new THREE.Sprite(labelMat);
         labelSprite.renderOrder = 9999; 
 
