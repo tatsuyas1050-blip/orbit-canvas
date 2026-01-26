@@ -2230,7 +2230,7 @@ function updateSky(sunAlt, sunAz, eclipseFactor = 0.0) {
 function createGround() {
     // 地面（半球）の生成
     const geometry = new THREE.SphereGeometry(CONFIG.radius - 10, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-    const material = new THREE.MeshBasicMaterial({ color: 0x020408, side: THREE.BackSide, transparent: true, opacity: 0.7 });
+    const material = new THREE.MeshBasicMaterial({ color: 0x020408, side: THREE.BackSide, transparent: true, opacity: 0.75 });
     groundMesh = new THREE.Mesh(geometry, material);
     
     // ★追加：描画順序を最前面にする
