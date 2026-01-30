@@ -896,16 +896,25 @@
         }
 
         async function fetchEvents() {
-            try {
-                const res = await fetch(API_URL);
-                if(!res.ok) throw new Error("API Error");
-                eventsData = await res.json();
-            } catch(e) {
-                feedList.innerHTML = `<p style="opacity:0.5;">データの読み込みに失敗しました</p>`;
-            }
-        }
+        try {
+            const res = await fetch(API_URL);
+            if(!res.ok) throw new Error("API Error");
 
-        function changeMonth(delta) {
+            // APIは「星空イベント」と「ソノッキーの部屋」のデータを同じ日付キーで返すため、
+            // ここで「星空イベント(sky_event)」だけにフィルタして保持する。
+            const raw = await res.json();
+            const filtered = {};
+            Object.keys(raw || {}).forEach(dateKey => {
+                const arr = Array.isArray(raw[dateKey]) ? raw[dateKey] : [];
+                const skyOnly = arr.filter(evt => evt.category === 'sky_event');
+                if (skyOnly.length > 0) filtered[dateKey] = skyOnly;
+            });
+            eventsData = filtered;
+        } catch(e) {
+            feedList.innerHTML = `<p style="opacity:0.5;">データの読み込みに失敗しました</p>`;
+        }
+    }
+function changeMonth(delta) {
             currentMonth += delta;
             if (currentMonth > 11) { currentMonth = 0; currentYear++; }
             else if (currentMonth < 0) { currentMonth = 11; currentYear--; }
