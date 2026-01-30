@@ -1192,7 +1192,7 @@ function changeMonth(delta) {
             const hasImage = !!evt.image;
             const card = document.createElement('div');
             card.className = `smart-card feed-card ${typeClass} ${hasImage ? '' : 'no-image'}`;
-            
+
             const label = typeLabels[evt.type] || "その他";
             const typeColorVar = getComputedStyle(document.documentElement).getPropertyValue(`--col-${evt.type || 'other'}`).trim();
             const badgeStyle = `color:${typeColorVar}; border-color:${typeColorVar};`;
@@ -1203,13 +1203,13 @@ function changeMonth(delta) {
             // 時間情報をリセットして日付のみ比較
             const todayReset = new Date(today); todayReset.setHours(0,0,0,0);
             const eventReset = new Date(eventDate); eventReset.setHours(0,0,0,0);
-            
+
             let planBtnHtml = '';
             // 未来の日付なら「プランに追加」ボタンを表示
             if (eventReset >= todayReset) {
-                // オブジェクトを文字列化して渡すためにエンコード
+                // オブジェクトを文字列化して data 属性に保持（インライン onclick は使用しない）
                 const evtJson = encodeURIComponent(JSON.stringify(evt));
-                planBtnHtml = `<button class="btn-add-plan" onclick="event.stopPropagation(); openPlanModal('${evtJson}')"><span>📅</span> プランに追加</button>`;
+                planBtnHtml = `<button class="btn-add-plan" type="button" data-evt="${evtJson}"><span>📅</span> プランに追加</button>`;
             }
 
             card.innerHTML = `
@@ -1227,6 +1227,17 @@ function changeMonth(delta) {
                     <div class="toggle-btn"></div>
                 </div>
             `;
+
+            // 「プランに追加」ボタン（未来日付のみ存在）
+            const planBtn = card.querySelector('.btn-add-plan');
+            if (planBtn) {
+                planBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // カードの開閉クリックを止める
+                    const evtJson = planBtn.getAttribute('data-evt');
+                    openPlanModal(evtJson);
+                });
+            }
+
             card.addEventListener('click', () => card.classList.toggle('open'));
             return card;
         }
