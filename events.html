@@ -771,7 +771,180 @@
 
         // ▼▼▼ 名称設定 ▼▼▼
         const typeLabels = { meteor: "流星群", eclipse: "月・太陽", phenomenon: "天文現象", rocket: "ロケット打上", other: "その他", star: "天文現象" };
-        const weekDaysEng = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        // ▼▼▼ ロケット打上げ（自動取得）の日本語化 & 時刻表示（現地/日本） ▼▼▼
+        // このアプリでは、Launch Library 2 由来のロケット打上げイベント（source: auto）について
+        // 「英語の固定表現のみ」を日本語に置換し、時刻を「現地時間 + 日本時間」で表示します。
+        //
+        // IMPORTANT:
+        // - DynamoDBのデータは変更しません（表示だけ加工）。
+        // - ここでの時刻計算は、evt.time が「UTCで記録されている」前提です。
+        //   もしLambda側で既にJSTへ変換している場合は、下の BASE_TIMEZONE を 'Asia/Tokyo' に変更してください。
+        const BASE_TIMEZONE = 'Asia/Tokyo'; // 'UTC' or 'Asia/Tokyo'
+
+
+        const ROCKET_TRANSLATIONS = {
+            status: {
+                "Go for Launch": "打上げ予定",
+                "Launch Successful": "打上げ成功",
+                "To Be Confirmed": "詳細未確定",
+                "To Be Determined": "未定",
+                "Launch Failed": "打上げ失敗",
+                "In Flight": "飛行中",
+                "Hold": "延期",
+                "TBD": "未定"
+            },
+            labels: {
+                "Status": "ステータス",
+                "Site": "打上げ場所",
+                "Window": "打上げウィンドウ",
+                "Mission": "ミッション"
+            }
+        };
+
+        // 発射場（Site文字列）から「現地タイムゾーン」を推定するルール（必要なら増やしてください）
+        const PAD_TZ_RULES = [
+            { re: /Cape Canaveral|Kennedy Space Center|KSC|SLC-40|SLC 40/i, tz: 'America/New_York', ja: 'フロリダ（米国）' },
+            { re: /Vandenberg|SLC-4E|SLC 4E/i, tz: 'America/Los_Angeles', ja: 'カリフォルニア（米国）' },
+            { re: /Starbase|Boca Chica|Brownsville/i, tz: 'America/Chicago', ja: 'テキサス（米国）' },
+            { re: /Wallops|Virginia/i, tz: 'America/New_York', ja: 'バージニア（米国）' },
+
+            { re: /Baikonur|Republic of Kazakhstan/i, tz: 'Asia/Almaty', ja: 'バイコヌール（カザフスタン）' },
+            { re: /Plesetsk|Russian Federation/i, tz: 'Europe/Moscow', ja: 'プレセツク（ロシア）' },
+
+            { re: /Mahia|Launch Complex 1|New Zealand/i, tz: 'Pacific/Auckland', ja: 'マヒア（ニュージーランド）' },
+            { re: /Satish Dhawan|Sriharikota|India/i, tz: 'Asia/Kolkata', ja: 'サティシュ・ダワン（インド）' },
+            { re: /Guiana Space Centre|Kourou|French Guiana/i, tz: 'America/Cayenne', ja: 'クールー（仏領ギアナ）' },
+            { re: /Andøya|Andoya|Norway/i, tz: 'Europe/Oslo', ja: 'アンドーヤ（ノルウェー）' },
+
+            { re: /Jiuquan|China/i, tz: 'Asia/Shanghai', ja: '酒泉（中国）' },
+            { re: /Wenchang|China/i, tz: 'Asia/Shanghai', ja: '文昌（中国）' },
+            { re: /Haiyang|South China Sea/i, tz: 'Asia/Shanghai', ja: '海陽（中国）' },
+
+            { re: /Spaceport Kii|Japan/i, tz: 'Asia/Tokyo', ja: 'スペースポート紀伊（日本）' },
+        ];
+
+        function extractSiteLine(desc) {
+            if (!desc || typeof desc !== 'string') return '';
+            const m = desc.match(/\bSite:\s*(.*)/i);
+            if (!m) return '';
+            // 1行目だけ
+            return (m[1] || '').split('\n')[0].trim();
+        }
+
+        function inferLocalTimezone(desc) {
+            const siteLine = extractSiteLine(desc);
+            if (!siteLine) return { tz: null, jaRegion: null, siteLine: '' };
+            for (const rule of PAD_TZ_RULES) {
+                if (rule.re.test(siteLine)) return { tz: rule.tz, jaRegion: rule.ja, siteLine };
+            }
+            return { tz: null, jaRegion: null, siteLine };
+        }
+
+        function translateRocketDescription(desc) {
+            if (!desc || typeof desc !== "string") return desc;
+
+            let result = desc;
+
+            // ラベル翻訳（"Status:" など）
+            Object.entries(ROCKET_TRANSLATIONS.labels).forEach(([en, ja]) => {
+                result = result.replaceAll(`${en}:`, `${ja}：`);
+            });
+
+            // ステータス翻訳（値の部分）
+            Object.entries(ROCKET_TRANSLATIONS.status).forEach(([en, ja]) => {
+                result = result.replaceAll(en, ja);
+            });
+
+            // よく出る英語表現を軽く日本語化（必要に応じて追加）
+            result = result
+                .replaceAll("Unknown Pad", "不明な発射台")
+                .replaceAll("Unknown Payload", "不明なペイロード")
+                .replaceAll("Details TBD.", "詳細未定。")
+                .replaceAll("Details TBD", "詳細未定")
+                .replaceAll("TBD.", "未定。")
+                .replaceAll("TBD", "未定");
+
+            return result;
+        }
+
+        function parseEventTimeToDate(timeStr) {
+            // 例: "2026/02/11 20:00"
+            if (!timeStr || typeof timeStr !== 'string') return null;
+            const m = timeStr.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/);
+            if (!m) return null;
+
+            const year = Number(m[1]);
+            const month = Number(m[2]);
+            const day = Number(m[3]);
+            const hour = Number(m[4]);
+            const minute = Number(m[5]);
+
+            if (BASE_TIMEZONE === 'Asia/Tokyo') {
+                // timeStr が JST だと仮定してDateを生成（ローカルではなくJST固定で扱う）
+                // JS Dateは端末ローカルに影響されるため、JSTとしての「見かけ」をUTCへ戻して保持します。
+                // JST = UTC+9
+                const utcMillis = Date.UTC(year, month - 1, day, hour - 9, minute, 0);
+                return new Date(utcMillis);
+            }
+
+            // 既定: UTC として解釈
+            return new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+        }
+
+        function formatDateTimeInTZ(dateObj, timeZone) {
+            try {
+                const fmt = new Intl.DateTimeFormat('ja-JP', {
+                    timeZone,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+                return fmt.format(dateObj).replaceAll('/', '/'); // "YYYY/MM/DD HH:MM"
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function buildTimeHtml(evt) {
+            const rawTime = (evt && evt.time) ? String(evt.time) : '';
+            const isAutoRocket = evt && evt.type === 'rocket' && evt.source === 'auto';
+
+            // 自動ロケット以外：従来通り（手入力の "18:30~19:00" 等はそのまま）
+            if (!isAutoRocket) {
+                return `<div class="feed-time"><span style="font-size:1.2rem;">⏱</span> ${rawTime || '--'}</div>`;
+            }
+
+            // 自動ロケット：現地 + 日本
+            const baseDate = parseEventTimeToDate(rawTime);
+            const jp = baseDate ? formatDateTimeInTZ(baseDate, 'Asia/Tokyo') : null;
+
+            const { tz: localTz, jaRegion } = inferLocalTimezone(evt.desc || '');
+            const local = (baseDate && localTz) ? formatDateTimeInTZ(baseDate, localTz) : null;
+
+            const localLabel = jaRegion ? `現地時間（${jaRegion}）` : '現地時間';
+            const localVal = local ? local : '推定できません';
+            const jpVal = jp ? jp : (rawTime || '--');
+
+            // 2行表示
+            return `
+                <div class="feed-time" style="flex-direction:column; align-items:flex-start; gap:4px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:1.2rem;">⏱</span>
+                        <span>${localLabel}：<span style="font-family:var(--font-tech);">${localVal}</span></span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:1.2rem;">🇯🇵</span>
+                        <span>日本時間：<span style="font-family:var(--font-tech);">${jpVal}</span></span>
+                    </div>
+                </div>
+            `;
+        }
+
+        const weekDaysJp = ['日', '月', '火', '水', '木', '金', '土'];
+        const weekDaysJpLong = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
 
         function switchTab(mode) {
             if (isAnimating || mode === currentTab) return;
@@ -925,7 +1098,7 @@ function changeMonth(delta) {
 
         function renderCalendar(year, month) {
             gridEl.innerHTML = '';
-            ['S','M','T','W','T','F','S'].forEach(d => {
+            ['日','月','火','水','木','金','土'].forEach(d => {
                 const el = document.createElement('div');
                 el.className = 'day-label'; el.textContent = d;
                 gridEl.appendChild(el);
@@ -997,7 +1170,7 @@ function changeMonth(delta) {
                     hasEvent = true;
                     const dateHeader = document.createElement('div');
                     dateHeader.style.cssText = "padding:1rem 0 0.5rem; color:var(--accent-gold); font-family:var(--font-tech); font-size:1.2rem; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:1rem;";
-                    dateHeader.textContent = `${currentMonth+1}.${String(d).padStart(2,'0')} / ${weekDaysEng[new Date(dateStr).getDay()]}`;
+                    dateHeader.textContent = `${currentMonth+1}.${String(d).padStart(2,'0')}（${weekDaysJpLong[new Date(dateStr).getDay()]}）`;
                     monthlyContent.appendChild(dateHeader);
 
                     events.forEach(evt => {
@@ -1020,7 +1193,7 @@ function changeMonth(delta) {
             const card = document.createElement('div');
             card.className = `smart-card feed-card ${typeClass} ${hasImage ? '' : 'no-image'}`;
             
-            const label = typeLabels[evt.type] || "Others";
+            const label = typeLabels[evt.type] || "その他";
             const typeColorVar = getComputedStyle(document.documentElement).getPropertyValue(`--col-${evt.type || 'other'}`).trim();
             const badgeStyle = `color:${typeColorVar}; border-color:${typeColorVar};`;
             const imgSection = evt.image ? `<div class="feed-img-col"><img src="${evt.image}" class="feed-img"></div>` : '';
@@ -1047,9 +1220,9 @@ function changeMonth(delta) {
                         ${planBtnHtml}
                     </div>
                     <h3 class="feed-title">${evt.title}</h3>
-                    <div class="feed-time"><span style="font-size:1.2rem;">⏱</span> ${evt.time}</div>
+                    ${buildTimeHtml(evt)}
                     <div class="feed-details">
-                        <p class="feed-desc">${evt.desc.replace(/\n/g, '<br>')}</p>
+                        <p class="feed-desc">${(evt.type === 'rocket' && evt.source === 'auto') ? translateRocketDescription(evt.desc).replace(/\n/g, '<br>') : evt.desc.replace(/\n/g, '<br>')}</p>
                     </div>
                     <div class="toggle-btn"></div>
                 </div>
@@ -1064,8 +1237,8 @@ function changeMonth(delta) {
             const mm = String(dateObj.getMonth()+1).padStart(2,'0');
             const dd = String(dateObj.getDate()).padStart(2,'0');
             displayDateMain.textContent = `${mm}.${dd}`;
-            displayWeekday.textContent = weekDaysEng[dateObj.getDay()];
-            elAstroDate.textContent = `(${mm}/${dd} Data)`;
+            displayWeekday.textContent = weekDaysJpLong[dateObj.getDay()];
+            elAstroDate.textContent = `（${mm}/${dd} のデータ）`;
 
             feedList.innerHTML = '';
             const events = eventsData[dateStr];
@@ -1075,7 +1248,7 @@ function changeMonth(delta) {
                     feedList.appendChild(createEventCard(evt))
                 });
             } else {
-                feedList.innerHTML = `<div style="padding:2rem; text-align:center; opacity:0.3; border:1px dashed #555; border-radius:12px; margin-bottom:1rem;">NO EVENT</div>`;
+                feedList.innerHTML = `<div style="padding:2rem; text-align:center; opacity:0.3; border:1px dashed #555; border-radius:12px; margin-bottom:1rem;">この日のイベントはありません</div>`;
             }
 
             updateAstroData(dateObj);
@@ -1202,7 +1375,7 @@ function changeMonth(delta) {
         document.getElementById('m-next-month').addEventListener('click', () => changeMonth(1));
 
         document.getElementById('btn-geo').addEventListener('click', () => {
-            if(!navigator.geolocation) return alert("Geolocation error");
+            if(!navigator.geolocation) return alert("位置情報を取得できませんでした");
             document.getElementById('btn-geo').textContent="...";
             navigator.geolocation.getCurrentPosition(p=>{
                 observerLat=p.coords.latitude; observerLon=p.coords.longitude;
