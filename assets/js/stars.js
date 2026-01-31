@@ -97,6 +97,30 @@ let allCelestialObjects = [];
 // UIボタン管理用
 let filterButtons = {};
 
+
+
+// ---- 流星記録（追加） ----
+let meteorUi = {
+    container: null,
+    btn: null,
+    modal: null,
+    modalOk: null,
+    modalCancel: null,
+    saveModal: null,
+    saveModalInput: null,
+    saveModalOk: null,
+    saveModalCancel: null,
+    hint: null,
+    hintText: null,
+    btnSave: null,
+    btnReset: null,
+};
+let meteorTrackGroup = null; // sceneに追加する
+let meteorPreviewLine = null; // 選択中のプレビュー
+let meteorStartMarker = null; // 1点目のマーク
+let meteorEndGlow = null;     // 終点の光
+let meteorSavedTracks = [];   // { createdAt, lat, lon, dateIso, startAltAz, endAltAz }
+
 const state = {
     lat: 35.6895, 
     lon: 139.6917,
@@ -138,6 +162,28 @@ const state = {
     gyroCompassLocked: false,
     gyroCompassOffsetDeg: 0,
 
+
+
+    // ---- 流星記録（追加） ----
+    meteor: {
+        mode: 'idle', // 'idle' | 'confirm' | 'selectStart' | 'selectEnd' | 'review'
+        locked: false,
+        lockedQuat: new THREE.Quaternion(),
+        // 記録対象の時刻（state.date のスナップショット）
+        lockedDate: null,
+
+        // 画面クリック位置（px）
+        startScreen: null, // {x,y}
+        endScreen: null,   // {x,y}
+
+        // 天球上の点（Three.js座標、半径CONFIG.radius上）
+        startWorld: null, // THREE.Vector3
+        endWorld: null,   // THREE.Vector3
+
+        // alt/az（度）…将来サーバ保存用
+        startAltAz: null, // {altDeg, azDeg}
+        endAltAz: null,   // {altDeg, azDeg}
+    },
 };
 
 function init() {
@@ -148,7 +194,11 @@ function init() {
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(CONFIG.bgColor);
-    scene.fog = new THREE.FogExp2(CONFIG.bgColor, 0.0008); 
+    scene.fog = new THREE.FogExp2(CONFIG.bgColor, 0.0008);
+
+    // 流星記録UI（scene生成後に初期化）
+    initMeteorUi();
+ 
 
     // ---- Comets layer (added) ----
     layers.Comets = { data: [], mesh: new THREE.Group(), visible: false };
@@ -667,6 +717,245 @@ function injectCustomStyles() {
             #btn-mobile-gyro { display: none !important; }
             #gyro-icon-btn { display: flex; }
         }
+    
+        /* ---- 流星記録 UI（追加） ---- */
+        #meteor-icon-btn {
+            position: fixed;
+            width: 44px;
+            height: 44px;
+            top: 14px;
+            left: 14px;
+            z-index: 30000;
+            pointer-events: auto;
+            border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(10, 14, 20, 0.55);
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        #meteor-icon-btn:active { transform: scale(0.98); }
+        #meteor-icon-btn img {
+            width: 80%;
+            height: 80%;
+            object-fit: contain;
+            pointer-events: none;
+            display: block;
+            filter: drop-shadow(0 0 6px rgba(255,255,255,0.25));
+        }
+
+        /* off/on states (meteor icon) */
+        #meteor-icon-btn.off {
+            background: rgba(40, 40, 45, 0.45);
+            border-color: rgba(255,255,255,0.18);
+        }
+        #meteor-icon-btn.off img {
+            filter:
+                grayscale(1)
+                brightness(0.85)
+                contrast(0.95)
+                drop-shadow(0 0 4px rgba(0,0,0,0.25));
+            opacity: 0.9;
+        }
+
+        #meteor-icon-btn.on {
+            background: rgba(10, 14, 20, 0.55);
+            border-color: rgba(255,255,255,0.28);
+        }
+        #meteor-icon-btn.on img {
+            opacity: 1;
+            filter:
+                drop-shadow(0 0 6px rgba(255,255,255,0.30))
+                drop-shadow(0 0 10px rgba(120, 180, 255, 0.20));
+        }
+
+        /* glow when recording */
+        #meteor-icon-btn.on.recording {
+            box-shadow:
+                0 0 10px rgba(120, 180, 255, 0.95),
+                0 0 20px rgba(120, 180, 255, 0.55),
+                0 0 34px rgba(120, 180, 255, 0.32);
+            border-color: rgba(120, 180, 255, 0.95);
+            background: rgba(30, 60, 95, 0.55);
+        }
+        #meteor-icon-btn.on.recording img {
+            filter:
+                drop-shadow(0 0 8px rgba(255,255,255,0.40))
+                drop-shadow(0 0 14px rgba(120, 180, 255, 0.55));
+        }
+
+#meteor-hint {
+            position: fixed;
+            top: 62px;
+            left: 14px;
+            z-index: 30000;
+            pointer-events: none;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(10, 14, 20, 0.55);
+            border: 1px solid rgba(255,255,255,0.18);
+            color: rgba(255,255,255,0.9);
+            font-size: 13px;
+            line-height: 1.35;
+            max-width: min(360px, calc(100vw - 28px));
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+        #meteor-hint.visible {
+            opacity: 1;
+            transform: translateY(0px);
+        }
+
+        #meteor-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 40000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            background: rgba(0,0,0,0.45);
+        }
+        #meteor-modal .panel {
+            width: min(420px, calc(100vw - 32px));
+            background: rgba(10, 14, 20, 0.92);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 16px;
+            padding: 16px;
+            color: rgba(255,255,255,0.92);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        }
+        #meteor-modal .title {
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+        #meteor-modal .desc {
+            font-size: 13px;
+            opacity: 0.85;
+            margin-bottom: 14px;
+        }
+        #meteor-modal .row {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* ---- 流星 保存確認モーダル（追加） ---- */
+        #meteor-save-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 41000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            background: rgba(0,0,0,0.45);
+        }
+        #meteor-save-modal .panel {
+            width: min(460px, calc(100vw - 32px));
+            background: rgba(10, 14, 20, 0.92);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 16px;
+            padding: 16px;
+            color: rgba(255,255,255,0.92);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        }
+        #meteor-save-modal .title {
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+        #meteor-save-modal .desc {
+            font-size: 13px;
+            opacity: 0.85;
+            margin-bottom: 12px;
+            line-height: 1.45;
+        }
+        #meteor-save-modal .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+        #meteor-save-modal label {
+            font-size: 12px;
+            opacity: 0.85;
+        }
+        #meteor-save-modal input[type="datetime-local"] {
+            border-radius: 10px;
+            padding: 10px 10px;
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.92);
+            outline: none;
+        }
+        #meteor-save-modal .row {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        #meteor-save-modal button {
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.92);
+        }
+        #meteor-save-modal button.primary {
+            background: rgba(120, 190, 255, 0.18);
+            border-color: rgba(120, 190, 255, 0.35);
+        }
+        #meteor-modal button {
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.92);
+        }
+        #meteor-modal button.primary {
+            background: rgba(120, 190, 255, 0.18);
+            border-color: rgba(120, 190, 255, 0.35);
+        }
+
+        #meteor-actions {
+            position: fixed;
+            top: 118px;
+            left: 14px;
+            z-index: 30000;
+            display: none;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        #meteor-icon-btn.recording {
+            box-shadow:
+                0 0 8px rgba(120, 180, 255, 0.9),
+                0 0 16px rgba(120, 180, 255, 0.6),
+                0 0 28px rgba(120, 180, 255, 0.35);
+            border-color: rgba(120, 180, 255, 0.9);
+            background: rgba(40, 80, 120, 0.55);
+        }
+
+        #meteor-actions button {
+            border-radius: 12px;
+            padding: 9px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(10, 14, 20, 0.55);
+            color: rgba(255,255,255,0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
     `;
     document.head.appendChild(style);
 }
@@ -1931,7 +2220,7 @@ function createStarLabels(data, parentGroup) {
 
 function createDSOSprites(type, data, config, parentGroup) {
     const symbolMap = createSymbolTexture(config.type, config.color);
-    const materialBase = new THREE.SpriteMaterial({ map: symbolMap, color: 0xffffff, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
+    const materialBase = new THREE.SpriteMaterial({ map: symbolMap, color: 0xffd84a, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
     data.forEach((obj) => {
         const wrapper = new THREE.Group();
         const sprite = new THREE.Sprite(materialBase.clone());
@@ -2321,6 +2610,9 @@ function onPointerUp(event) {
         return; 
     }
 
+    // ---- 流星記録モード中は優先処理（追加） ----
+    if (handleMeteorPointerUp(event)) return;
+
     const diffX = Math.abs(event.clientX - state.dragStartX);
     const diffY = Math.abs(event.clientY - state.dragStartY);
     const isMobile = window.innerWidth <= 900;
@@ -2627,6 +2919,13 @@ function animate() {
     } else {
         controls.update();
     }
+
+    // ---- 流星記録中は視点を固定（追加） ----
+    if (state.meteor && state.meteor.locked) {
+        camera.quaternion.copy(state.meteor.lockedQuat);
+        if (controls) controls.enabled = false;
+    }
+
     renderer.render(scene, camera);
     updateReticle();
 }
@@ -2898,3 +3197,739 @@ async function runCometFetch(timeObj) {
 
 
 init();
+
+
+// =====================================================================================
+// 流星記録モード（追加）
+// =====================================================================================
+
+function initMeteorUi() {
+    if (meteorUi.container) return;
+
+    // ---- 流星記録ボタン（ジャイロの下に同サイズで配置） ----
+    const btn = document.createElement('button');
+    btn.id = 'meteor-icon-btn';
+    btn.setAttribute('aria-label', '流星を記録');
+    btn.type = 'button';
+    btn.innerHTML = `<img src="assets/img/shooting_icon.png" alt="shooting star">`;
+    // 状態クラス（オフ/オン）
+    btn.classList.add('off');
+
+    btn.addEventListener('pointerdown', (e) => { e.stopPropagation(); }, { passive: true });
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        // 既に流星記録モード中なら、このボタンで終了（通常モードへ戻る）
+        if (state.meteor && state.meteor.mode && state.meteor.mode !== 'idle') {
+            resetMeteorSelection(true); // モード解除
+            return;
+        }
+
+        // まだ開始していない場合は確認→開始
+        openMeteorConfirm();
+    });
+
+    // ヒント
+    const hint = document.createElement('div');
+    hint.id = 'meteor-hint';
+    hint.innerHTML = `<div id="meteor-hint-text"></div>`;
+
+    // モーダル
+    const modal = document.createElement('div');
+    modal.id = 'meteor-modal';
+    modal.innerHTML = `
+        <div class="panel">
+            <div class="title">流星の記録</div>
+            <div class="desc">流星が流れた方向を向いていますか？</div>
+            <div class="row">
+                <button id="meteor-modal-cancel">キャンセル</button>
+                <button id="meteor-modal-ok" class="primary">OK</button>
+            </div>
+        </div>
+    `;
+
+
+    // 保存確認モーダル（時刻調整）
+    const saveModal = document.createElement('div');
+    saveModal.id = 'meteor-save-modal';
+    saveModal.innerHTML = `
+        <div class="panel">
+            <div class="title">流星の記録</div>
+            <div class="desc">流星を見たのは</div>
+            <div class="field" style="margin-top:8px;">
+                <input type="datetime-local" id="meteor-save-datetime" />
+            </div>
+            <div class="desc" style="margin-top:6px;">でよろしいですか？</div>
+            <div class="row" style="margin-top:14px;">
+                <button id="meteor-save-cancel">キャンセル</button>
+                <button id="meteor-save-ok" class="primary">OK</button>
+            </div>
+        </div>
+    `;
+
+    // アクション（保存/やり直し）
+    const actions = document.createElement('div');
+    actions.id = 'meteor-actions';
+    actions.innerHTML = `
+        <button id="meteor-save-btn">保存</button>
+        <button id="meteor-reset-btn">やり直し</button>
+    `;
+
+    // 追加先：ジャイロボタンが居ればその直後。居なければ body。
+    const gyroBtn = document.getElementById('gyro-icon-btn');
+    if (gyroBtn && gyroBtn.parentNode) {
+        gyroBtn.parentNode.insertBefore(btn, gyroBtn.nextSibling);
+    } else {
+        document.body.appendChild(btn);
+    }
+    document.body.appendChild(hint);
+    document.body.appendChild(modal);
+    document.body.appendChild(saveModal);
+    document.body.appendChild(actions);
+
+    meteorUi.container = document.body;
+    meteorUi.btn = btn;
+    meteorUi.hint = hint;
+    meteorUi.hintText = document.getElementById('meteor-hint-text');
+
+    meteorUi.modal = modal;
+    meteorUi.modalOk = document.getElementById('meteor-modal-ok');
+    meteorUi.modalCancel = document.getElementById('meteor-modal-cancel');
+
+    meteorUi.saveModal = saveModal;
+    meteorUi.saveModalInput = document.getElementById('meteor-save-datetime');
+    meteorUi.saveModalOk = document.getElementById('meteor-save-ok');
+    meteorUi.saveModalCancel = document.getElementById('meteor-save-cancel');
+
+    meteorUi.btnSave = document.getElementById('meteor-save-btn');
+    meteorUi.btnReset = document.getElementById('meteor-reset-btn');
+
+    // モーダル操作
+    meteorUi.modalCancel.addEventListener('click', () => closeMeteorConfirm());
+    meteorUi.modalOk.addEventListener('click', () => {
+        closeMeteorConfirm();
+        beginMeteorSelection();
+    });
+    modal.addEventListener('click', (e) => {
+        // 背景クリックで閉じる
+        if (e.target === modal) closeMeteorConfirm();
+
+    // 保存確認モーダル操作
+    meteorUi.saveModalCancel.addEventListener('click', () => closeMeteorSaveModal());
+    meteorUi.saveModalOk.addEventListener('click', () => confirmMeteorSave());
+    saveModal.addEventListener('click', (e) => {
+        if (e.target === saveModal) closeMeteorSaveModal();
+    });
+    });
+
+    // アクション操作
+    meteorUi.btnSave.addEventListener('click', () => openMeteorSaveModal());
+    meteorUi.btnReset.addEventListener('click', () => resetMeteorSelection(false));
+
+    setMeteorHint('');
+    setMeteorActionsVisible(false);
+
+    // 3D側のグループ（scene が準備できてから呼ばれる想定）
+    if (!meteorTrackGroup) {
+        meteorTrackGroup = new THREE.Group();
+        meteorTrackGroup.name = 'MeteorTracks';
+        scene.add(meteorTrackGroup);
+    }
+
+    // ボタン位置をジャイロボタンと揃える（PCでも必ず表示）
+    updateMeteorButtonPosition();
+    window.addEventListener('resize', updateMeteorButtonPosition);
+}
+
+function updateMeteorButtonPosition() {
+    const btn = document.getElementById('meteor-icon-btn');
+    if (!btn) return;
+
+    const fallbackLeft = 14;
+    const fallbackTop = 14;
+
+    const gyroBtn = document.getElementById('gyro-icon-btn');
+
+    // サイズはジャイロと揃える（取れなければ44px）
+    let size = 44;
+    let left = fallbackLeft;
+    let top = fallbackTop;
+
+    if (gyroBtn) {
+        const rect = gyroBtn.getBoundingClientRect();
+        const visible = rect.width > 0 && rect.height > 0 && window.getComputedStyle(gyroBtn).display !== 'none' && window.getComputedStyle(gyroBtn).visibility !== 'hidden';
+        if (visible) {
+            size = Math.round(Math.max(rect.width, rect.height)) || size;
+            left = Math.round(rect.left);
+            top = Math.round(rect.bottom + 10); // 下に並べる
+        }
+    }
+
+    // CSSで丸ボタンにする（gyroと似た感じ）
+    btn.style.position = 'fixed';
+    btn.style.left = `${left}px`;
+    btn.style.top = `${top}px`;
+    btn.style.width = `${size}px`;
+    btn.style.height = `${size}px`;
+    btn.style.borderRadius = '999px';
+    btn.style.display = 'flex';
+    btn.style.alignItems = 'center';
+    btn.style.justifyContent = 'center';
+    btn.style.zIndex = '30000';
+    btn.style.background = 'rgba(10, 14, 20, 0.55)';
+    btn.style.border = '1px solid rgba(255,255,255,0.25)';
+    btn.style.backdropFilter = 'blur(8px)';
+    btn.style.webkitBackdropFilter = 'blur(8px)';
+
+    const img = btn.querySelector('img');
+    if (img) {
+        img.style.width = '68%';
+        img.style.height = '68%';
+        img.style.objectFit = 'contain';
+        img.style.pointerEvents = 'none';
+        img.style.display = 'block';
+        img.style.filter = 'drop-shadow(0 0 6px rgba(255,255,255,0.25))';
+    }
+
+    // ヒントの位置も追従
+    const hint = document.getElementById('meteor-hint');
+    if (hint) {
+        hint.style.left = `${left}px`;
+        hint.style.top = `${top + size + 8}px`;
+    }
+
+    const actions = document.getElementById('meteor-actions');
+    if (actions) {
+        actions.style.left = `${left}px`;
+        actions.style.top = `${top + size + 64}px`;
+    }
+}
+
+
+function openMeteorConfirm() {
+    // 12時間制限（「今」から見て state.date が過去12h以内＆未来でない）
+    const now = Date.now();
+    const t = state.date?.getTime?.() ?? now;
+    const diffMs = now - t;
+    const withinPast12h = (diffMs >= 0 && diffMs <= 12 * 60 * 60 * 1000);
+    if (!withinPast12h) {
+        alert('流星の記録は「現在〜過去12時間以内」の表示時刻のときだけ可能です。');
+        return;
+    }
+
+    // 既に選択中なら
+    if (state.meteor.mode !== 'idle') {
+        alert('流星記録モード中です。「やり直し」または「保存」をしてください。');
+        return;
+    }
+
+    meteorUi.modal.style.display = 'flex';
+}
+
+function closeMeteorConfirm() {
+    meteorUi.modal.style.display = 'none';
+}
+
+function setMeteorHint(text) {
+    if (!meteorUi.hint || !meteorUi.hintText) return;
+    meteorUi.hintText.textContent = text || '';
+    meteorUi.hint.classList.toggle('visible', !!text);
+}
+
+function setMeteorActionsVisible(visible) {
+    const el = document.getElementById('meteor-actions');
+    if (!el) return;
+    el.style.display = visible ? 'flex' : 'none';
+}
+
+function beginMeteorSelection() {
+    meteorUi.btn.classList.remove('off');
+    meteorUi.btn.classList.add('on');
+    meteorUi.btn.classList.add('recording');
+    // 視点を固定する（その瞬間の向き）
+    state.meteor.locked = true;
+    state.meteor.lockedQuat.copy(camera.quaternion);
+    state.meteor.lockedDate = new Date(state.date.getTime()); // スナップショット
+
+    // 既存の天体選択ヘルパ等を邪魔しないように消しておく
+    try { resetSelectionHelper(); } catch (e) {}
+
+    state.meteor.mode = 'selectStart';
+    state.meteor.startScreen = null;
+    state.meteor.endScreen = null;
+    state.meteor.startWorld = null;
+    state.meteor.endWorld = null;
+    state.meteor.startAltAz = null;
+    state.meteor.endAltAz = null;
+
+    clearMeteorPreviewLine();
+
+    setMeteorHint('始点をタップしてください（1点目）');
+    setMeteorActionsVisible(false);
+}
+
+function resetMeteorSelection(exitMode) {
+    try { closeMeteorSaveModal(); } catch (e) {}
+    state.meteor.startScreen = null;
+    state.meteor.endScreen = null;
+    state.meteor.startWorld = null;
+    state.meteor.endWorld = null;
+    state.meteor.startAltAz = null;
+    state.meteor.endAltAz = null;
+
+    clearMeteorPreviewLine();
+
+    if (exitMode) {
+        if (meteorUi && meteorUi.btn) {
+            meteorUi.btn.classList.remove('recording');
+            meteorUi.btn.classList.remove('on');
+            meteorUi.btn.classList.add('off');
+        }
+        state.meteor.mode = 'idle';
+        try { setMeteorButtonState('off'); } catch (e) {}
+        state.meteor.locked = false;
+        state.meteor.lockedDate = null;
+        setMeteorHint('');
+        setMeteorActionsVisible(false);
+        // controlsの有効/無効は既存ロジックに戻す
+        try { setControlsEnabledForCurrentMode(); } catch (e) {}
+    } else {
+        state.meteor.mode = 'selectStart';
+        setMeteorHint('始点をタップしてください（1点目）');
+        setMeteorActionsVisible(false);
+    }
+}
+
+
+function toDatetimeLocalValue(dateObj) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const y = dateObj.getFullYear();
+    const m = pad(dateObj.getMonth() + 1);
+    const d = pad(dateObj.getDate());
+    const hh = pad(dateObj.getHours());
+    const mm = pad(dateObj.getMinutes());
+    return `${y}-${m}-${d}T${hh}:${mm}`;
+}
+
+function formatJa(dateObj) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const y = dateObj.getFullYear();
+    const m = pad(dateObj.getMonth() + 1);
+    const d = pad(dateObj.getDate());
+    const hh = pad(dateObj.getHours());
+    const mm = pad(dateObj.getMinutes());
+    return `${y}/${m}/${d} ${hh}:${mm}`;
+}
+
+function parseDatetimeLocalValue(val) {
+    if (!val) return null;
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return null;
+    return d;
+}
+
+function openMeteorSaveModal() {
+    if (state.meteor.mode !== 'review' || !state.meteor.startAltAz || !state.meteor.endAltAz) {
+        alert('保存するために、始点と終点を指定してください。');
+        return;
+    }
+    const baseDate = state.meteor.lockedDate ? new Date(state.meteor.lockedDate.getTime()) : new Date(state.date.getTime());
+
+    if (meteorUi.saveModalInput) {
+        meteorUi.saveModalInput.value = toDatetimeLocalValue(baseDate);
+    }
+
+    meteorUi.saveModal.style.display = 'flex';
+}
+
+function closeMeteorSaveModal() {
+    if (!meteorUi.saveModal) return;
+    meteorUi.saveModal.style.display = 'none';
+}
+
+function confirmMeteorSave() {
+    const chosen = parseDatetimeLocalValue(meteorUi.saveModalInput?.value);
+    if (!chosen) {
+        alert('日時の形式が正しくありません。');
+        return;
+    }
+
+    const now = Date.now();
+    const t = chosen.getTime();
+    const diffMs = now - t;
+    const withinPast12h = (diffMs >= 0 && diffMs <= 12 * 60 * 60 * 1000);
+    if (!withinPast12h) {
+        alert('保存できるのは「現在〜過去12時間以内」の時刻のみです。');
+        return;
+    }
+
+    state.meteor.lockedDate = chosen;
+
+    closeMeteorSaveModal();
+    saveMeteorTrack(true);
+}
+
+function saveMeteorTrack(skipCheck = false) {
+    if (!skipCheck) {
+    if (state.meteor.mode !== 'review' || !state.meteor.startAltAz || !state.meteor.endAltAz) {
+        alert('保存するために、始点と終点を指定してください。');
+        return;
+    }
+    }
+
+    const rec = {
+        createdAt: new Date().toISOString(),
+        lat: state.lat,
+        lon: state.lon,
+        dateIso: state.meteor.lockedDate ? state.meteor.lockedDate.toISOString() : state.date.toISOString(),
+        startAltAz: state.meteor.startAltAz,
+        endAltAz: state.meteor.endAltAz,
+    };
+    meteorSavedTracks.push(rec);
+
+    alert('流星の記録を保存しました（※いまは端末内に一時保存です）。');
+
+    // 次の記録へ
+    resetMeteorSelection(true);
+}
+
+function clearMeteorPreviewLine() {
+    if (meteorPreviewLine && meteorTrackGroup) {
+        meteorTrackGroup.remove(meteorPreviewLine);
+        meteorPreviewLine.geometry?.dispose?.();
+        if (Array.isArray(meteorPreviewLine.material)) {
+            meteorPreviewLine.material.forEach(m => m?.dispose?.());
+        } else {
+            meteorPreviewLine.material?.dispose?.();
+        }
+    }
+    meteorPreviewLine = null;
+
+    if (meteorStartMarker && meteorTrackGroup) {
+        meteorTrackGroup.remove(meteorStartMarker);
+        meteorStartMarker.material?.map?.dispose?.();
+        meteorStartMarker.material?.dispose?.();
+    }
+    meteorStartMarker = null;
+
+    if (meteorEndGlow && meteorTrackGroup) {
+        meteorTrackGroup.remove(meteorEndGlow);
+        meteorEndGlow.material?.map?.dispose?.();
+        meteorEndGlow.material?.dispose?.();
+    }
+    meteorEndGlow = null;
+}
+
+function createRadialTexture(innerAlpha, outerAlpha) {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const g = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    g.addColorStop(0, `rgba(255,255,255,${innerAlpha})`);
+    g.addColorStop(1, `rgba(255,255,255,${outerAlpha})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    return tex;
+}
+
+function ensureMeteorStartMarker(p) {
+    if (!meteorTrackGroup) return;
+
+    if (!meteorStartMarker) {
+        const tex = createRadialTexture(0.9, 0.0);
+        const mat = new THREE.SpriteMaterial({
+            map: tex,
+            color: 0xffffff,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            opacity: 0.9,
+        });
+        const spr = new THREE.Sprite(mat);
+        spr.renderOrder = 15010;
+        meteorStartMarker = spr;
+        meteorTrackGroup.add(meteorStartMarker);
+    }
+    meteorStartMarker.position.copy(p);
+    meteorStartMarker.scale.set(16, 16, 1);
+}
+
+function ensureMeteorEndGlow(p) {
+    if (!meteorTrackGroup) return;
+
+    if (!meteorEndGlow) {
+        const tex = createRadialTexture(1.0, 0.0);
+        const mat = new THREE.SpriteMaterial({
+            map: tex,
+            color: 0x7ad7ff,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            opacity: 1.0,
+        });
+        const spr = new THREE.Sprite(mat);
+        spr.renderOrder = 15020;
+        meteorEndGlow = spr;
+        meteorTrackGroup.add(meteorEndGlow);
+    }
+    meteorEndGlow.position.copy(p);
+    meteorEndGlow.scale.set(24, 24, 1);
+}
+
+function slerpOnSphere(p1, p2, t, radius) {
+    const v1 = p1.clone().normalize();
+    const v2 = p2.clone().normalize();
+    const dot = Math.max(-1, Math.min(1, v1.dot(v2)));
+    const omega = Math.acos(dot);
+
+    if (omega < 1e-6) {
+        return v1.multiplyScalar(radius);
+    }
+    const sinOmega = Math.sin(omega);
+    const k1 = Math.sin((1 - t) * omega) / sinOmega;
+    const k2 = Math.sin(t * omega) / sinOmega;
+
+    const v = v1.multiplyScalar(k1).add(v2.multiplyScalar(k2)).normalize().multiplyScalar(radius);
+    return v;
+}
+
+function buildMeteorTrailGeometry(p1, p2) {
+    const r = CONFIG.radius;
+    const segments = 64;
+
+    const positions = new Float32Array((segments + 1) * 3);
+    const alphas = new Float32Array(segments + 1);
+
+    for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const p = slerpOnSphere(p1, p2, t, r);
+        positions[i*3 + 0] = p.x;
+        positions[i*3 + 1] = p.y;
+        positions[i*3 + 2] = p.z;
+
+        // 始点は薄く、終点に向けて濃く
+        const a = 0.10 + 0.90 * t;
+        alphas[i] = a;
+    }
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geom.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+    return geom;
+}
+
+function createMeteorTrailMaterial() {
+    return new THREE.ShaderMaterial({
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        uniforms: {
+            uColor: { value: new THREE.Color(0xffffff) },
+        },
+        vertexShader: `
+            attribute float aAlpha;
+            varying float vAlpha;
+            void main() {
+                vAlpha = aAlpha;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform vec3 uColor;
+            varying float vAlpha;
+            void main() {
+                gl_FragColor = vec4(uColor, vAlpha);
+            }
+        `,
+    });
+}
+
+function ensureMeteorPreviewLine(p1, p2) {
+    if (!meteorTrackGroup) return;
+
+    // 球面上の大円弧っぽい軌跡を点列で作る
+    const radius = CONFIG.radius;
+    const segments = 64;
+    const pts = [];
+    for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        pts.push(slerpOnSphere(p1, p2, t, radius));
+    }
+
+    // 太さのある軌跡：TubeGeometry
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const tubeGeom = new THREE.TubeGeometry(curve, segments, 1.6, 10, false);
+
+    const mat = new THREE.ShaderMaterial({
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+            uColorStart: { value: new THREE.Color(0xffd84a) }, // 始点：黄
+            uColorEnd:   { value: new THREE.Color(0x7ad7ff) }, // 終点：シアン
+        },
+        vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform vec3 uColorStart;
+            uniform vec3 uColorEnd;
+            varying vec2 vUv;
+
+            void main() {
+                // TubeGeometry の uv.x は「始点→終点」
+                float t = clamp(vUv.x, 0.0, 1.0);
+
+                // 先端（終点）ほど濃く＆明るく
+                float alpha = pow(t, 1.6) * 0.95;
+
+                // 中心が明るく見えるように、周方向(vUv.y)でわずかに落とす
+                float ring = 1.0 - abs(vUv.y - 0.5) * 1.2;
+                ring = clamp(ring, 0.0, 1.0);
+                alpha *= (0.65 + 0.35 * ring);
+
+                vec3 col = mix(uColorStart, uColorEnd, t);
+
+                gl_FragColor = vec4(col, alpha);
+            }
+        `,
+    });
+
+    if (!meteorPreviewLine) {
+        meteorPreviewLine = new THREE.Mesh(tubeGeom, mat);
+        meteorPreviewLine.frustumCulled = false;
+        meteorPreviewLine.renderOrder = 15000; // 星より前、地面(20000)より後
+        meteorTrackGroup.add(meteorPreviewLine);
+    } else {
+        // 既存を差し替え
+        meteorPreviewLine.geometry?.dispose?.();
+        meteorPreviewLine.geometry = tubeGeom;
+
+        // materialは使い回す（色調整するならここで）
+        if (meteorPreviewLine.material && meteorPreviewLine.material.uniforms) {
+            meteorPreviewLine.material.uniforms.uColorStart.value.set(0xffd84a);
+            meteorPreviewLine.material.uniforms.uColorEnd.value.set(0x7ad7ff);
+        } else {
+            meteorPreviewLine.material?.dispose?.();
+            meteorPreviewLine.material = mat;
+        }
+    }
+}
+
+
+function screenToSkyPoint(clientX, clientY) {
+    // 画面座標 -> NDC
+    const ndc = new THREE.Vector2(
+        (clientX / window.innerWidth) * 2 - 1,
+        -(clientY / window.innerHeight) * 2 + 1
+    );
+
+    // Raycasterのrayを使って「天球(半径r)」との交点を取る
+    camera.updateMatrixWorld(true);
+    raycaster.setFromCamera(ndc, camera);
+
+    const r = CONFIG.radius;
+    const origin = raycaster.ray.origin.clone();
+    const dir = raycaster.ray.direction.clone().normalize();
+
+    // 解：|origin + t*dir| = r
+    // t^2 + 2*(o·d)t + (o·o - r^2) = 0
+    const od = origin.dot(dir);
+    const oo = origin.dot(origin);
+    const disc = od * od - (oo - r * r);
+    if (disc < 0) return null;
+
+    // 天球は外側にあるので大きい方のtを優先
+    const sqrtDisc = Math.sqrt(disc);
+    const t1 = -od - sqrtDisc;
+    const t2 = -od + sqrtDisc;
+    const t = (t2 > 0) ? t2 : (t1 > 0 ? t1 : null);
+    if (t == null) return null;
+
+    const p = origin.add(dir.multiplyScalar(t));
+    return p;
+}
+
+function worldToAltAzDeg(pWorld) {
+    const r = CONFIG.radius;
+    const y = pWorld.y;
+    const altRad = Math.asin(Math.max(-1, Math.min(1, y / r)));
+
+    // x = r cosAlt sinAz, z = -r cosAlt cosAz より az = atan2(x, -z)
+    const azRad = Math.atan2(pWorld.x, -pWorld.z);
+
+    let az = azRad * 180 / Math.PI;
+    if (az < 0) az += 360;
+    const alt = altRad * 180 / Math.PI;
+
+    return { altDeg: alt, azDeg: az };
+}
+
+function handleMeteorPointerUp(event) {
+    const m = state.meteor;
+    if (!m || m.mode === 'idle') return false;
+
+    // UI上のタップは無視（既存と同様の意図）
+    if (event.target.closest('.ui-layer') ||
+        event.target.closest('#mobile-controls') ||
+        event.target.closest('#star-reticle') ||
+        event.target.closest('.menu-container')) {
+        return true;
+    }
+
+    // 選択モード中のみ処理
+    if (m.mode !== 'selectStart' && m.mode !== 'selectEnd') return true;
+
+    const p = screenToSkyPoint(event.clientX, event.clientY);
+    if (!p) {
+        alert('天球上の点を取得できませんでした。もう一度タップしてください。');
+        return true;
+    }
+
+    if (m.mode === 'selectStart') {
+        m.startScreen = { x: event.clientX, y: event.clientY };
+        m.startWorld = p;
+        m.startAltAz = worldToAltAzDeg(p);
+
+        // 1点目にマークを表示
+        ensureMeteorStartMarker(p);
+
+        m.mode = 'selectEnd';
+        setMeteorHint('終点をタップしてください（2点目）');
+
+        // ひとまず始点だけでも短い線を表示（見やすさのため）
+        const p2 = p.clone().multiplyScalar(0.999); // 少しだけ差をつける
+        ensureMeteorPreviewLine(p, p2);
+        return true;
+    }
+
+    // selectEnd
+    m.endScreen = { x: event.clientX, y: event.clientY };
+    m.endWorld = p;
+    m.endAltAz = worldToAltAzDeg(p);
+    ensureMeteorEndGlow(p);
+
+    ensureMeteorPreviewLine(m.startWorld, m.endWorld);
+    // 終点の光（流星の先端）
+    ensureMeteorEndGlow(m.endWorld);
+
+    m.mode = 'review';
+    setMeteorHint('プレビューを確認して「保存」または「やり直し」');
+    setMeteorActionsVisible(true);
+
+    return true;
+}
