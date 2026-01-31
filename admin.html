@@ -288,7 +288,7 @@
         }
         
         // 音声ファイルのみサイズ制限 (10MB)
-        const AUDIO_MAX_SIZE = 10 * 1024 * 1024; 
+        const AUDIO_MAX_SIZE = 50 * 1024 * 1024; 
         // 画像リサイズ設定
         const IMG_MAX_WIDTH = 1200;
         const IMG_QUALITY = 0.85;
@@ -383,7 +383,7 @@
             if (cat === 'radio') {
                 fileLabel.textContent = "音声ファイル (MP3など)";
                 fileInput.accept = "audio/*";
-                fileNotice.textContent = "※10MB以下の音声ファイル (MP3, WAV, M4A)";
+                fileNotice.textContent = "※50MB以下の音声ファイル (MP3, WAV, M4A)";
             } else {
                 // コラム、ギャラリー、開発日誌はすべて画像
                 fileLabel.textContent = "画像・写真 (添付)";
@@ -646,7 +646,7 @@
             // バリデーション & リサイズ処理
             if (typeConstraint === 'audio') {
                 if (!file.type.startsWith('audio/')) throw new Error("音声ファイルを選択してください。");
-                if (file.size > AUDIO_MAX_SIZE) throw new Error("ファイルサイズが大きすぎます (10MB以下)");
+                if (file.size > AUDIO_MAX_SIZE) throw new Error("ファイルサイズが大きすぎます (50MB以下)");
             } else if (typeConstraint === 'image') {
                 if (!file.type.startsWith('image/')) throw new Error("画像ファイルを選択してください。");
                 // 画像の場合はリサイズを実行
