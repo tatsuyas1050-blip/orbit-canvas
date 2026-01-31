@@ -3305,26 +3305,26 @@ function initMeteorUi() {
     meteorUi.btnReset = document.getElementById('meteor-reset-btn');
 
     // モーダル操作
-    meteorUi.modalCancel.addEventListener('click', () => closeMeteorConfirm());
-    meteorUi.modalOk.addEventListener('click', () => {
+    meteorUi.modalCancel.onclick = () => closeMeteorConfirm();
+    meteorUi.modalOk.onclick = () => {
         closeMeteorConfirm();
         beginMeteorSelection();
-    });
+    }; 
     modal.addEventListener('click', (e) => {
         // 背景クリックで閉じる
         if (e.target === modal) closeMeteorConfirm();
 
     // 保存確認モーダル操作
-    meteorUi.saveModalCancel.addEventListener('click', () => closeMeteorSaveModal());
-    meteorUi.saveModalOk.addEventListener('click', () => confirmMeteorSave());
+    meteorUi.saveModalCancel.onclick = () => closeMeteorSaveModal();
+    meteorUi.saveModalOk.onclick = () => confirmMeteorSave();
     saveModal.addEventListener('click', (e) => {
         if (e.target === saveModal) closeMeteorSaveModal();
     });
     });
 
     // アクション操作
-    meteorUi.btnSave.addEventListener('click', () => openMeteorSaveModal());
-    meteorUi.btnReset.addEventListener('click', () => resetMeteorSelection(false));
+    meteorUi.btnSave.onclick = () => openMeteorSaveModal();
+    meteorUi.btnReset.onclick = () => resetMeteorSelection(false);
 
     setMeteorHint('');
     setMeteorActionsVisible(false);
