@@ -1,3 +1,33 @@
+
+const METEOR_API_BASE = "https://ypvqc7yisg.execute-api.ap-northeast-1.amazonaws.com";
+
+const SHOW_METEOR_TIME_LABELS = true;
+const MAX_METEOR_TIME_LABELS = 80;
+// --- Meteor marker icon assets (relative paths for web) ---
+// (Provided paths in your environment)
+//   start: C:\my_program\orbit-canvas\assets\img\ss_start.png
+//   end  : C:\my_program\orbit-canvas\assets\img\ss_end.png
+// In browser we reference them by URL relative to the served root.
+const METEOR_START_ICON_URL = "assets/img/ss_start.png";
+const METEOR_END_ICON_URL   = "assets/img/ss_end.png";
+const METEOR_MARK_ICON_URL  = "assets/img/ss_mark.png";
+
+
+
+
+
+// --- Remote (all-users) meteor display ---
+let remoteMeteorGroup = null;
+let remoteMeteorPollTimer = null;
+let remoteMeteorLastKey = "";
+let remoteMeteorCache = [];
+let remoteMeteorLastStateKey = "";
+let remoteMeteorLastRerenderAt = 0;
+let remoteMeteorSmooth = { dateMs: null, lat: null, lon: null };
+
+// If the backend doesn't echo brightness yet, keep a local override for *my* records.
+// Keyed by recordedAt returned from POST /records.
+let meteorBrightnessOverrideByRecordedAt = new Map();
 // stars.js
 
 // --- 設定定数 ---
@@ -103,12 +133,16 @@ let filterButtons = {};
 let meteorUi = {
     container: null,
     btn: null,
+    modeBanner: null,
     modal: null,
     modalOk: null,
     modalCancel: null,
     saveModal: null,
     saveModalInput: null,
-    saveModalOk: null,
+        saveModalBrightness: null,
+    saveModalStars: null,
+    saveModalBrightnessLabel: null,
+saveModalOk: null,
     saveModalCancel: null,
     hint: null,
     hintText: null,
@@ -117,9 +151,15 @@ let meteorUi = {
 };
 let meteorTrackGroup = null; // sceneに追加する
 let meteorPreviewLine = null; // 選択中のプレビュー
-let meteorStartMarker = null; // 1点目のマーク
-let meteorEndGlow = null;     // 終点の光
-let meteorSavedTracks = [];   // { createdAt, lat, lon, dateIso, startAltAz, endAltAz }
+let meteorMarkSprite = null; // プレビュー先頭を流れる星マーク
+let meteorMarkTextureLoader = null;
+let meteorMarkHideTimeout = null;
+let meteorPreviewAnimRaf = null;
+let meteorPreviewAnimToken = 0;
+let meteorStartMarker = null; // 1点目のピン
+let meteorEndGlow = null;     // 2点目のピン（互換のため変数名は維持）
+let meteorPinTextureLoader = null; // THREE.TextureLoader (lazy)
+let meteorSavedTracks = [];   // { createdAt, lat, lon, dateIso, startAltAz, endAltAz, brightness }
 
 const state = {
     lat: 35.6895, 
@@ -172,6 +212,9 @@ const state = {
         // 記録対象の時刻（state.date のスナップショット）
         lockedDate: null,
 
+
+        // 明るさ（1〜5）
+        lockedBrightness: 3,
         // 画面クリック位置（px）
         startScreen: null, // {x,y}
         endScreen: null,   // {x,y}
@@ -805,9 +848,63 @@ function injectCustomStyles() {
             transform: translateY(-6px);
             transition: opacity 0.18s ease, transform 0.18s ease;
         }
+
+            /* レビュー中の「保存 / やり直し」ボタンはヒントの直下にまとめて表示 */
+            #meteor-actions {
+                position: fixed !important;
+                left: 50% !important;
+                right: auto !important;
+                top: auto !important;
+                bottom: calc(env(safe-area-inset-bottom) + 150px) !important;
+                transform: translateX(-50%) !important;
+                display: flex;
+                gap: 10px;
+                padding: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                z-index: 42060;
+                pointer-events: auto;
+            }
+            #meteor-actions button {
+                min-width: 96px;
+            }
         #meteor-hint.visible {
             opacity: 1;
             transform: translateY(0px);
+        }
+
+
+
+        /* ---- 流星記録モード 表示（追加） ---- */
+        #meteor-mode-banner {
+            position: fixed;
+            top: calc(env(safe-area-inset-top, 0px) + 14px);
+            left: 50%;
+            transform: translateX(-50%) translateY(-10px);
+            z-index: 35000;
+            pointer-events: none;
+            padding: 10px 18px;
+            border-radius: 999px;
+
+            /* 少し目立つように */
+            background: rgba(10, 14, 20, 0.70);
+            border: 1px solid rgba(210, 255, 230, 0.55);
+            box-shadow: 0 0 14px rgba(120, 255, 200, 0.28), 0 6px 18px rgba(0,0,0,0.35);
+            -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
+
+            color: rgba(220, 255, 238, 0.98); /* 白っぽい緑 */
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0.10em;
+            text-shadow: 0 0 14px rgba(120, 255, 200, 0.55), 0 0 6px rgba(120, 255, 200, 0.25), 0 0 3px rgba(0,0,0,0.75);
+
+            opacity: 0;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+        #meteor-mode-banner.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0px);
         }
 
         #meteor-modal {
@@ -844,73 +941,192 @@ function injectCustomStyles() {
             justify-content: flex-end;
         }
 
-        /* ---- 流星 保存確認モーダル（追加） ---- */
-        #meteor-save-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 41000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-            background: rgba(0,0,0,0.45);
-        }
-        #meteor-save-modal .panel {
-            width: min(460px, calc(100vw - 32px));
-            background: rgba(10, 14, 20, 0.92);
-            border: 1px solid rgba(255,255,255,0.18);
-            border-radius: 16px;
-            padding: 16px;
-            color: rgba(255,255,255,0.92);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-        }
-        #meteor-save-modal .title {
-            font-size: 15px;
-            margin-bottom: 10px;
-        }
-        #meteor-save-modal .desc {
-            font-size: 13px;
-            opacity: 0.85;
-            margin-bottom: 12px;
-            line-height: 1.45;
-        }
-        #meteor-save-modal .field {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin-bottom: 14px;
-        }
-        #meteor-save-modal label {
-            font-size: 12px;
-            opacity: 0.85;
-        }
-        #meteor-save-modal input[type="datetime-local"] {
-            border-radius: 10px;
-            padding: 10px 10px;
-            font-size: 14px;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(255,255,255,0.06);
-            color: rgba(255,255,255,0.92);
-            outline: none;
-        }
-        #meteor-save-modal .row {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-        #meteor-save-modal button {
-            border-radius: 10px;
-            padding: 10px 12px;
-            font-size: 13px;
-            cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.18);
-            background: rgba(255,255,255,0.08);
-            color: rgba(255,255,255,0.92);
-        }
-        #meteor-save-modal button.primary {
-            background: rgba(120, 190, 255, 0.18);
-            border-color: rgba(120, 190, 255, 0.35);
-        }
+        /* ---- 流星 保存確認モーダル（スタイル調整・v3） ---- */
+#meteor-save-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 41000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+
+    /* darker overlay + subtle blur for "glass" feel */
+    background: rgba(0,0,0,0.56);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+#meteor-save-modal .panel {
+    width: min(480px, calc(100vw - 32px));
+    padding: 18px 18px 16px;
+    border-radius: 18px;
+
+    /* glassmorphism */
+    background: linear-gradient(180deg, rgba(18, 22, 30, 0.92), rgba(10, 14, 20, 0.86));
+    border: 1px solid rgba(255,255,255,0.20);
+    box-shadow:
+        0 18px 50px rgba(0,0,0,0.55),
+        0 0 0 1px rgba(255,255,255,0.04) inset;
+
+    color: rgba(255,255,255,0.92);
+}
+#meteor-save-modal .title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+#meteor-save-modal .title::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(120, 190, 255, 0.85);
+    box-shadow: 0 0 0 3px rgba(120, 190, 255, 0.14);
+    flex: 0 0 auto;
+}
+#meteor-save-modal .desc {
+    font-size: 13px;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.78);
+    margin-bottom: 14px;
+}
+
+#meteor-save-modal .section {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+}
+#meteor-save-modal .field-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.88);
+    margin-bottom: 4px;
+}
+#meteor-save-modal .helper {
+    font-size: 12px;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.68);
+}
+
+#meteor-save-modal .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    margin-bottom: 0;
+}
+
+#meteor-save-modal input[type="datetime-local"] {
+    border-radius: 12px;
+    padding: 11px 12px;
+    font-size: 14px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.92);
+    outline: none;
+}
+#meteor-save-modal input[type="datetime-local"]:focus {
+    border-color: rgba(120, 190, 255, 0.55);
+    box-shadow: 0 0 0 3px rgba(120, 190, 255, 0.16);
+}
+
+@media (max-width: 600px) {
+    /* iPhoneなどで datetime-local のアイコン領域が崩れるのを防ぐ */
+    #meteor-save-modal input[type="datetime-local"] {
+        padding-right: 12px;
+        position: relative;
+    }
+    #meteor-save-modal input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+        opacity: 0; /* 非表示（タップ可能） */
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+}
+
+/* star selector container */
+#meteor-save-modal .meteor-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    width: fit-content;
+}
+#meteor-save-modal .meteor-star {
+    background: transparent;
+    border: none;
+    padding: 0 3px;
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+    color: rgba(255,255,255,0.33);
+    text-shadow: 0 0 8px rgba(255,255,255,0.10);
+    transition: transform 0.12s ease, color 0.12s ease, text-shadow 0.12s ease;
+}
+#meteor-save-modal .meteor-star.active {
+    color: rgba(255, 215, 120, 0.95);
+    text-shadow: 0 0 10px rgba(255, 215, 120, 0.28);
+}
+#meteor-save-modal .meteor-star:active {
+    transform: scale(0.92);
+}
+#meteor-save-modal .meteor-brightness-label {
+    margin-top: 8px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.78);
+}
+
+#meteor-save-modal .row {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+#meteor-save-modal .row button {
+    min-width: 120px;
+}
+#meteor-save-modal button {
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.92);
+}
+#meteor-save-modal button.primary {
+    background: rgba(120, 190, 255, 0.20);
+    border-color: rgba(120, 190, 255, 0.42);
+}
+
+@media (max-width: 420px) {
+    #meteor-save-modal .row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    #meteor-save-modal .row button {
+        width: 100%;
+    }
+}
         #meteor-modal button {
             border-radius: 10px;
             padding: 10px 12px;
@@ -955,8 +1171,463 @@ function injectCustomStyles() {
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
         }
+        /* ボタン色分け（更新）
+           - 常時の背景色で区別（ホバー/タップ(:active)でも変えない）
+           - 外部CSSの:hover/:active/:focusで上書きされても負けないように !important を付与
+           - 発光（box-shadow）はなし
+        */
+        #meteor-actions #meteor-save-btn,
+        #meteor-actions #meteor-save-btn:hover,
+        #meteor-actions #meteor-save-btn:active,
+        #meteor-actions #meteor-save-btn:focus,
+        #meteor-actions #meteor-save-btn:focus-visible {
+            /* 保存：やや青っぽい */
+            background: rgba(120, 190, 255, 0.22) !important;
+            border-color: rgba(120, 190, 255, 0.45) !important;
+            box-shadow: none !important;
+            outline: none;
+        }
+        #meteor-actions #meteor-reset-btn,
+        #meteor-actions #meteor-reset-btn:hover,
+        #meteor-actions #meteor-reset-btn:active,
+        #meteor-actions #meteor-reset-btn:focus,
+        #meteor-actions #meteor-reset-btn:focus-visible {
+            /* やり直し：わずかにグレー */
+            background: rgba(255, 255, 255, 0.10) !important;
+            border-color: rgba(255, 255, 255, 0.22) !important;
+            box-shadow: none !important;
+            outline: none;
+        }
 
-    `;
+/* ---- 流星 明るさ★セレクタ（追加） ---- */
+        #meteor-save-modal .meteor-stars {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            justify-content: flex-start;
+            user-select: none;
+        }
+        #meteor-save-modal .meteor-star {
+            appearance: none;
+            border: none;
+            background: transparent;
+            padding: 0 2px;
+            cursor: pointer;
+            font-size: 22px;
+            line-height: 1;
+            color: rgba(255,255,255,0.35);
+            text-shadow: 0 0 8px rgba(255,255,255,0.12);
+            transition: transform 0.12s ease, color 0.12s ease, text-shadow 0.12s ease;
+        }
+        #meteor-save-modal .meteor-star.active {
+            color: rgba(255, 215, 120, 0.95);
+            text-shadow: 0 0 10px rgba(255, 215, 120, 0.28);
+        }
+        #meteor-save-modal .meteor-star:active {
+            transform: scale(0.92);
+        }
+        #meteor-save-modal .meteor-brightness-label {
+            margin-top: 6px;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+
+
+/* =========================
+   UI refresh (v2)
+   - visually modernize windows & buttons
+   - keep existing IDs/classes and behavior intact
+   ========================= */
+
+:root {
+    --ui-bg: rgba(10, 14, 20, 0.78);
+    --ui-bg-strong: rgba(10, 14, 20, 0.92);
+    --ui-border: rgba(255,255,255,0.18);
+    --ui-border-strong: rgba(255,255,255,0.28);
+    --ui-text: rgba(255,255,255,0.92);
+    --ui-text-dim: rgba(255,255,255,0.72);
+    --ui-accent: rgba(120, 190, 255, 0.92);
+    --ui-accent-soft: rgba(120, 190, 255, 0.22);
+    --ui-warn: rgba(255, 120, 120, 0.88);
+    --ui-shadow: 0 18px 55px rgba(0,0,0,0.46);
+    --ui-radius: 18px;
+    --ui-radius-sm: 12px;
+    --ui-pad: 16px;
+}
+
+/* Give UI a consistent type feel without touching the whole page */
+#meteor-modal, #meteor-save-modal, #meteor-actions, #meteor-icon-btn, #gyro-icon-btn, #meteor-hint, #selected-star-name-display {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    letter-spacing: 0.01em;
+}
+
+/* --- Modals backdrop --- */
+#meteor-modal {
+    background: radial-gradient(1200px 800px at 50% 30%, rgba(10,14,20,0.45) 0%, rgba(0,0,0,0.62) 55%, rgba(0,0,0,0.78) 100%);
+    /* NOTE: 「流星が流れた方向を向いていますか？」のウィンドウでは背景をぼかさない */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+#meteor-save-modal {
+    background: radial-gradient(1200px 800px at 50% 30%, rgba(10,14,20,0.45) 0%, rgba(0,0,0,0.62) 55%, rgba(0,0,0,0.78) 100%);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+/* --- Mobile emphasis & placement (meteor guidance) --- */
+@media (max-width: 600px) {
+    /* 方向確認モーダルは、画面下の時刻表示の少し上に寄せる */
+    #meteor-modal {
+        align-items: flex-end;
+        padding: 0 14px calc(env(safe-area-inset-bottom) + 160px); /* bottom: time labels の上あたり */
+    }
+    #meteor-modal .panel {
+        width: min(520px, calc(100vw - 28px));
+        border-radius: 18px;
+        box-shadow:
+            0 18px 55px rgba(0,0,0,0.55),
+            0 0 0 1px rgba(255,255,255,0.14) inset;
+    }
+    #meteor-modal .desc {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        opacity: 0.95;
+        line-height: 1.5;
+    }
+    #meteor-modal .title {
+        font-size: 13px;
+        opacity: 0.80;
+        margin-bottom: 8px;
+    }
+    #meteor-modal .row button {
+        height: 46px;
+        font-size: 15px;
+        border-radius: 12px;
+    }
+
+    /* 「始点/終点をタップしてください」を下寄せ＆強調（JSのleft/top追従はCSSで上書き） */
+    #meteor-hint {
+        left: 50% !important;
+        top: auto !important;
+        bottom: calc(env(safe-area-inset-bottom) + 200px);
+        transform: translateX(-50%);
+        width: min(520px, calc(100vw - 28px));
+        text-align: center;
+        padding: 14px 16px;
+        border-radius: 16px;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        background: rgba(255,255,255,0.10);
+        border: 1px solid rgba(255,255,255,0.20);
+        box-shadow:
+            0 18px 55px rgba(0,0,0,0.45),
+            0 0 0 1px rgba(255,255,255,0.10) inset,
+            0 0 18px rgba(120, 180, 255, 0.18);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+    #meteor-hint.visible {
+        animation: meteorHintPulse 1.35s ease-in-out infinite;
+    }
+}
+@keyframes meteorHintPulse {
+    0%, 100% { transform: translateX(-50%) scale(1.0); }
+    50%      { transform: translateX(-50%) scale(1.02); }
+}
+
+/* --- Panels --- */
+#meteor-modal .panel,
+#meteor-save-modal .panel {
+    background: linear-gradient(180deg, rgba(18,24,35,0.92) 0%, rgba(10,14,20,0.88) 100%);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius);
+    box-shadow: var(--ui-shadow);
+    padding: calc(var(--ui-pad) + 2px);
+    position: relative;
+    overflow: hidden;
+}
+
+/* subtle highlight line */
+#meteor-modal .panel::before,
+#meteor-save-modal .panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(900px 420px at 30% 0%, rgba(120,190,255,0.16), rgba(0,0,0,0) 60%),
+      radial-gradient(600px 360px at 90% 10%, rgba(255,216,74,0.10), rgba(0,0,0,0) 55%);
+    opacity: 0.95;
+}
+
+#meteor-modal .title,
+#meteor-save-modal .title {
+    font-size: 15px;
+    font-weight: 650;
+    margin-bottom: 8px;
+}
+#meteor-modal .desc,
+#meteor-save-modal .desc {
+    color: var(--ui-text-dim);
+    line-height: 1.55;
+}
+
+/* --- Fields / Inputs --- */
+#meteor-save-modal label,
+#meteor-modal label {
+    color: rgba(255,255,255,0.82);
+    font-weight: 600;
+}
+
+#meteor-save-modal input[type="text"],
+#meteor-save-modal input[type="datetime-local"],
+#meteor-modal input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-text);
+    padding: 11px 12px;
+    outline: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+#meteor-save-modal input[type="text"]::placeholder {
+    color: rgba(255,255,255,0.42);
+}
+#meteor-save-modal input[type="text"]:focus,
+#meteor-save-modal input[type="datetime-local"]:focus,
+#meteor-modal input[type="text"]:focus {
+    border-color: rgba(120,190,255,0.55);
+    box-shadow: 0 0 0 3px rgba(120,190,255,0.18);
+    background: rgba(255,255,255,0.08);
+}
+
+/* --- Buttons --- */
+#meteor-modal button,
+#meteor-save-modal button {
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: var(--ui-text);
+    transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+#meteor-modal button:hover,
+#meteor-save-modal button:hover { background: rgba(255,255,255,0.11); }
+#meteor-modal button:active,
+#meteor-save-modal button:active { transform: translateY(1px) scale(0.99); }
+
+#meteor-modal button.primary,
+#meteor-save-modal button.primary {
+    background: linear-gradient(180deg, rgba(120,190,255,0.28) 0%, rgba(120,190,255,0.18) 100%);
+    border-color: rgba(120,190,255,0.42);
+    box-shadow: 0 0 0 0 rgba(120,190,255,0.0);
+}
+#meteor-modal button.primary:hover,
+#meteor-save-modal button.primary:hover {
+    border-color: rgba(120,190,255,0.62);
+    background: linear-gradient(180deg, rgba(120,190,255,0.34) 0%, rgba(120,190,255,0.22) 100%);
+    box-shadow: 0 10px 26px rgba(120,190,255,0.18);
+}
+
+#meteor-modal button.danger,
+#meteor-save-modal button.danger {
+    border-color: rgba(255,120,120,0.35);
+    background: rgba(255,120,120,0.10);
+}
+
+#meteor-modal button:focus-visible,
+#meteor-save-modal button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(120,190,255,0.22);
+    border-color: rgba(120,190,255,0.6);
+}
+
+/* --- Star rating polish --- */
+#meteor-save-modal .meteor-stars {
+    padding: 10px 12px;
+    border-radius: var(--ui-radius-sm);
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+}
+#meteor-save-modal .meteor-star {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    transition: transform 0.12s ease, background 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+}
+#meteor-save-modal .meteor-star:hover { transform: translateY(-1px) scale(1.04); background: transparent !important; }
+
+/* --- Icon buttons (meteor + gyro) slightly refined --- */
+#meteor-icon-btn, #gyro-icon-btn {
+    box-shadow: 0 12px 26px rgba(0,0,0,0.28);
+    border-color: rgba(255,255,255,0.22);
+}
+#meteor-icon-btn:hover, #gyro-icon-btn:hover {
+    border-color: rgba(255,255,255,0.34);
+    box-shadow: 0 16px 34px rgba(0,0,0,0.34);
+}
+
+/* Mobile: a bit more breathing room in panels */
+@media (max-width: 600px) {
+    #meteor-modal .panel,
+    #meteor-save-modal .panel {
+        padding: 16px;
+    }
+}
+
+
+/* --- Meteor recording: blur only the bottom operation area (mobile controls / clock / location) --- */
+body.meteor-recording-active #mobile-controls,
+body.meteor-recording-active #mobile-clock-display,
+body.meteor-recording-active #mobile-location-display,
+body.meteor-recording-active #mobile-time-shuttle,
+body.meteor-recording-active #mobile-mag-slider,
+body.meteor-recording-active #mobile-mag-value {
+    filter: blur(6px);
+    opacity: 0.35;
+    pointer-events: none;
+    transition: filter 0.18s ease, opacity 0.18s ease;
+}
+
+body.meteor-recording-active #mobile-controls * {
+    pointer-events: none;
+}
+
+
+/* =========================
+   Meteor save modal: final polish overrides (v3)
+   - keep behavior intact
+   - ensure styles win over global/UI refresh rules
+   ========================= */
+#meteor-save-modal { 
+    background: rgba(0,0,0,0.56) !important;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+#meteor-save-modal .panel {
+    width: min(480px, calc(100vw - 32px)) !important;
+    padding: 18px 18px 16px !important;
+    border-radius: 18px !important;
+    background: linear-gradient(180deg, rgba(18, 22, 30, 0.92), rgba(10, 14, 20, 0.86)) !important;
+    border: 1px solid rgba(255,255,255,0.20) !important;
+    box-shadow:
+        0 18px 50px rgba(0,0,0,0.55),
+        0 0 0 1px rgba(255,255,255,0.04) inset !important;
+}
+
+#meteor-save-modal .section { margin-top: 14px !important; }
+
+#meteor-save-modal .field-label {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em !important;
+    margin-bottom: 8px !important;
+}
+
+/* datetime input: centered + larger text */
+#meteor-save-modal #meteor-save-datetime {
+    display: block !important;
+    width: 100% !important;
+    max-width: 360px !important;
+    margin: 0 auto !important;
+    text-align: center !important;
+    font-size: 16px !important;
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+}
+
+/* stars: bigger, centered, evenly spaced */
+#meteor-save-modal .meteor-stars {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0 !important;
+    width: 100% !important;
+    max-width: 360px !important;
+    margin: 0 auto !important;
+    padding: 10px 14px !important;
+    border-radius: 999px !important;
+}
+
+#meteor-save-modal .meteor-star {
+    flex: 1 1 0 !important;
+    text-align: center !important;
+    font-size: 34px !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+}
+
+@media (max-width: 520px) {
+    #meteor-save-modal .panel { padding: 16px 14px 14px !important; }
+    #meteor-save-modal .field-label { font-size: 17px !important; }
+    #meteor-save-modal #meteor-save-datetime { font-size: 17px !important; }
+    #meteor-save-modal .meteor-star { font-size: 38px !important; }
+}
+
+#meteor-save-modal .title {
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.04em !important;
+    margin-bottom: 6px !important;
+}
+#meteor-save-modal .desc {
+    color: rgba(255,255,255,0.78) !important;
+    line-height: 1.55 !important;
+    margin-bottom: 14px !important;
+}
+#meteor-save-modal .section {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 14px !important;
+    padding: 12px !important;
+}
+#meteor-save-modal input[type="datetime-local"] {
+    border-radius: 12px !important;
+    background: rgba(255,255,255,0.07) !important;
+}
+#meteor-save-modal .row button {
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+}
+#meteor-save-modal button.primary {
+    background: rgba(120, 190, 255, 0.20) !important;
+    border-color: rgba(120, 190, 255, 0.42) !important;
+}
+
+/* --- Meteor brightness stars: hollow/filled & no background (requested) --- */
+#meteor-save-modal .meteor-star,
+#meteor-save-modal .meteor-star:hover,
+#meteor-save-modal .meteor-star:active,
+#meteor-save-modal .meteor-star:focus,
+#meteor-save-modal .meteor-star:focus-visible {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    outline: none;
+}
+
+#meteor-save-modal .meteor-star {
+    /* hollow star (☆) will use this color */
+    color: rgba(212, 175, 55, 0.55) !important;
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.18);
+}
+
+#meteor-save-modal .meteor-star.active {
+    /* filled star (★) uses a deeper yellow */
+    color: #d4af37 !important;
+    text-shadow: 0 0 12px rgba(212, 175, 55, 0.28);
+}
+
+`;
     document.head.appendChild(style);
 }
 
@@ -2926,7 +3597,32 @@ function animate() {
         if (controls) controls.enabled = false;
     }
 
-    renderer.render(scene, camera);
+        
+// ---- Remote meteors follow current time/location (RA/Dec) ----
+if (remoteMeteorGroup && state?.date && Number.isFinite(state?.lat) && Number.isFinite(state?.lon)) {
+    // Smoothly ease the "display" time/location toward the current state to avoid choppy motion.
+    const targetT = state.date.getTime();
+    const targetLat = state.lat;
+    const targetLon = state.lon;
+
+    if (!Number.isFinite(remoteMeteorSmooth.dateMs)) {
+        remoteMeteorSmooth.dateMs = targetT;
+        remoteMeteorSmooth.lat = targetLat;
+        remoteMeteorSmooth.lon = targetLon;
+    } else {
+        const a = 0.18; // smoothing factor (0..1). Larger = snappier.
+        remoteMeteorSmooth.dateMs += (targetT - remoteMeteorSmooth.dateMs) * a;
+        remoteMeteorSmooth.lat += (targetLat - remoteMeteorSmooth.lat) * a;
+        remoteMeteorSmooth.lon += (targetLon - remoteMeteorSmooth.lon) * a;
+    }
+
+    maybeRerenderRemoteMeteorsForState();
+}
+
+    // Keep meteor time labels aligned with the meteor line in screen space
+    updateMeteorTimeLabelsAlignment();
+
+renderer.render(scene, camera);
     updateReticle();
 }
 
@@ -3203,6 +3899,727 @@ init();
 // 流星記録モード（追加）
 // =====================================================================================
 
+function getDeviceId() {
+  const KEY = "meteorDeviceId";
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = (crypto?.randomUUID?.() ?? String(Math.random()).slice(2) + Date.now());
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
+async function postMeteorRecord(rec) {
+  const body = {
+    deviceId: getDeviceId(),
+    observedAt: new Date(rec.dateIso).getTime(),
+    lat: rec.lat,
+    lon: rec.lon,
+    startAltAz: rec.startAltAz,
+    endAltAz: rec.endAltAz,
+    brightness: (Number.isFinite(rec.brightness) ? rec.brightness : undefined),
+  };
+  if (body.brightness === undefined) delete body.brightness;
+
+
+  const res = await fetch(`${METEOR_API_BASE}/records`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`POST /records failed: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+
+async function fetchRecentMeteorRecords(windowSec = 3600) {
+  const res = await fetch(`${METEOR_API_BASE}/records?window=${encodeURIComponent(windowSec)}`, {
+    method: "GET",
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`GET /records failed: ${res.status} ${text}`);
+  }
+  return res.json(); // { items: [...] }
+}
+
+function altAzDegToWorld(altDeg, azDeg, radius = CONFIG.radius) {
+  const alt = altDeg * Math.PI / 180;
+  const az = azDeg * Math.PI / 180;
+  const cosAlt = Math.cos(alt);
+  const x = radius * cosAlt * Math.sin(az);
+  const y = radius * Math.sin(alt);
+  const z = -radius * cosAlt * Math.cos(az);
+  return new THREE.Vector3(x, y, z);
+}
+
+// --- Astronomy helpers (RA/Dec <-> Alt/Az) ---
+// Azimuth convention: degrees from North towards East (0=N, 90=E), matching altAzDegToWorld.
+function normalizeRad0To2Pi(x) {
+  const twoPi = Math.PI * 2;
+  x = x % twoPi;
+  if (x < 0) x += twoPi;
+  return x;
+}
+function jdFromUnixMs(ms) {
+  return ms / 86400000 + 2440587.5;
+}
+function gmstRadFromJd(jd) {
+  // Approximate GMST (sufficient for visualization)
+  const T = (jd - 2451545.0) / 36525.0;
+  let gmstDeg =
+    280.46061837 +
+    360.98564736629 * (jd - 2451545.0) +
+    0.000387933 * T * T -
+    (T * T * T) / 38710000.0;
+  gmstDeg = ((gmstDeg % 360) + 360) % 360;
+  return gmstDeg * Math.PI / 180;
+}
+function lstRad(dateMs, lonDeg) {
+  const jd = jdFromUnixMs(dateMs);
+  const gmst = gmstRadFromJd(jd);
+  const lon = lonDeg * Math.PI / 180; // east positive
+  return normalizeRad0To2Pi(gmst + lon);
+}
+
+function altAzDegToRaDecDeg(altDeg, azDeg, latDeg, lonDeg, dateMs) {
+  const alt = altDeg * Math.PI / 180;
+  const az = azDeg * Math.PI / 180;
+  const lat = latDeg * Math.PI / 180;
+
+  const LST = lstRad(dateMs, lonDeg);
+
+  const sinDec = Math.sin(alt) * Math.sin(lat) + Math.cos(alt) * Math.cos(lat) * Math.cos(az);
+  const dec = Math.asin(Math.max(-1, Math.min(1, sinDec)));
+
+  // Hour angle H
+  const sinH = (-Math.sin(az) * Math.cos(alt)) / Math.cos(dec);
+  const cosH = (Math.sin(alt) - Math.sin(lat) * Math.sin(dec)) / (Math.cos(lat) * Math.cos(dec));
+  const H = Math.atan2(sinH, cosH);
+
+  const ra = normalizeRad0To2Pi(LST - H);
+
+  return { raDeg: ra * 180 / Math.PI, decDeg: dec * 180 / Math.PI };
+}
+
+function raDecDegToAltAzDeg(raDeg, decDeg, latDeg, lonDeg, dateMs) {
+  const ra = raDeg * Math.PI / 180;
+  const dec = decDeg * Math.PI / 180;
+  const lat = latDeg * Math.PI / 180;
+
+  const LST = lstRad(dateMs, lonDeg);
+  const H = normalizeRad0To2Pi(LST - ra);
+
+  const sinAlt = Math.sin(dec) * Math.sin(lat) + Math.cos(dec) * Math.cos(lat) * Math.cos(H);
+  const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+
+  const y = -Math.sin(H) * Math.cos(dec);
+  const x = Math.sin(dec) * Math.cos(lat) - Math.cos(dec) * Math.sin(lat) * Math.cos(H);
+  let az = Math.atan2(y, x);
+  az = normalizeRad0To2Pi(az);
+
+  return { altDeg: alt * 180 / Math.PI, azDeg: az * 180 / Math.PI };
+}
+
+function raDecDegToWorld(raDeg, decDeg, radius = CONFIG.radius) {
+  // Use smoothed "display" time/location for fluid motion while user drags sliders.
+  const hasSmooth = remoteMeteorSmooth && Number.isFinite(remoteMeteorSmooth.dateMs) &&
+    Number.isFinite(remoteMeteorSmooth.lat) && Number.isFinite(remoteMeteorSmooth.lon);
+
+  const dateMs = hasSmooth ? remoteMeteorSmooth.dateMs : (state?.date ? state.date.getTime() : null);
+  const lat = hasSmooth ? remoteMeteorSmooth.lat : state?.lat;
+  const lon = hasSmooth ? remoteMeteorSmooth.lon : state?.lon;
+
+  if (!Number.isFinite(dateMs) || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  const aa = raDecDegToAltAzDeg(raDeg, decDeg, lat, lon, dateMs);
+  return altAzDegToWorld(aa.altDeg, aa.azDeg, radius);
+}
+
+
+
+
+// 明るさ（1〜5）から流星線の太さを決める（既存の見た目= brightness 3 を基準）
+function meteorTubeRadiusFromBrightness(brightness, base = 1.4) {
+  const b = Number(brightness);
+  const bb = (Number.isFinite(b) && b >= 1 && b <= 5) ? Math.round(b) : 3;
+  // 1:細い〜5:太い（極端になりすぎない範囲）
+  const scaleByB = { 1: 0.70, 2: 0.85, 3: 1.00, 4: 1.25, 5: 1.60 };
+  return base * (scaleByB[bb] || 1.0);
+}
+
+function createMeteorTubeMesh(p1, p2, colorStartHex, colorEndHex, tubeRadius = 1.4) {
+  const radius = CONFIG.radius;
+  const segments = 64;
+  const pts = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    pts.push(slerpOnSphere(p1, p2, t, radius));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const tubeGeom = new THREE.TubeGeometry(curve, segments, tubeRadius, 10, false);
+
+  const mat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      uColorStart: { value: new THREE.Color(colorStartHex) },
+      uColorEnd:   { value: new THREE.Color(colorEndHex) },
+
+      // --- taper (spear-like tip) ---
+      uTubeRadius: { value: tubeRadius },
+      uTipStart:   { value: 0.78 },
+      uTipPower:   { value: 1.6 },
+    },
+    vertexShader: `
+      uniform float uTubeRadius;
+      uniform float uTipStart;
+      uniform float uTipPower;
+
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+
+        float t = clamp(uv.x, 0.0, 1.0);
+        float tip = smoothstep(uTipStart, 1.0, t);
+        float s = 1.0 - pow(tip, uTipPower);
+
+        vec3 p = position - normal * uTubeRadius * (1.0 - s);
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColorStart;
+      uniform vec3 uColorEnd;
+      varying vec2 vUv;
+
+      void main() {
+        float t = clamp(vUv.x, 0.0, 1.0);
+        float alpha = pow(t, 1.6) * 0.85;
+
+        float ring = 1.0 - abs(vUv.y - 0.5) * 1.2;
+        ring = clamp(ring, 0.0, 1.0);
+        alpha *= mix(0.55, 1.0, ring);
+
+        vec3 col = mix(uColorStart, uColorEnd, t);
+        gl_FragColor = vec4(col, alpha);
+      }
+    `,
+  });
+
+  const mesh = new THREE.Mesh(tubeGeom, mat);
+  return mesh;
+}
+
+// --- Time label helpers ---
+function formatObservedTime(ms) {
+  try {
+    // Display in Japan time with explicit JST label.
+    const d = new Date(ms);
+    const dateStr = d.toLocaleDateString("ja-JP", {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    const timeStr = d.toLocaleTimeString("ja-JP", {
+      timeZone: "Asia/Tokyo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+    return `${dateStr} ${timeStr} JST`;
+  } catch (e) {
+    return "";
+  }
+}
+
+function createTimeLabelSprite(text, isMine) {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  const fontSize = 86;
+  const padX = 26;
+  const padY = 18;
+
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  const metrics = ctx.measureText(text);
+  const textW = Math.ceil(metrics.width);
+
+  canvas.width = textW + padX * 2;
+  canvas.height = fontSize + padY * 2;
+
+  // Re-apply font after resizing
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textBaseline = "top";
+
+  // Background
+  ctx.fillStyle = isMine ? "rgba(0, 0, 0, 0.55)" : "rgba(0, 0, 0, 0.40)";
+  roundRect(ctx, 0, 0, canvas.width, canvas.height, 10);
+  ctx.fill();
+
+  // Border
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = isMine ? "rgba(255, 216, 74, 0.9)" : "rgba(160, 200, 255, 0.8)";
+  roundRect(ctx, 1.5, 1.5, canvas.width - 3, canvas.height - 3, 10);
+  ctx.stroke();
+
+  // Text
+  ctx.fillStyle = isMine ? "rgba(255, 255, 255, 0.95)" : "rgba(235, 245, 255, 0.95)";
+  ctx.fillText(text, padX, padY);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+
+  const mat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+  });
+
+  const sprite = new THREE.Sprite(mat);
+
+  // Scale: adjust so it's readable but not huge
+  const scale = 1.9; // tweakable (larger for readability)
+  sprite.scale.set(canvas.width * scale * 0.045, canvas.height * scale * 0.045, 1);
+
+  // for cleanup
+  sprite.userData.__labelTexture = tex;
+  return sprite;
+}
+
+
+// Time label as a 3D plane (instead of Sprite).
+// This is more stable for "embedded into the line" rendering because orientation can be derived
+// from meteor tangent + camera direction without relying on screen-space sprite rotation.
+function createTimeLabelPlaneMesh(text, isMine) {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  const fontSize = 86;
+  const padX = 26;
+  const padY = 18;
+
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  const metrics = ctx.measureText(text);
+  const textW = Math.ceil(metrics.width);
+
+  canvas.width = textW + padX * 2;
+  canvas.height = fontSize + padY * 2;
+
+  // Re-apply font after resizing
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textBaseline = "top";
+
+  // Background
+  ctx.fillStyle = isMine ? "rgba(0, 0, 0, 0.55)" : "rgba(0, 0, 0, 0.40)";
+  roundRect(ctx, 0, 0, canvas.width, canvas.height, 10);
+  ctx.fill();
+
+  // Border
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = isMine ? "rgba(255, 216, 74, 0.9)" : "rgba(160, 200, 255, 0.8)";
+  roundRect(ctx, 1.5, 1.5, canvas.width - 3, canvas.height - 3, 10);
+  ctx.stroke();
+
+  // Text
+  ctx.fillStyle = isMine ? "rgba(255, 255, 255, 0.95)" : "rgba(235, 245, 255, 0.95)";
+  ctx.fillText(text, padX, padY);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const geom = new THREE.PlaneGeometry(1, 1);
+
+  const mesh = new THREE.Mesh(geom, mat);
+
+  // Match the same approximate on-screen size as createTimeLabelSprite
+  const scale = 1.9;
+  const worldW = canvas.width * scale * 0.045;
+  const worldH = canvas.height * scale * 0.045;
+  mesh.scale.set(worldW, worldH, 1);
+
+  // for cleanup
+  mesh.userData = mesh.userData || {};
+  mesh.userData.__labelTexture = tex;
+  mesh.userData.labelWorldW = worldW;
+  mesh.userData.labelWorldH = worldH;
+
+  return mesh;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+
+
+function renderRecentMeteorRecords(items) {
+  if (!remoteMeteorGroup) return;
+
+  const myId = getDeviceId();
+  // 簡易ハッシュ（同じ結果なら再計算しない）
+  const key = (items || []).map(it => `${it.recordedAt}:${it.deviceId}`).join("|");
+  if (key && key === remoteMeteorLastKey) {
+    // ただし、時刻/観測地が変わった場合は描画し直す必要がある
+    maybeRerenderRemoteMeteorsForState();
+    return;
+  }
+  remoteMeteorLastKey = key;
+
+  // まずは “観測時点/観測地のAlt/Az” を RA/Dec に変換してキャッシュ化
+  remoteMeteorCache = [];
+  const list = Array.isArray(items) ? items : [];
+  const max = Math.min(list.length, 200);
+
+  for (let i = 0; i < max; i++) {
+    const it = list[i];
+    if (!it?.startAltAz || !it?.endAltAz) continue;
+
+    const obsLat = Number(it.lat);
+    const obsLon = Number(it.lon);
+    const observedAt = Number(it.observedAt);
+
+    if (!Number.isFinite(obsLat) || !Number.isFinite(obsLon) || !Number.isFinite(observedAt)) continue;
+
+    const sAlt = Number(it.startAltAz.altDeg);
+    const sAz  = Number(it.startAltAz.azDeg);
+    const eAlt = Number(it.endAltAz.altDeg);
+    const eAz  = Number(it.endAltAz.azDeg);
+    if (![sAlt, sAz, eAlt, eAz].every(Number.isFinite)) continue;
+
+    const startRaDec = altAzDegToRaDecDeg(sAlt, sAz, obsLat, obsLon, observedAt);
+    const endRaDec   = altAzDegToRaDecDeg(eAlt, eAz, obsLat, obsLon, observedAt);
+
+    const isMine = (it.deviceId && it.deviceId === myId);
+
+    remoteMeteorCache.push({
+      recordedAt: it.recordedAt,
+      deviceId: it.deviceId,
+      mine: isMine,
+      observedAt,
+      // 明るさ（1〜5）。未設定の場合は 3。自分の記録で backend が未対応ならローカルoverrideを使う
+      brightness: (() => {
+        const b = Number(it.brightness);
+        if (Number.isFinite(b) && b >= 1 && b <= 5) return Math.round(b);
+
+        if (isMine && it.recordedAt && meteorBrightnessOverrideByRecordedAt?.has?.(it.recordedAt)) {
+          const ob = Number(meteorBrightnessOverrideByRecordedAt.get(it.recordedAt));
+          if (Number.isFinite(ob) && ob >= 1 && ob <= 5) return Math.round(ob);
+        }
+        return 3;
+      })(),
+      startRaDec,
+      endRaDec
+    });
+  }
+
+  // 現在の時刻/観測地（state.date, state.lat/lon）で描画
+  rerenderRemoteMeteorsForState();
+}
+
+function getRemoteMeteorStateKey() {
+  const hasSmooth = remoteMeteorSmooth && Number.isFinite(remoteMeteorSmooth.dateMs) &&
+    Number.isFinite(remoteMeteorSmooth.lat) && Number.isFinite(remoteMeteorSmooth.lon);
+
+  const t = hasSmooth ? remoteMeteorSmooth.dateMs : (state?.date ? state.date.getTime() : 0);
+  const lat = hasSmooth ? remoteMeteorSmooth.lat : (typeof state?.lat === "number" ? state.lat : NaN);
+  const lon = hasSmooth ? remoteMeteorSmooth.lon : (typeof state?.lon === "number" ? state.lon : NaN);
+
+  // Reduce sensitivity: round time to 100ms, lat/lon to 1e-5 deg to avoid tiny jitter.
+  const tQ = Math.round(t / 100) * 100;
+  const latQ = Math.round(lat * 1e5) / 1e5;
+  const lonQ = Math.round(lon * 1e5) / 1e5;
+  return `${tQ}|${latQ}|${lonQ}`;
+}
+
+
+function clearRemoteMeteorGroup() {
+  if (!remoteMeteorGroup) return;
+  while (remoteMeteorGroup.children.length) {
+    const obj = remoteMeteorGroup.children.pop();
+    if (obj.geometry) obj.geometry.dispose?.();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose?.());
+      else obj.material.dispose?.();
+    }
+  }
+}
+
+function rerenderRemoteMeteorsForState() {
+  if (!remoteMeteorGroup) return;
+
+  // stateが未初期化なら何もしない
+  if (!state?.date || !Number.isFinite(state?.lat) || !Number.isFinite(state?.lon)) return;
+
+  clearRemoteMeteorGroup();
+
+  let meteorLabelCount = 0;
+
+  for (const it of remoteMeteorCache) {
+    const p1 = raDecDegToWorld(it.startRaDec.raDeg, it.startRaDec.decDeg);
+    const p2 = raDecDegToWorld(it.endRaDec.raDeg, it.endRaDec.decDeg);
+    if (!p1 || !p2) continue;
+
+    // --- Meteor line (split to create a gap for the time label) ---
+    // Keep the original look by reusing createMeteorTubeMesh; only geometry is split.
+    const baseColorStart = it.mine ? 0xffd84a : 0x666666;
+    const baseColorEnd   = it.mine ? 0x7ad7ff : 0x88aaff;
+
+    // Default: single segment (fallback when label is disabled / cannot be placed)
+    let meteorMeshes = [];
+
+    // Build the same sampled curve points used by createMeteorTubeMesh (slerp + CatmullRom)
+    const radius = CONFIG.radius;
+    const segments = 64;
+    const pts = [];
+    for (let ii = 0; ii <= segments; ii++) {
+      const tt = ii / segments;
+      pts.push(slerpOnSphere(p1, p2, tt, radius));
+    }
+
+    // Helper: compute cumulative arc lengths along the sampled polyline
+    const cum = [0];
+    for (let ii = 1; ii < pts.length; ii++) {
+      cum[ii] = cum[ii - 1] + pts[ii].distanceTo(pts[ii - 1]);
+    }
+    const totalLen = cum[cum.length - 1] || 0;
+
+    // Choose a mid point for the label (same midT as before for consistency)
+    const midT = 0.6;
+    const midIdx = Math.max(1, Math.min(segments - 1, Math.round(midT * segments)));
+    const mid = pts[midIdx].clone();
+
+    // Fallback meshes: full meteor as one tube
+    const fullMesh = createMeteorTubeMesh(p1, p2, baseColorStart, baseColorEnd, meteorTubeRadiusFromBrightness(it.brightness, 1.4));
+    fullMesh.userData = { recordedAt: it.recordedAt, deviceId: it.deviceId, mine: it.mine };
+    meteorMeshes.push(fullMesh);
+
+    // --- Time label placed along the line (no gap): keep the meteor continuous and place a plane label right beside it ---
+    // This avoids readability issues from splitting the line, while still keeping the label stable in 3D.
+    if (SHOW_METEOR_TIME_LABELS && Number.isFinite(it.observedAt) && meteorLabelCount < MAX_METEOR_TIME_LABELS) {
+      const labelText = formatObservedTime(it.observedAt);
+      if (labelText && totalLen > 0) {
+        const labelMesh = createTimeLabelPlaneMesh(labelText, it.mine);
+
+        // Choose a midpoint and local tangent from the sampled curve (matches the drawn meteor)
+        const midLen = cum[midIdx];
+
+        // Helper: interpolate a point on the sampled polyline by arc length
+        const pointAtLen = (targetLen) => {
+          const L = Math.max(0, Math.min(totalLen, targetLen));
+          let hi = 1;
+          while (hi < cum.length && cum[hi] < L) hi++;
+          const lo = Math.max(0, hi - 1);
+          if (hi >= cum.length) return pts[pts.length - 1].clone();
+          const segLen = Math.max(1e-6, cum[hi] - cum[lo]);
+          const alpha = (L - cum[lo]) / segLen;
+          return pts[lo].clone().lerp(pts[hi], alpha);
+        };
+
+        const pPrev = pointAtLen(Math.max(0, midLen - 1.0));
+        const pNext = pointAtLen(Math.min(totalLen, midLen + 1.0));
+
+        // Store sampled points for per-frame alignment/positioning
+        labelMesh.userData = labelMesh.userData || {};
+        labelMesh.userData.isMeteorTimeLabelMesh = true;
+        labelMesh.userData.pPrev = pPrev.clone();
+        labelMesh.userData.pMid  = mid.clone();
+        labelMesh.userData.pNext = pNext.clone();
+
+        // Offset in "screen-ish" direction (computed each frame) by a pixel-based amount converted to world units.
+        // This keeps the label snug along the line without splitting it.
+        const viewH = (renderer?.domElement?.clientHeight || renderer?.domElement?.height || window.innerHeight || 800);
+        const fovRad = THREE.MathUtils.degToRad(camera.fov || 50);
+        const depth = Math.max(1e-3, camera.position.distanceTo(mid));
+        const worldPerPixel = (2 * depth * Math.tan(fovRad * 0.5)) / viewH;
+
+        const desiredOffsetPx = 8; // closer to the meteor line
+        const desiredLiftPx   = 2;   // small lift to avoid z-fighting/blending artifacts
+
+        labelMesh.userData.offsetWorld = worldPerPixel * desiredOffsetPx;
+        labelMesh.userData.liftWorld   = worldPerPixel * desiredLiftPx;
+
+        // Initial position (will be refined each frame in updateMeteorTimeLabelsAlignment)
+        labelMesh.position.copy(mid);
+
+        remoteMeteorGroup.add(labelMesh);
+        meteorLabelCount++;
+      }
+    }
+
+    // Add meteor meshes
+
+    for (const mm of meteorMeshes) remoteMeteorGroup.add(mm);
+  }
+
+  remoteMeteorLastStateKey = getRemoteMeteorStateKey();
+  remoteMeteorLastRerenderAt = Date.now();
+}
+
+function maybeRerenderRemoteMeteorsForState() {
+  // While user drags the time/location controls, update frequently but still throttle.
+  const key = getRemoteMeteorStateKey();
+  const now = Date.now();
+  const minIntervalMs = 33; // ~30fps
+  if (key !== remoteMeteorLastStateKey && now - remoteMeteorLastRerenderAt > minIntervalMs) {
+    rerenderRemoteMeteorsForState();
+  }
+}
+
+function normalizeAngleUpright(rad) {
+  // Keep within [-90°, +90°] so text is never upside down.
+  while (rad > Math.PI / 2) rad -= Math.PI;
+  while (rad < -Math.PI / 2) rad += Math.PI;
+  return rad;
+}
+
+function updateMeteorTimeLabelsAlignment() {
+  if (!remoteMeteorGroup || !camera) return;
+
+  const upWorld = new THREE.Vector3(0, 1, 0);
+
+  // Ensure camera matrices are up-to-date before projections / alignment
+  camera.updateMatrixWorld?.(true);
+
+  for (const obj of remoteMeteorGroup.children) {
+    // Legacy sprite-based labels (kept for backward compatibility)
+    if (obj?.isSprite && obj.userData?.isMeteorTimeLabel && obj.material) {
+      const pPrev = obj.userData.pPrev;
+      const pMid  = obj.userData.pMid;
+      const pNext = obj.userData.pNext;
+      if (!pPrev || !pMid || !pNext) continue;
+
+      const offset = Number(obj.userData.offset ?? 14);
+
+      // Tangent from the same sampled curve points (matches the drawn meteor)
+      const tangent = pNext.clone().sub(pPrev).normalize();
+
+      // Zenith side in world space
+      const radial = pMid.clone().normalize();
+      const upT = upWorld.clone().sub(radial.clone().multiplyScalar(upWorld.dot(radial))).normalize();
+      let side = new THREE.Vector3().crossVectors(tangent, radial).normalize();
+      if (side.dot(upT) < 0) side.multiplyScalar(-1);
+
+      // Position next to the line
+      obj.position.copy(pMid.clone().add(side.multiplyScalar(offset)));
+
+      // Rotation: align with projected tangent direction in screen space (then keep upright)
+      const a = pMid.clone().project(camera);
+      const b = pMid.clone().add(tangent.clone().multiplyScalar(10)).project(camera);
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      if (Math.abs(dx) + Math.abs(dy) < 1e-6) continue;
+
+      const angle = Math.atan2(dy, dx);
+      obj.material.rotation = normalizeAngleUpright(angle);
+      continue;
+    }
+
+    // New plane-mesh labels embedded into the meteor line
+    if (!obj?.isMesh || !obj.userData?.isMeteorTimeLabelMesh) continue;
+
+    const pPrev = obj.userData.pPrev;
+    const pMid  = obj.userData.pMid;
+    const pNext = obj.userData.pNext;
+    if (!pPrev || !pMid || !pNext) continue;
+
+    // X axis: meteor tangent (world)
+let xAxis = pNext.clone().sub(pPrev).normalize();
+if (xAxis.lengthSq() < 1e-12) continue;
+
+// Keep text from mirroring: ensure X points toward the screen's right direction.
+// If the tangent points toward screen-left, the plane's texture would appear mirrored.
+const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+if (xAxis.dot(camRight) < 0) xAxis.multiplyScalar(-1);
+
+    // Build a basis that keeps X fixed but makes the label face the camera as much as possible.
+    // Z axis: camera direction projected onto the plane perpendicular to X.
+    const camDir = camera.position.clone().sub(pMid).normalize();
+    let zAxis = camDir.clone().sub(xAxis.clone().multiplyScalar(camDir.dot(xAxis)));
+    if (zAxis.lengthSq() < 1e-12) {
+      // Degenerate (camera aligned with tangent): fall back to radial direction
+      zAxis = pMid.clone().normalize().sub(xAxis.clone().multiplyScalar(pMid.clone().normalize().dot(xAxis)));
+    }
+    zAxis.normalize();
+
+    // Y axis: completes right-handed basis
+    let yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
+    if (yAxis.lengthSq() < 1e-12) continue;
+
+    // Keep text upright-ish in the world: prefer Y pointing toward world up
+    if (yAxis.dot(upWorld) < 0) {
+      yAxis.multiplyScalar(-1);
+      zAxis.multiplyScalar(-1);
+    }
+
+    const mtx = new THREE.Matrix4();
+    mtx.makeBasis(xAxis, yAxis, zAxis);
+    obj.quaternion.setFromRotationMatrix(mtx);
+
+
+    // Position the label right beside the meteor line (no gap).
+    const offsetWorld = Number(obj.userData.offsetWorld ?? 0);
+    const liftWorld = Number(obj.userData.liftWorld ?? 0);
+    const radial = pMid.clone().normalize();
+    obj.position.copy(
+      pMid.clone()
+        .add(yAxis.clone().multiplyScalar(offsetWorld))
+        .add(radial.multiplyScalar(liftWorld))
+    );
+  }
+}
+
+
+
+function startRemoteMeteorPolling() {
+  if (remoteMeteorPollTimer) return;
+  // まず1回即時取得
+  (async () => {
+    try {
+      const data = await fetchRecentMeteorRecords(3600);
+      renderRecentMeteorRecords(data.items || []);
+    } catch (e) {
+      console.warn("Initial meteor fetch failed:", e);
+    }
+  })();
+
+  remoteMeteorPollTimer = setInterval(async () => {
+    try {
+      const data = await fetchRecentMeteorRecords(3600);
+      renderRecentMeteorRecords(data.items || []);
+    } catch (e) {
+      console.warn("Meteor refresh failed:", e);
+    }
+  }, 30000);
+}
+
+
 function initMeteorUi() {
     if (meteorUi.container) return;
 
@@ -3234,12 +4651,28 @@ function initMeteorUi() {
     hint.id = 'meteor-hint';
     hint.innerHTML = `<div id="meteor-hint-text"></div>`;
 
+
+
+    // ---- 画面上部のモード表示（追加） ----
+    const modeBanner = document.createElement('div');
+    modeBanner.id = 'meteor-mode-banner';
+    modeBanner.textContent = '流星記録モード';
+
     // モーダル
     const modal = document.createElement('div');
     modal.id = 'meteor-modal';
     modal.innerHTML = `
         <div class="panel">
-            <div class="title">流星の記録</div>
+<style>
+/* --- Override: remove border/background for observation datetime & brightness sections --- */
+#meteor-save-modal .section {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+</style>
+
+            <div class="title">流星記録モード</div>
             <div class="desc">流星が流れた方向を向いていますか？</div>
             <div class="row">
                 <button id="meteor-modal-cancel">キャンセル</button>
@@ -3254,15 +4687,33 @@ function initMeteorUi() {
     saveModal.id = 'meteor-save-modal';
     saveModal.innerHTML = `
         <div class="panel">
-            <div class="title">流星の記録</div>
-            <div class="desc">流星を見たのは</div>
-            <div class="field" style="margin-top:8px;">
-                <input type="datetime-local" id="meteor-save-datetime" />
+            <div class="title">流星の記録を保存</div>
+            
+            <div class="section">
+                <label for="meteor-save-datetime" class="field-label">★観測日時</label>
+                <div class="field" style="margin-top:8px;">
+                    <input type="datetime-local" id="meteor-save-datetime" />
+                </div>
             </div>
-            <div class="desc" style="margin-top:6px;">でよろしいですか？</div>
-            <div class="row" style="margin-top:14px;">
-                <button id="meteor-save-cancel">キャンセル</button>
-                <button id="meteor-save-ok" class="primary">OK</button>
+
+            <div class="section">
+                <label class="field-label">★明るさ5段階評価(星が多いほど明るい)</label>
+                <div class="field" style="margin-top:8px;">
+                    <div id="meteor-brightness-stars" class="meteor-stars" role="radiogroup" aria-label="明るさ（5段階）">
+                        <button type="button" class="meteor-star" data-value="1" role="radio" aria-checked="false" aria-label="明るさ 1">★</button>
+                        <button type="button" class="meteor-star" data-value="2" role="radio" aria-checked="false" aria-label="明るさ 2">★</button>
+                        <button type="button" class="meteor-star" data-value="3" role="radio" aria-checked="false" aria-label="明るさ 3">★</button>
+                        <button type="button" class="meteor-star" data-value="4" role="radio" aria-checked="false" aria-label="明るさ 4">★</button>
+                        <button type="button" class="meteor-star" data-value="5" role="radio" aria-checked="false" aria-label="明るさ 5">★</button>
+                    </div>
+                    <div id="meteor-brightness-label" class="meteor-brightness-label"></div>
+                    <input type="hidden" id="meteor-save-brightness" value="3" />
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:16px;">
+                <button id="meteor-save-cancel">戻る</button>
+                <button id="meteor-save-ok" class="primary">保存する</button>
             </div>
         </div>
     `;
@@ -3283,6 +4734,7 @@ function initMeteorUi() {
         document.body.appendChild(btn);
     }
     document.body.appendChild(hint);
+    document.body.appendChild(modeBanner);
     document.body.appendChild(modal);
     document.body.appendChild(saveModal);
     document.body.appendChild(actions);
@@ -3292,12 +4744,79 @@ function initMeteorUi() {
     meteorUi.hint = hint;
     meteorUi.hintText = document.getElementById('meteor-hint-text');
 
+
+    meteorUi.modeBanner = modeBanner;
     meteorUi.modal = modal;
     meteorUi.modalOk = document.getElementById('meteor-modal-ok');
     meteorUi.modalCancel = document.getElementById('meteor-modal-cancel');
 
     meteorUi.saveModal = saveModal;
     meteorUi.saveModalInput = document.getElementById('meteor-save-datetime');
+    meteorUi.saveModalBrightness = document.getElementById('meteor-save-brightness');
+
+    // 明るさ★UI（5段階）
+    meteorUi.saveModalStars = document.getElementById('meteor-brightness-stars');
+    meteorUi.saveModalBrightnessLabel = document.getElementById('meteor-brightness-label');
+
+    const brightnessLabelText = (v) => {
+        const b = Number(v);
+        switch (b) {
+            case 1: return 'ほとんどの星より暗い';
+            case 2: return '他の星よりやや暗い';
+            case 3: return '他の星と同じくらいの明るさ';
+            case 4: return 'ほとんどの星より明るい';
+            case 5: return '1番明るい星より明るい';
+            default: return '';
+        }
+    };
+
+    const setBrightnessUi = (v) => {
+        const b = Math.max(1, Math.min(5, Math.round(Number(v) || 3)));
+        if (meteorUi.saveModalBrightness) meteorUi.saveModalBrightness.value = String(b);
+        if (meteorUi.saveModalBrightnessLabel) meteorUi.saveModalBrightnessLabel.textContent = '明るさの基準：' + brightnessLabelText(b);
+        meteorUi.saveModalBrightnessLabel.style.fontSize = '1.1em';
+
+        if (meteorUi.saveModalStars) {
+            const stars = Array.from(meteorUi.saveModalStars.querySelectorAll('.meteor-star'));
+            stars.forEach((el) => {
+                const val = Number(el.getAttribute('data-value'));
+                const active = val <= b;
+
+                // Requested behavior:
+                // - Selected stars: filled (★) with deep yellow
+                // - Unselected stars: hollow (☆)
+                el.textContent = active ? '★' : '☆';
+
+                el.classList.toggle('active', active);
+                el.setAttribute('aria-checked', (val === b) ? 'true' : 'false');
+            });
+        }
+    };
+    meteorUi.setBrightnessUi = setBrightnessUi;
+
+    if (meteorUi.saveModalStars) {
+        meteorUi.saveModalStars.addEventListener('click', (e) => {
+            const t = e.target;
+            if (!(t instanceof HTMLElement)) return;
+            const btn = t.closest('.meteor-star');
+            if (!btn) return;
+            const v = Number(btn.getAttribute('data-value'));
+            if (Number.isFinite(v)) setBrightnessUi(v);
+        });
+
+        // キーボード操作（左右で変更）
+        meteorUi.saveModalStars.addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            e.preventDefault();
+            const cur = Number(meteorUi.saveModalBrightness?.value) || 3;
+            const next = e.key === 'ArrowRight' ? cur + 1 : cur - 1;
+            setBrightnessUi(next);
+        });
+        meteorUi.saveModalStars.tabIndex = 0;
+    }
+
+    // 初期値
+    setBrightnessUi(3);
     meteorUi.saveModalOk = document.getElementById('meteor-save-ok');
     meteorUi.saveModalCancel = document.getElementById('meteor-save-cancel');
 
@@ -3339,7 +4858,17 @@ function initMeteorUi() {
     // ボタン位置をジャイロボタンと揃える（PCでも必ず表示）
     updateMeteorButtonPosition();
     window.addEventListener('resize', updateMeteorButtonPosition);
+
+    // --- みんなの流星（直近1時間）表示 ---
+    if (!remoteMeteorGroup) {
+        remoteMeteorGroup = new THREE.Group();
+        remoteMeteorGroup.name = 'RemoteMeteorTracks';
+        if (typeof scene !== 'undefined' && scene) scene.add(remoteMeteorGroup);
+    }
+    startRemoteMeteorPolling();
+
 }
+
 
 function updateMeteorButtonPosition() {
     const btn = document.getElementById('meteor-icon-btn');
@@ -3424,16 +4953,37 @@ function openMeteorConfirm() {
     }
 
     meteorUi.modal.style.display = 'flex';
+    setMeteorBottomUiBlur(true);
 }
 
 function closeMeteorConfirm() {
     meteorUi.modal.style.display = 'none';
+    // まだ流星記録モードに入っていない（キャンセルなど）場合は下部UIのぼかしを解除
+    if (state && state.meteor && state.meteor.mode === 'idle') {
+        setMeteorBottomUiBlur(false);
+    }
+}
+
+
+
+function setMeteorBottomUiBlur(on) {
+    try {
+        document.body.classList.toggle('meteor-recording-active', !!on);
+    } catch (e) {}
 }
 
 function setMeteorHint(text) {
     if (!meteorUi.hint || !meteorUi.hintText) return;
     meteorUi.hintText.textContent = text || '';
     meteorUi.hint.classList.toggle('visible', !!text);
+}
+
+
+
+function setMeteorModeBannerVisible(visible) {
+    const el = meteorUi?.modeBanner || document.getElementById('meteor-mode-banner');
+    if (!el) return;
+    el.classList.toggle('visible', !!visible);
 }
 
 function setMeteorActionsVisible(visible) {
@@ -3443,9 +4993,11 @@ function setMeteorActionsVisible(visible) {
 }
 
 function beginMeteorSelection() {
+    setMeteorBottomUiBlur(true);
     meteorUi.btn.classList.remove('off');
     meteorUi.btn.classList.add('on');
     meteorUi.btn.classList.add('recording');
+    setMeteorModeBannerVisible(true);
     // 視点を固定する（その瞬間の向き）
     state.meteor.locked = true;
     state.meteor.lockedQuat.copy(camera.quaternion);
@@ -3480,12 +5032,14 @@ function resetMeteorSelection(exitMode) {
     clearMeteorPreviewLine();
 
     if (exitMode) {
+        setMeteorBottomUiBlur(false);
         if (meteorUi && meteorUi.btn) {
             meteorUi.btn.classList.remove('recording');
             meteorUi.btn.classList.remove('on');
             meteorUi.btn.classList.add('off');
         }
         state.meteor.mode = 'idle';
+        setMeteorModeBannerVisible(false);
         try { setMeteorButtonState('off'); } catch (e) {}
         state.meteor.locked = false;
         state.meteor.lockedDate = null;
@@ -3539,6 +5093,13 @@ function openMeteorSaveModal() {
         meteorUi.saveModalInput.value = toDatetimeLocalValue(baseDate);
     }
 
+
+    if (meteorUi.saveModalBrightness) {
+        const b = Number(state.meteor.lockedBrightness);
+        const v = (b >= 1 && b <= 5) ? b : 3;
+        meteorUi.saveModalBrightness.value = String(v);
+        if (typeof meteorUi.setBrightnessUi === 'function') meteorUi.setBrightnessUi(v);
+    }
     meteorUi.saveModal.style.display = 'flex';
 }
 
@@ -3563,13 +5124,18 @@ function confirmMeteorSave() {
         return;
     }
 
+    // 明るさ（1〜5）
+    const bRaw = Number(meteorUi.saveModalBrightness?.value);
+    const b = (Number.isFinite(bRaw) && bRaw >= 1 && bRaw <= 5) ? Math.round(bRaw) : 3;
+    state.meteor.lockedBrightness = b;
+
     state.meteor.lockedDate = chosen;
 
     closeMeteorSaveModal();
     saveMeteorTrack(true);
 }
 
-function saveMeteorTrack(skipCheck = false) {
+async function saveMeteorTrack(skipCheck = false) {
     if (!skipCheck) {
     if (state.meteor.mode !== 'review' || !state.meteor.startAltAz || !state.meteor.endAltAz) {
         alert('保存するために、始点と終点を指定してください。');
@@ -3584,16 +5150,35 @@ function saveMeteorTrack(skipCheck = false) {
         dateIso: state.meteor.lockedDate ? state.meteor.lockedDate.toISOString() : state.date.toISOString(),
         startAltAz: state.meteor.startAltAz,
         endAltAz: state.meteor.endAltAz,
+        brightness: (Number.isFinite(state.meteor.lockedBrightness) ? state.meteor.lockedBrightness : 3),
     };
+
+    try {
+      const postRes = await postMeteorRecord(rec);
+      // Keep local brightness mapping in case GET /records doesn't return brightness yet.
+      try {
+        const key = postRes?.recordedAt || postRes?.item?.recordedAt || null;
+        if (key) meteorBrightnessOverrideByRecordedAt.set(key, rec.brightness);
+      } catch (e) {}
+
+    
     meteorSavedTracks.push(rec);
 
-    alert('流星の記録を保存しました（※いまは端末内に一時保存です）。');
+    alert('★保存完了★(1分程度で画面に表示されます)');
 
     // 次の記録へ
     resetMeteorSelection(true);
+
+    } catch (e) {
+      console.error(e);
+      alert('保存に失敗しました（通信エラーの可能性があります）');
+      return;
+    }
+
 }
 
 function clearMeteorPreviewLine() {
+    cancelMeteorPreviewAnimation();
     if (meteorPreviewLine && meteorTrackGroup) {
         meteorTrackGroup.remove(meteorPreviewLine);
         meteorPreviewLine.geometry?.dispose?.();
@@ -3618,6 +5203,97 @@ function clearMeteorPreviewLine() {
         meteorEndGlow.material?.dispose?.();
     }
     meteorEndGlow = null;
+}
+
+function cancelMeteorPreviewAnimation() {
+    try {
+        if (meteorPreviewAnimRaf != null) {
+            cancelAnimationFrame(meteorPreviewAnimRaf);
+        }
+    } catch (e) {}
+    meteorPreviewAnimRaf = null;
+    meteorPreviewAnimToken++;
+    try {
+        if (meteorMarkHideTimeout != null) {
+            clearTimeout(meteorMarkHideTimeout);
+        }
+    } catch (e) {}
+    meteorMarkHideTimeout = null;
+    setMeteorMarkVisible(false);
+
+}
+
+function animateMeteorPreviewLine(durationMs = 520) {
+    if (!meteorPreviewLine || !meteorPreviewLine.material || !meteorPreviewLine.material.uniforms || !meteorPreviewLine.material.uniforms.uProgress) return;
+
+    cancelMeteorPreviewAnimation();
+
+    const token = meteorPreviewAnimToken;
+    const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
+    // Star head runs first, the line follows behind slightly.
+    const headLead = 0.14; // 0..1 portion of time where the head leads before the line begins to appear
+
+    // Start from 0 so it draws from the beginning
+    meteorPreviewLine.material.uniforms.uProgress.value = 0.0;
+
+    const mark = ensureMeteorMarkSprite();
+    if (mark && state && state.meteor && state.meteor.startWorld && state.meteor.endWorld) {
+        mark.visible = true;
+        mark.scale.set(30, 30, 1);
+        mark.material.opacity = 1.0;
+    }
+
+    const step = (now) => {
+        if (token !== meteorPreviewAnimToken) return;
+        const tNow = (typeof now === 'number') ? now : ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
+        const t = Math.max(0, Math.min(1, (tNow - start) / durationMs));
+
+        // Move the star head
+        if (mark && state && state.meteor && state.meteor.startWorld && state.meteor.endWorld) {
+            const p = state.meteor.startWorld.clone().lerp(state.meteor.endWorld, t).normalize().multiplyScalar(CONFIG.radius);
+            mark.position.copy(p);
+        }
+
+        // Line progress follows the head with a delay
+        let lineT = 0;
+        if (t <= headLead) {
+            lineT = 0;
+        } else {
+            lineT = (t - headLead) / (1 - headLead);
+        }
+        lineT = Math.max(0, Math.min(1, lineT));
+        meteorPreviewLine.material.uniforms.uProgress.value = lineT;
+
+        if (t < 1.0) {
+            meteorPreviewAnimRaf = requestAnimationFrame(step);
+        } else {
+            meteorPreviewAnimRaf = null;
+
+            // Fade out the head mark quickly after it arrives
+            if (mark && mark.material) {
+                const fadeStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+                const fadeDur = 180;
+
+                const fadeStep = () => {
+                    if (token !== meteorPreviewAnimToken) return;
+                    const n = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now());
+                    const ft = Math.max(0, Math.min(1, (n - fadeStart) / fadeDur));
+                    mark.material.opacity = 1.0 - ft;
+                    if (ft < 1) {
+                        requestAnimationFrame(fadeStep);
+                    } else {
+                        setMeteorMarkVisible(false);
+                    }
+                };
+                requestAnimationFrame(fadeStep);
+            } else {
+                setMeteorMarkVisible(false);
+            }
+        }
+    };
+
+    meteorPreviewAnimRaf = requestAnimationFrame(step);
 }
 
 function createRadialTexture(innerAlpha, outerAlpha) {
@@ -3645,45 +5321,65 @@ function ensureMeteorStartMarker(p) {
     if (!meteorTrackGroup) return;
 
     if (!meteorStartMarker) {
-        const tex = createRadialTexture(0.9, 0.0);
+        if (!meteorPinTextureLoader) meteorPinTextureLoader = new THREE.TextureLoader();
+        const tex = meteorPinTextureLoader.load(METEOR_START_ICON_URL);
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.generateMipmaps = true;
+
         const mat = new THREE.SpriteMaterial({
             map: tex,
             color: 0xffffff,
             transparent: true,
             depthTest: false,
             depthWrite: false,
-            opacity: 0.9,
+            opacity: 1.0,
         });
         const spr = new THREE.Sprite(mat);
+
+        // Anchor the sprite so the *tip* of the pin is at the selected point.
+        // Sprite center: (0.5, 0.0) = bottom-center
+        spr.center.set(0.5, 0.0);
+
         spr.renderOrder = 15010;
         meteorStartMarker = spr;
         meteorTrackGroup.add(meteorStartMarker);
     }
     meteorStartMarker.position.copy(p);
-    meteorStartMarker.scale.set(16, 16, 1);
+    meteorStartMarker.scale.set(34, 34, 1);
 }
 
 function ensureMeteorEndGlow(p) {
     if (!meteorTrackGroup) return;
 
     if (!meteorEndGlow) {
-        const tex = createRadialTexture(1.0, 0.0);
+        if (!meteorPinTextureLoader) meteorPinTextureLoader = new THREE.TextureLoader();
+        const tex = meteorPinTextureLoader.load(METEOR_END_ICON_URL);
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.generateMipmaps = true;
+
         const mat = new THREE.SpriteMaterial({
             map: tex,
-            color: 0x7ad7ff,
+            color: 0xffffff,
             transparent: true,
             depthTest: false,
             depthWrite: false,
             opacity: 1.0,
         });
         const spr = new THREE.Sprite(mat);
+
+        // Anchor so the tip is at the selected end point.
+        spr.center.set(0.5, 0.0);
+
         spr.renderOrder = 15020;
         meteorEndGlow = spr;
         meteorTrackGroup.add(meteorEndGlow);
     }
     meteorEndGlow.position.copy(p);
-    meteorEndGlow.scale.set(24, 24, 1);
+    meteorEndGlow.scale.set(34, 34, 1);
 }
+
 
 function slerpOnSphere(p1, p2, t, radius) {
     const v1 = p1.clone().normalize();
@@ -3700,6 +5396,45 @@ function slerpOnSphere(p1, p2, t, radius) {
 
     const v = v1.multiplyScalar(k1).add(v2.multiplyScalar(k2)).normalize().multiplyScalar(radius);
     return v;
+}
+
+
+function ensureMeteorMarkSprite() {
+    if (!meteorTrackGroup) return null;
+
+    if (!meteorMarkSprite) {
+        if (!meteorMarkTextureLoader) meteorMarkTextureLoader = new THREE.TextureLoader();
+        const tex = meteorMarkTextureLoader.load(METEOR_MARK_ICON_URL);
+        tex.minFilter = THREE.LinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.generateMipmaps = true;
+
+        const mat = new THREE.SpriteMaterial({
+            map: tex,
+            color: 0xffffff,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            opacity: 1.0,
+        });
+        const spr = new THREE.Sprite(mat);
+        // Center the star mark on its position
+        spr.center.set(0.5, 0.5);
+        spr.renderOrder = 15020;
+        spr.visible = false;
+        meteorMarkSprite = spr;
+        meteorTrackGroup.add(meteorMarkSprite);
+    }
+
+    return meteorMarkSprite;
+}
+
+function setMeteorMarkVisible(v) {
+    if (!meteorMarkSprite) return;
+    meteorMarkSprite.visible = !!v;
+    if (!v && meteorMarkSprite.material) {
+        meteorMarkSprite.material.opacity = 1.0;
+    }
 }
 
 function buildMeteorTrailGeometry(p1, p2) {
@@ -3767,7 +5502,9 @@ function ensureMeteorPreviewLine(p1, p2) {
 
     // 太さのある軌跡：TubeGeometry
     const curve = new THREE.CatmullRomCurve3(pts);
-    const tubeGeom = new THREE.TubeGeometry(curve, segments, 1.6, 10, false);
+    // Preview thickness reflects selected brightness (default 3)
+    const previewRadius = meteorTubeRadiusFromBrightness(state?.meteor?.lockedBrightness, 1.6);
+    const tubeGeom = new THREE.TubeGeometry(curve, segments, previewRadius, 10, false);
 
     const mat = new THREE.ShaderMaterial({
         transparent: true,
@@ -3777,22 +5514,53 @@ function ensureMeteorPreviewLine(p1, p2) {
         uniforms: {
             uColorStart: { value: new THREE.Color(0xffd84a) }, // 始点：黄
             uColorEnd:   { value: new THREE.Color(0x7ad7ff) }, // 終点：シアン
+
+            // --- taper (spear-like tip) ---
+            uTubeRadius: { value: previewRadius },
+            uTipStart:   { value: 0.78 },
+            uTipPower:   { value: 1.6 },
+
+            // drawing animation progress (0..1)
+            uProgress:  { value: 1.0 },
         },
         vertexShader: `
+            uniform float uTubeRadius;
+            uniform float uTipStart;
+            uniform float uTipPower;
+
             varying vec2 vUv;
             void main() {
                 vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+                // uv.x: 始点→終点
+                float t = clamp(uv.x, 0.0, 1.0);
+
+                // 終端だけ半径を 0 に向けて縮める
+                float tip = smoothstep(uTipStart, 1.0, t);     // 0..1
+                float s = 1.0 - pow(tip, uTipPower);           // 1..0
+
+                // TubeGeometry の法線方向に押し戻して半径を縮める
+                vec3 p = position - normal * uTubeRadius * (1.0 - s);
+
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
             }
         `,
         fragmentShader: `
             uniform vec3 uColorStart;
             uniform vec3 uColorEnd;
+            uniform float uProgress;
             varying vec2 vUv;
 
             void main() {
                 // TubeGeometry の uv.x は「始点→終点」
                 float t = clamp(vUv.x, 0.0, 1.0);
+
+                // --- draw animation: show only 0..uProgress ---
+                float prog = clamp(uProgress, 0.0, 1.0);
+                // soften the leading edge a bit
+                float edge = 0.02;
+                float vis = 1.0 - smoothstep(prog - edge, prog, t);
+                if (vis <= 0.0) discard;
 
                 // 先端（終点）ほど濃く＆明るく
                 float alpha = pow(t, 1.6) * 0.95;
@@ -3801,6 +5569,8 @@ function ensureMeteorPreviewLine(p1, p2) {
                 float ring = 1.0 - abs(vUv.y - 0.5) * 1.2;
                 ring = clamp(ring, 0.0, 1.0);
                 alpha *= (0.65 + 0.35 * ring);
+
+                alpha *= vis;
 
                 vec3 col = mix(uColorStart, uColorEnd, t);
 
@@ -3823,6 +5593,10 @@ function ensureMeteorPreviewLine(p1, p2) {
         if (meteorPreviewLine.material && meteorPreviewLine.material.uniforms) {
             meteorPreviewLine.material.uniforms.uColorStart.value.set(0xffd84a);
             meteorPreviewLine.material.uniforms.uColorEnd.value.set(0x7ad7ff);
+            if (meteorPreviewLine.material.uniforms.uTubeRadius) meteorPreviewLine.material.uniforms.uTubeRadius.value = previewRadius;
+            if (meteorPreviewLine.material.uniforms.uProgress && typeof meteorPreviewLine.material.uniforms.uProgress.value !== 'number') {
+                meteorPreviewLine.material.uniforms.uProgress.value = 1.0;
+            }
         } else {
             meteorPreviewLine.material?.dispose?.();
             meteorPreviewLine.material = mat;
@@ -3926,6 +5700,9 @@ function handleMeteorPointerUp(event) {
     ensureMeteorPreviewLine(m.startWorld, m.endWorld);
     // 終点の光（流星の先端）
     ensureMeteorEndGlow(m.endWorld);
+
+    // Animate drawing from start -> end
+    animateMeteorPreviewLine(520);
 
     m.mode = 'review';
     setMeteorHint('プレビューを確認して「保存」または「やり直し」');
