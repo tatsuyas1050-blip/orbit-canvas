@@ -5251,7 +5251,7 @@ async function saveMeteorTrack(skipCheck = false) {
     
     meteorSavedTracks.push(rec);
 
-    alert('★保存完了★(1分程度で画面に表示されます)');
+    alert('★保存完了★\n1分程度で画面に表示されます');
 
     // 次の記録へ
     resetMeteorSelection(true);
@@ -5792,7 +5792,7 @@ function handleMeteorPointerUp(event) {
     animateMeteorPreviewLine(520);
 
     m.mode = 'review';
-    setMeteorHint('プレビューを確認して「保存」または「やり直し」');
+    setMeteorHint('流星の軌道がOKなら「保存」へ');
     setMeteorActionsVisible(true);
 
     return true;
