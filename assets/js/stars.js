@@ -1040,25 +1040,32 @@ function injectCustomStyles() {
     box-shadow: 0 0 0 3px rgba(120, 190, 255, 0.16);
 }
 
-@media (max-width: 600px) {
-    /* iPhoneなどで datetime-local のアイコン領域が崩れるのを防ぐ */
+@media (hover: none) and (pointer: coarse) {
+    /* スマートフォンでは datetime-local のカレンダー（ピッカー）アイコン領域ごと消して、横幅が伸びるのを防ぐ */
     #meteor-save-modal input[type="datetime-local"] {
-        padding-right: 12px;
-        position: relative;
+        -webkit-appearance: none;
+        appearance: none;
+        padding-right: 12px !important; /* アイコン用の余白を作らない */
+        min-width: 0;
+        max-width: 100%;
     }
+    /* アイコン自体 + その予約領域（indicator）を非表示 */
     #meteor-save-modal input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-        opacity: 0; /* 非表示（タップ可能） */
-        display: block;
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        cursor: pointer;
+        display: none !important;
+        -webkit-appearance: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    /* 一部ブラウザの余計なUIを抑制 */
+    #meteor-save-modal input[type="datetime-local"]::-webkit-inner-spin-button,
+    #meteor-save-modal input[type="datetime-local"]::-webkit-clear-button {
+        display: none !important;
     }
 }
 
-/* star selector container */
+ /* star selector container */
 #meteor-save-modal .meteor-stars {
     display: inline-flex;
     align-items: center;
@@ -4786,8 +4793,8 @@ function initMeteorUi() {
             </div>
 
             <div class="row" style="margin-top:16px;">
-                <button id="meteor-save-cancel">戻る</button>
-                <button id="meteor-save-ok" class="primary">保存する</button>
+            <button id="meteor-save-ok" class="primary">保存する</button>
+            <button id="meteor-save-cancel">戻る</button>
             </div>
         </div>
     `;
@@ -4837,7 +4844,7 @@ function initMeteorUi() {
         switch (b) {
             case 1: return 'ほとんどの星より暗い';
             case 2: return '他の星よりやや暗い';
-            case 3: return '他の星と同じくらいの明るさ';
+            case 3: return '他の星と同じくらい';
             case 4: return 'ほとんどの星より明るい';
             case 5: return '1番明るい星より明るい';
             default: return '';

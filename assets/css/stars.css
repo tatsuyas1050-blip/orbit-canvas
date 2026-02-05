@@ -498,7 +498,7 @@ body.dock-open .menu-toggle {
       sans-serif;
 }
 .mobile-btn--constellation.active {
-  background-color: rgba(211, 223, 227, 0.684);
+  background-color: rgba(211, 223, 227, 0.405);
   border-color: #ffffff;
   color: #ffffff;
 }
@@ -519,7 +519,7 @@ body.dock-open .menu-toggle {
   
 }
 .mobile-btn--celestial.active {
-  background-color: rgba(85, 149, 227, 0.685);
+  background-color: rgba(85, 149, 227, 0.408);
   border-color: #7fc2ff;
   color: #e0f2ff;
 }
@@ -539,7 +539,7 @@ body.dock-open .menu-toggle {
       sans-serif;
 }
 .mobile-btn--meteors.active {
-  background-color: rgba(101, 214, 157, 0.522);
+  background-color: rgba(101, 214, 157, 0.353);
   border-color: #5dffb0;
   color: #e4fff4;
 }
@@ -559,7 +559,7 @@ body.dock-open .menu-toggle {
       sans-serif;
 }
 .mobile-btn--sun.active {
-  background-color: rgba(255, 219, 90, 0.481);
+  background-color: rgba(255, 219, 90, 0.36);
   border-color: #ffe066;
   color: #fff6c0;
 }
