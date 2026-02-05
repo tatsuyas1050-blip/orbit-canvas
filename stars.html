@@ -105,7 +105,8 @@
 
                     <div class="panel-section">
                         <h3 class="section-title">表示オプション</h3>
-                        <button id="btn-sunlight" class="btn-gold active" style="width:100%; margin-bottom:5px;">☀ 太陽光の影響</button>
+                        <button id="btn-sunlight" class="btn-gold active btn-toggle-sunlight" style="width:100%; margin-bottom:5px;">☀ 太陽光の影響</button>
+                        <button id="btn-meteors" class="btn-gold active btn-toggle-meteors" style="width:100%; margin-bottom:5px;">☄ 流星</button>
                         <button id="btn-grid" class="btn-gold active" style="width:100%; margin-bottom:5px;">🌐 座標線を表示</button>
                         <div style="display:flex; justify-content:space-between; margin-top:5px;">
                             <span class="coord-label">星の数</span>
@@ -185,11 +186,10 @@
             </div>
             
             <div class="mobile-toggles">
-                <button class="mobile-btn" id="btn-mobile-constellation">星座</button>
-                <button class="mobile-btn" id="btn-mobile-labels">天体名</button>
-                <button class="mobile-btn" id="btn-mobile-grid">座標線</button>
-                <button class="mobile-btn" id="btn-mobile-sunlight">☀太陽光</button>
-                <button class="mobile-btn" id="btn-mobile-gyro">ジャイロ</button>
+                <button class="mobile-btn mobile-btn--constellation" id="btn-mobile-constellation">星座</button>
+                <button class="mobile-btn mobile-btn--celestial" id="btn-mobile-labels">天体</button>
+                <button class="mobile-btn mobile-btn--meteors" id="btn-mobile-meteors">流星</button>
+                <button class="mobile-btn mobile-btn--sun" id="btn-mobile-sunlight">太陽光</button>
             </div>
         </div>
     </div>

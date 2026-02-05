@@ -480,3 +480,86 @@ body.dock-open .menu-toggle {
         top: 15px !important;
     }
 }
+
+/* === Mobile toggle enhanced colors === */
+
+/* Constellations (white) */
+.mobile-btn--constellation {
+  border-color: #999;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-family:-apple-system,
+      BlinkMacSystemFont,
+      "Hiragino Kaku Gothic ProN",
+      "Hiragino Sans",
+      "Noto Sans JP",
+      "Yu Gothic",
+      Meiryo,
+      sans-serif;
+}
+.mobile-btn--constellation.active {
+  background-color: rgba(211, 223, 227, 0.684);
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+/* Celestial bodies (blue) */
+.mobile-btn--celestial {
+  border-color: #2f6fa5;
+  color: #e0f2ff;
+  font-size: 0.9rem;
+  font-family:-apple-system,
+      BlinkMacSystemFont,
+      "Hiragino Kaku Gothic ProN",
+      "Hiragino Sans",
+      "Noto Sans JP",
+      "Yu Gothic",
+      Meiryo,
+      sans-serif;
+  
+}
+.mobile-btn--celestial.active {
+  background-color: rgba(85, 149, 227, 0.685);
+  border-color: #7fc2ff;
+  color: #e0f2ff;
+}
+
+/* Meteors (green) */
+.mobile-btn--meteors {
+  border-color: #2f8f5a;
+  color: #e4fff4;
+  font-size: 0.9rem;
+  font-family:-apple-system,
+      BlinkMacSystemFont,
+      "Hiragino Kaku Gothic ProN",
+      "Hiragino Sans",
+      "Noto Sans JP",
+      "Yu Gothic",
+      Meiryo,
+      sans-serif;
+}
+.mobile-btn--meteors.active {
+  background-color: rgba(101, 214, 157, 0.522);
+  border-color: #5dffb0;
+  color: #e4fff4;
+}
+
+/* Sunlight (yellow) */
+.mobile-btn--sun {
+  border-color: #8c7a1f;
+  color: #fff6c0;
+  font-size: 0.9rem;
+  font-family:-apple-system,
+      BlinkMacSystemFont,
+      "Hiragino Kaku Gothic ProN",
+      "Hiragino Sans",
+      "Noto Sans JP",
+      "Yu Gothic",
+      Meiryo,
+      sans-serif;
+}
+.mobile-btn--sun.active {
+  background-color: rgba(255, 219, 90, 0.481);
+  border-color: #ffe066;
+  color: #fff6c0;
+}

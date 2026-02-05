@@ -206,7 +206,8 @@ const state = {
 
     // ---- 流星記録（追加） ----
     meteor: {
-        mode: 'idle', // 'idle' | 'confirm' | 'selectStart' | 'selectEnd' | 'review'
+                displayEnabled: true,
+mode: 'idle', // 'idle' | 'confirm' | 'selectStart' | 'selectEnd' | 'review'
         locked: false,
         lockedQuat: new THREE.Quaternion(),
         // 記録対象の時刻（state.date のスナップショット）
@@ -1677,6 +1678,7 @@ function setupUI() {
     const btnMobileLabels = document.getElementById('btn-mobile-labels');
     const btnMobileGrid = document.getElementById('btn-mobile-grid');
     const btnMobileSunlight = document.getElementById('btn-mobile-sunlight'); 
+    const btnMobileMeteors = document.getElementById('btn-mobile-meteors');
     const btnMobileNow = document.getElementById('btn-mobile-now');
     const btnMobileTonight = document.getElementById('btn-mobile-tonight');
     const btnMobileLocation = document.getElementById('btn-mobile-location'); 
@@ -1871,17 +1873,41 @@ const updateDateInput = () => {
     btnMobileTonight.addEventListener('click', setTonight);
     btnMobileNow.addEventListener('click', setNow);
 
+    const btnMeteors = document.getElementById('btn-meteors');
+
     const btnGrid = document.getElementById('btn-grid');
     const toggleGrid = () => {
         state.gridVisible = !state.gridVisible;
         if (gridHelper) gridHelper.visible = state.gridVisible;
         btnGrid.classList.toggle('active', state.gridVisible);
-        btnMobileGrid.classList.toggle('active', state.gridVisible);
+        if (btnMobileGrid) btnMobileGrid.classList.toggle('active', state.gridVisible);
     };
     btnGrid.addEventListener('click', toggleGrid);
-    btnMobileGrid.addEventListener('click', toggleGrid);
-    btnMobileGrid.classList.add('active');
+    if (btnMobileGrid) {
+        btnMobileGrid.addEventListener('click', toggleGrid);
+        btnMobileGrid.classList.add('active');
+    }
 
+
+
+    // --- みんなの流星 表示ON/OFF ---
+    // storage -> state default
+    const storedMeteorOn = loadMeteorDisplayEnabledFromStorage();
+    if (storedMeteorOn !== null && state?.meteor) state.meteor.displayEnabled = storedMeteorOn;
+
+    if (btnMeteors) {
+        btnMeteors.addEventListener('click', () => {
+            applyMeteorDisplayEnabled(!(state?.meteor?.displayEnabled !== false));
+        });
+    }
+    if (btnMobileMeteors) {
+        btnMobileMeteors.addEventListener('click', () => {
+            applyMeteorDisplayEnabled(!(state?.meteor?.displayEnabled !== false));
+        });
+    }
+
+    // Apply once to sync UI + polling/group visibility
+    applyMeteorDisplayEnabled(state?.meteor?.displayEnabled !== false);
     // --- ヘルパー関数: ボタンスタイルの適用 ---
     const setButtonStyle = (btn, color, isActive) => {
         if (isActive) {
@@ -3601,6 +3627,8 @@ function animate() {
 // ---- Remote meteors follow current time/location (RA/Dec) ----
 if (remoteMeteorGroup && state?.date && Number.isFinite(state?.lat) && Number.isFinite(state?.lon)) {
     // Smoothly ease the "display" time/location toward the current state to avoid choppy motion.
+
+    if (state?.meteor?.displayEnabled !== false) {
     const targetT = state.date.getTime();
     const targetLat = state.lat;
     const targetLon = state.lon;
@@ -3621,6 +3649,7 @@ if (remoteMeteorGroup && state?.date && Number.isFinite(state?.lat) && Number.is
 
     // Keep meteor time labels aligned with the meteor line in screen space
     updateMeteorTimeLabelsAlignment();
+    }
 
 renderer.render(scene, camera);
     updateReticle();
@@ -4359,6 +4388,43 @@ function getRemoteMeteorStateKey() {
 }
 
 
+
+function loadMeteorDisplayEnabledFromStorage() {
+  try {
+    const v = localStorage.getItem('meteorDisplayEnabled');
+    if (v === null) return null;
+    return v === '1' || v === 'true';
+  } catch (e) {
+    return null;
+  }
+}
+
+function setMeteorToggleButtonsActive(isOn) {
+  const pcBtn = document.getElementById('btn-meteors');
+  const mobileBtn = document.getElementById('btn-mobile-meteors');
+  if (pcBtn) pcBtn.classList.toggle('active', !!isOn);
+  if (mobileBtn) mobileBtn.classList.toggle('active', !!isOn);
+}
+
+function applyMeteorDisplayEnabled(enabled) {
+  const isOn = enabled !== false;
+  if (state?.meteor) state.meteor.displayEnabled = isOn;
+
+  try { localStorage.setItem('meteorDisplayEnabled', isOn ? '1' : '0'); } catch (e) {}
+
+  if (remoteMeteorGroup) {
+    remoteMeteorGroup.visible = isOn;
+    if (!isOn) {
+      clearRemoteMeteorGroup();
+      stopRemoteMeteorPolling();
+    } else {
+      startRemoteMeteorPolling();
+      rerenderRemoteMeteorsForState();
+    }
+  }
+
+  setMeteorToggleButtonsActive(isOn);
+}
 function clearRemoteMeteorGroup() {
   if (!remoteMeteorGroup) return;
   while (remoteMeteorGroup.children.length) {
@@ -4595,6 +4661,14 @@ if (xAxis.dot(camRight) < 0) xAxis.multiplyScalar(-1);
   }
 }
 
+
+
+function stopRemoteMeteorPolling() {
+  if (remoteMeteorPollTimer) {
+    clearInterval(remoteMeteorPollTimer);
+    remoteMeteorPollTimer = null;
+  }
+}
 
 
 function startRemoteMeteorPolling() {
@@ -4865,7 +4939,13 @@ function initMeteorUi() {
         remoteMeteorGroup.name = 'RemoteMeteorTracks';
         if (typeof scene !== 'undefined' && scene) scene.add(remoteMeteorGroup);
     }
-    startRemoteMeteorPolling();
+    // 表示がOFFならポーリングしない（無駄な通信を抑制）
+    if (state?.meteor?.displayEnabled !== false) {
+        remoteMeteorGroup.visible = true;
+        startRemoteMeteorPolling();
+    } else {
+        remoteMeteorGroup.visible = false;
+    }
 
 }
 
