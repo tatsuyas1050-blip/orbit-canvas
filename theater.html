@@ -904,7 +904,7 @@
         // --- データ取得・描画 ---
         async function fetchContents() {
             try {
-                const res = await fetch(GET_URL);
+                const res = await fetch(`${GET_URL}?ts=${Date.now()}`, { cache: 'no-store' });
                 if (!res.ok) throw new Error("通信エラー");
                 const allData = await res.json();
 
@@ -1061,8 +1061,6 @@
 
         try {
             const token = currentUser.signInUserSession.accessToken.jwtToken;
-            const now = new Date();
-            
             const res = await fetch(POST_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1078,6 +1076,9 @@
 
             if (res.ok) {
                 const listContainer = document.getElementById(`cmt-list-${contentId}`);
+                const data = await res.json().catch(() => ({}));
+                const createdAtIso = data.createdAt || new Date().toISOString();
+                const now = new Date(createdAtIso);
                 
                 const emptyMsg = listContainer.querySelector('.cmt-empty');
                 if (emptyMsg) {
@@ -1087,7 +1088,6 @@
                 const dateStr = now.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                 const iconSrc = userProfile.icon || '';
                 const iconHtml = iconSrc ? `<img src="${iconSrc}" class="cmt-icon">` : `<span class="cmt-icon-default"></span>`;
-                const createdAtIso = now.toISOString();
 
                 // ★修正: 第1引数に this を追加
                 const deleteBtnHtml = `<button class="cmt-delete-btn" onclick="deleteComment(this, '${contentId}', '${createdAtIso}')" title="削除">×</button>`;
