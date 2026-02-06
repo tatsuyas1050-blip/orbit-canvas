@@ -956,7 +956,7 @@
                 let deleteBtnHtml = '';
                 if (currentUser && userProfile.name === c.name) {
                     // ★修正: 第1引数に this を追加
-                    deleteBtnHtml = `<button class="cmt-delete-btn" onclick="deleteComment(this, '${contentId}', '${c.commentId || ''}', '${c.createdAt}')" title="削除">×</button>`;
+                    deleteBtnHtml = `<button class="cmt-delete-btn" onclick="deleteComment(this, '${contentId}', '${c.commentId}')" title="削除">×</button>`;
                 }
 
                 commentsListHtml += `
@@ -1008,7 +1008,7 @@
     }
 
     // コメント削除処理 (リロードなし・アラートあり版)
-    async function deleteComment(btnElement, contentId, commentId, createdAt) {
+    async function deleteComment(btnElement, contentId, commentId) {
         if (!confirm("このコメントを削除しますか？")) return;
 
         // 連打防止
@@ -1024,8 +1024,7 @@
                     action: 'delete_comment',
                     token: token,
                     contentId: contentId,
-                    commentId: commentId,
-                    createdAt: createdAt
+                    commentId: commentId
                 })
             });
 
@@ -1093,7 +1092,7 @@
                 const iconHtml = iconSrc ? `<img src="${iconSrc}" class="cmt-icon">` : `<span class="cmt-icon-default"></span>`;
 
                 // ★修正: 第1引数に this を追加
-                const deleteBtnHtml = `<button class="cmt-delete-btn" onclick="deleteComment(this, '${contentId}', '${savedCommentId}', '${savedCreatedAt}')" title="削除">×</button>`;
+                const deleteBtnHtml = `<button class="cmt-delete-btn" onclick="deleteComment(this, '${contentId}', '${savedCommentId}')" title="削除">×</button>`;
 
                 const newCommentHtml = `
                     <div class="cmt-item" style="animation: fadeIn 0.5s ease; background: rgba(212,175,55,0.1);">
