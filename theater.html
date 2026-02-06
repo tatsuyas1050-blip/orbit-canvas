@@ -962,39 +962,6 @@
         }
 
         // --- コメント機能用スクリプト ---
-// --- コメント: クライアント側キャッシュ（モーダルを閉じて再度開いても最新状態を表示） ---
-    // contentId ごとにコメント配列を保持。初回はサーバーから来た item.comments を格納し、以降は追加/削除で更新。
-    const commentCache = new Map();
-
-    function normalizeComments(comments) {
-        return Array.isArray(comments) ? comments : [];
-    }
-
-    function getCachedComments(contentId, initialComments) {
-        const key = contentId || '';
-        if (!commentCache.has(key)) {
-            commentCache.set(key, normalizeComments(initialComments));
-        }
-        return commentCache.get(key);
-    }
-
-    function removeCachedComment(contentId, createdAt) {
-        const arr = getCachedComments(contentId, []);
-        const next = arr.filter(c => String(c.createdAt) !== String(createdAt));
-        commentCache.set(contentId, next);
-        return next;
-    }
-
-    // 安定した短いIDを作る（同日複数投稿でも衝突しない）
-    function hashString(str) {
-        let h = 5381;
-        for (let i = 0; i < str.length; i++) {
-            h = ((h << 5) + h) ^ str.charCodeAt(i);
-        }
-        // 0以上の整数にして base36
-        return (h >>> 0).toString(36);
-    }
-
 
 // コメントエリアのHTMLを生成する関数 (thisを追加)
     function createCommentSectionHtml(contentId, comments = []) {
@@ -1083,24 +1050,13 @@
             });
 
             if (res.ok) {
-                // キャッシュも更新（閉じて再度開いても反映）
-                const remaining = removeCachedComment(contentId, createdAt);
-
                 // リロードせずに、画面から該当のコメント要素を削除する
                 const commentItem = btnElement.closest('.cmt-item');
                 if (commentItem) {
                     // フェードアウトのようなアニメーションをつけて消す
                     commentItem.style.transition = "opacity 0.5s";
                     commentItem.style.opacity = "0";
-                    setTimeout(() => {
-                        commentItem.remove();
-                        if (remaining.length === 0) {
-                            const listContainer = document.getElementById(`cmt-list-${contentId}`);
-                            if (listContainer) {
-                                listContainer.innerHTML = '<div class="cmt-empty">まだコメントはありません</div>';
-                            }
-                        }
-                    }, 500);
+                    setTimeout(() => commentItem.remove(), 500);
                 }
             } else {
                 throw new Error("削除エラー");
@@ -1153,10 +1109,6 @@
                 const iconSrc = userProfile.icon || '';
                 const iconHtml = iconSrc ? `<img src="${iconSrc}" class="cmt-icon">` : `<span class="cmt-icon-default"></span>`;
                 const createdAtIso = now.toISOString();
-
-                const cachedArr = getCachedComments(contentId, []);
-                cachedArr.push({ name: userProfile.name, text: text, icon: userProfile.icon, createdAt: createdAtIso });
-                commentCache.set(contentId, cachedArr);
 
                 // ★修正: 第1引数に this を追加
                 const deleteBtnHtml = `<button class="cmt-delete-btn" onclick="deleteComment(this, '${contentId}', '${createdAtIso}')" title="削除">×</button>`;
@@ -1367,7 +1319,7 @@
                 card.appendChild(content);
 
                 // Tap/click: show full image + title + body (modal)
-                const contentId = `gallery_${hashString(`${item.date}__${item.title || ''}__${item.image || ''}`)}`;
+                const contentId = `gallery_${item.date}`;
                 const open = () => {
                     if (!item.image) return;
                     openGalleryModal(item.image, item.title || '', item.desc || '', contentId, item.comments);
@@ -1599,9 +1551,8 @@
             
             const cmtContainer = document.getElementById('img-modal-comments');
             if (cmtContainer) {
-                const id = contentId || src;
-                const cached = getCachedComments(id, comments);
-                cmtContainer.innerHTML = createCommentSectionHtml(id, cached);
+                const id = contentId || src; 
+                cmtContainer.innerHTML = createCommentSectionHtml(id, comments);
             }
 
             modal.style.display = 'flex';
