@@ -1161,7 +1161,7 @@
                 }
 
                 // コメントエリア追加
-                const contentId = `radio_${item.date}`; // 一意なID
+                const contentId = item.contentId || `radio_${item.date}`; // 投稿1件のID（なければ旧ルール）
                 const commentHtml = createCommentSectionHtml(contentId, item.comments);
                 expandInner += `<div style="margin-top:1rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:1rem;">${commentHtml}</div>`;
 
@@ -1298,7 +1298,7 @@
                 card.appendChild(content);
 
                 // Tap/click: show full image + title + body (modal)
-                const contentId = `gallery_${item.date}`;
+                const contentId = item.contentId || `gallery_${item.date}`;
                 const open = () => {
                     if (!item.image) return;
                     openGalleryModal(item.image, item.title || '', item.desc || '', contentId, item.comments);
@@ -1362,7 +1362,7 @@
 
                 const safeTitle = escapeHtml(item.title);
                 const safeDesc = escapeHtml(item.desc).replace(/\n/g, '<br>');
-                const contentId = `column_${item.date}`;
+                const contentId = item.contentId || `column_${item.date}`;
                 const commentHtml = createCommentSectionHtml(contentId, item.comments);
 
                 details.innerHTML = `
