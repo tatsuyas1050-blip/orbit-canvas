@@ -1387,7 +1387,7 @@
                     ${imgSection}
                     <div class="column-body">${safeDesc}</div>
                     
-                    <div style="padding: 0 1.5rem 1.5rem;">
+                    <div style="padding: 0 0.5rem 1.5rem;">
                         ${commentHtml}
                     </div>
 
@@ -1398,7 +1398,6 @@
                 `;
 
                 details.addEventListener('toggle', () => {
-                    // ラベル更新
                     updateColumnToggle(details);
                     if (!details.open) return;
                     container.querySelectorAll('details.column-article').forEach(d => {
@@ -1406,7 +1405,6 @@
                     });
                 });
 
-                // 「閉じる」クリックで折りたたむ（ボタンではなくテキスト表示）
                 const closeEl = details.querySelector('.column-close');
                 closeEl.addEventListener('click', () => {
                     details.open = false;
@@ -1420,7 +1418,6 @@
                     }
                 });
 
-                // 初期状態のラベル
                 updateColumnToggle(details);
 
                 container.appendChild(details);
