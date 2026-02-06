@@ -589,22 +589,37 @@
         /* --- Gallery Modal Alignment Fix (Image + Text left edges aligned) --- */
         #img-modal-inner {
             width: min(820px, 95vw);
-            max-height: 88vh;
+            height: 88vh;              /* fixed height to prevent content push */
             display: flex;
             flex-direction: column;
             gap: 14px;
-            align-items: center;
+            align-items: stretch;       /* keep left edges aligned */
         }
+
+        /* Keep the image fully visible without pushing the comment area */
         #img-modal-content {
             width: 100%;
-            max-width: 100%;
+            flex: 0 0 auto;
+            max-height: 52vh;           /* tweak 50–60vh as desired */
+            object-fit: contain;
             margin: 0;
+            max-width: 100%;
         }
+
+        /* Make text + comments scroll inside the modal */
         #img-modal-text {
             width: 100%;
+            flex: 1 1 auto;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
             max-width: 100%;
             padding-left: 0;
             padding-right: 0;
+        }
+
+        /* Optional: if only the comment list grows too long */
+        #img-modal-comments .cmt-list {
+            max-height: 260px;
         }
 
         @media (max-width: 768px) {
@@ -612,6 +627,12 @@
             #img-modal-inner {
                 width: 100%;
             }
+            #img-modal-content,
+            #img-modal-text {
+                width: 100%;
+                max-width: 100%;
+            }
+        }
             #img-modal-content,
             #img-modal-text {
                 width: 100%;
@@ -1518,6 +1539,7 @@
             if(cmt) cmt.innerHTML = '';
 
             modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
         };
 
         // ギャラリー：画像 + タイトル + 本文を表示 + コメント
@@ -1534,10 +1556,11 @@
             }
 
             modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
         };
 
-        modalClose.addEventListener('click', () => { modal.style.display = 'none'; });
-        modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+        modalClose.addEventListener('click', () => { modal.style.display = 'none'; document.body.style.overflow = ''; });
+        modal.addEventListener('click', (e) => { if (e.target === modal) { modal.style.display = 'none'; document.body.style.overflow = ''; } });
     </script>
 </body>
 </html>
