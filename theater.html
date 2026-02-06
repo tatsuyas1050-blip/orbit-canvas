@@ -970,6 +970,54 @@
         return Array.isArray(comments) ? comments : [];
     }
 
+    // --- Always fetch latest comments when opening content (avoid stale cache/CDN/browser) ---
+    let currentModalContentId = null;
+    let latestCommentsAbort = null;
+
+    async function refreshLatestComments(contentId) {
+        if (!contentId) return;
+
+        // Cancel previous in-flight request (if any)
+        if (latestCommentsAbort) {
+            try { latestCommentsAbort.abort(); } catch (e) {}
+        }
+        latestCommentsAbort = new AbortController();
+        const signal = latestCommentsAbort.signal;
+
+        try {
+            // Cache-bust + no-store to avoid browser cache; still recommend server-side no-cache headers
+            const url = `${GET_URL}?t=${Date.now()}`;
+            const res = await fetch(url, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' },
+                signal
+            });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            // Find the matching gallery item by contentId
+            const items = (data && data.items) ? data.items : (Array.isArray(data) ? data : []);
+            const found = items.find(it => (it && (it.contentId === contentId)));
+            const latest = normalizeComments(found && found.comments ? found.comments : []);
+
+            // If user already closed or opened another content, don't overwrite
+            if (currentModalContentId !== contentId) return;
+
+            // Update cache (so delete button ownership etc. stays consistent)
+            commentCache.set(contentId, latest);
+
+            // Re-render comment section using the latest array
+            const cmtContainer = document.getElementById('img-modal-comments');
+            if (cmtContainer) {
+                cmtContainer.innerHTML = createCommentSectionHtml(contentId, latest);
+            }
+        } catch (e) {
+            // Ignore aborts / transient errors
+        }
+    }
+
+
     function getCachedComments(contentId, initialComments) {
         const key = contentId || '';
         if (!commentCache.has(key)) {
@@ -1086,7 +1134,11 @@
                 // キャッシュも更新（閉じて再度開いても反映）
                 const remaining = removeCachedComment(contentId, createdAt);
 
-                // リロードせずに、画面から該当のコメント要素を削除する
+                
+
+                // サーバーの最新状態で確定（端末差/一時キャッシュを吸収）
+                refreshLatestComments(contentId);
+// リロードせずに、画面から該当のコメント要素を削除する
                 const commentItem = btnElement.closest('.cmt-item');
                 if (commentItem) {
                     // フェードアウトのようなアニメーションをつけて消す
@@ -1176,6 +1228,9 @@
                 listContainer.insertAdjacentHTML('beforeend', newCommentHtml);
                 listContainer.scrollTop = listContainer.scrollHeight;
                 input.value = '';
+
+                // サーバーの最新状態で確定（端末差/一時キャッシュを吸収）
+                refreshLatestComments(contentId);
 
             } else {
                 throw new Error("送信エラー");
@@ -1596,20 +1651,27 @@
             if (modalText) modalText.style.display = 'block';
             if (modalTitle) modalTitle.textContent = title || '';
             if (modalDesc) modalDesc.textContent = desc || '';
-            
+
             const cmtContainer = document.getElementById('img-modal-comments');
             if (cmtContainer) {
                 const id = contentId || src;
-                const cached = getCachedComments(id, comments);
-                cmtContainer.innerHTML = createCommentSectionHtml(id, cached);
+                currentModalContentId = id;
+
+                // まずは受け取ったコメントで即表示（体感速度）
+                const initial = normalizeComments(comments || []);
+                commentCache.set(id, initial);
+                cmtContainer.innerHTML = createCommentSectionHtml(id, initial);
+
+                // その後、必ず最新を取り直して差し替え（キャッシュ/CDNの古い表示を防止）
+                refreshLatestComments(id);
             }
 
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
         };
 
-        modalClose.addEventListener('click', () => { modal.style.display = 'none'; document.body.style.overflow = ''; });
-        modal.addEventListener('click', (e) => { if (e.target === modal) { modal.style.display = 'none'; document.body.style.overflow = ''; } });
+        modalClose.addEventListener('click', () => { modal.style.display = 'none'; document.body.style.overflow = ''; currentModalContentId = null; });
+        modal.addEventListener('click', (e) => { if (e.target === modal) { modal.style.display = 'none'; document.body.style.overflow = ''; currentModalContentId = null; } });
     </script>
 </body>
 </html>
