@@ -779,21 +779,60 @@
             });
         });
 
-        function activateTabFromHash() {
-            const hash = (location.hash || '').replace('#', '');
-            if (!hash) return;
+        // --- URLハッシュ（#tab-xxx）でタブを指定したとき、ブラウザのアンカー自動スクロールで
+        // タブ切り替え部分（タブバー）が画面外に追いやられるのを防ぐため、
+        // いったん hash を外してからタブを切り替え、最後に hash を復元します。
+        const __initialHash = window.location.hash;
+
+        if (__initialHash) {
+            // ブラウザのアンカー自動スクロールを発生させない（= hash を一度外す）
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+
+        function activateTabFromHash(hashString) {
+            const hash = (hashString || window.location.hash || '').replace('#', '');
+            if (!hash) return false;
 
             if (document.getElementById(hash) && document.querySelector(`.tab-btn[data-target="${hash}"]`)) {
                 activateTab(hash, { scroll: false, updateHash: false });
+                return true;
             }
+            return false;
+        }
+
+        function restoreHashWithoutJump(hashString) {
+            if (!hashString) return;
+            history.replaceState(null, '', window.location.pathname + window.location.search + hashString);
+        }
+
+        function scrollToTopInstant() {
+            // タブバーが確実に見える位置へ
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            activateTabFromHash();
+            if (__initialHash) {
+                const activated = activateTabFromHash(__initialHash);
+                restoreHashWithoutJump(__initialHash);
+                if (activated) {
+                    requestAnimationFrame(scrollToTopInstant);
+                }
+            } else {
+                activateTabFromHash();
+            }
         });
 
         window.addEventListener('hashchange', () => {
-            activateTabFromHash();
+            const h = window.location.hash;
+            if (!h) return;
+
+            // hash によるジャンプを抑制しつつ、タブだけ切り替える
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+            const activated = activateTabFromHash(h);
+            restoreHashWithoutJump(h);
+            if (activated) {
+                requestAnimationFrame(scrollToTopInstant);
+            }
         });
 
 // --- カテゴリ（オンオフボタン） ---
