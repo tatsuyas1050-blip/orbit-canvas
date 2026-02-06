@@ -1038,49 +1038,93 @@
         }
     }
 
-        // コメント送信処理
-        async function postComment(contentId) {
-            if (!currentUser) return;
+        // コメント送信処理 (リロードなし版)
+    async function postComment(contentId) {
+        if (!currentUser) return;
+        
+        const input = document.getElementById(`cmt-input-${contentId}`);
+        const text = input.value.trim();
+        if (!text) return;
+
+        // 送信ボタンを一時的に無効化
+        const btn = input.nextElementSibling;
+        btn.disabled = true;
+        btn.textContent = "送信中...";
+
+        try {
+            const token = currentUser.signInUserSession.accessToken.jwtToken;
+            const now = new Date();
             
-            const input = document.getElementById(`cmt-input-${contentId}`);
-            const text = input.value.trim();
-            if (!text) return;
+            // サーバーへの保存処理
+            const res = await fetch(POST_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'post_comment',
+                    token: token,
+                    contentId: contentId,
+                    comment: text,
+                    userName: userProfile.name,
+                    userIcon: userProfile.icon
+                })
+            });
 
-            // 送信ボタンを無効化（連打防止）
-            const btn = input.nextElementSibling;
-            btn.disabled = true;
-            btn.textContent = "送信中...";
+            if (res.ok) {
+                // ★ここを変更: アラートとリロードを削除し、画面に直接HTMLを追加する
 
-            try {
-                const token = currentUser.signInUserSession.accessToken.jwtToken;
+                const listContainer = document.getElementById(`cmt-list-${contentId}`);
                 
-                const res = await fetch(POST_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'post_comment',
-                        token: token,
-                        contentId: contentId,
-                        comment: text,
-                        userName: userProfile.name,
-                        userIcon: userProfile.icon
-                    })
-                });
-
-                if (res.ok) {
-                    alert("コメントを送信しました！");
-                    input.value = '';
-                    location.reload(); 
-                } else {
-                    throw new Error("送信エラー");
+                // 「まだコメントはありません」が表示されていたら消す
+                const emptyMsg = listContainer.querySelector('.cmt-empty');
+                if (emptyMsg) {
+                    emptyMsg.remove();
                 }
-            } catch (e) {
-                console.error(e);
-                alert("送信に失敗しました。");
-                btn.disabled = false;
-                btn.textContent = "送信";
+
+                // 新しいコメントのHTMLを作成
+                // (サーバーと同じ日付形式を作るのは難しいため、現在時刻で表示します)
+                const dateStr = now.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const iconSrc = userProfile.icon || '';
+                const iconHtml = iconSrc ? `<img src="${iconSrc}" class="cmt-icon">` : `<span class="cmt-icon-default"></span>`;
+                
+                // 削除用にISO形式の日時も保持（本来はサーバーのレスポンスを使うのが厳密ですが、ここでは送信時の時刻で代用）
+                // ※厳密には数ミリ秒ずれる可能性がありますが、UX優先で近似値を使用します。
+                //  (削除時に厳密な一致が必要な場合、サーバーからcreatedAtを返してもらう改修が必要ですが、まずはこれで動かします)
+                const createdAtIso = now.toISOString();
+
+                const deleteBtnHtml = `<button class="cmt-delete-btn" onclick="deleteComment('${contentId}', '${createdAtIso}')" title="削除">×</button>`;
+
+                const newCommentHtml = `
+                    <div class="cmt-item" style="animation: fadeIn 0.5s ease; background: rgba(212,175,55,0.1);"> <div class="cmt-head">
+                            ${iconHtml}
+                            <span class="cmt-name">${escapeHtml(userProfile.name)}</span>
+                            <span class="cmt-date">${dateStr}</span>
+                            ${deleteBtnHtml}
+                        </div>
+                        <div class="cmt-body">${escapeHtml(text)}</div>
+                    </div>
+                `;
+
+                // リストの最後に追加
+                listContainer.insertAdjacentHTML('beforeend', newCommentHtml);
+                
+                // スクロールを一番下へ
+                listContainer.scrollTop = listContainer.scrollHeight;
+
+                // 入力欄をクリア
+                input.value = '';
+
+            } else {
+                throw new Error("送信エラー");
             }
+        } catch (e) {
+            console.error(e);
+            alert("送信に失敗しました。");
+        } finally {
+            // ボタンを元に戻す
+            btn.disabled = false;
+            btn.textContent = "送信";
         }
+    }
 
         function initRadio(items) {
             const container = document.getElementById('radio-container');
