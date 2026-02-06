@@ -753,23 +753,50 @@
         const tabBtns = document.querySelectorAll('.tab-btn');
         const sections = document.querySelectorAll('.section-content');
 
+        function activateTab(targetId, { scroll = true, updateHash = true } = {}) {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            sections.forEach(s => s.classList.remove('active'));
+
+            const btn = document.querySelector(`.tab-btn[data-target="${targetId}"]`);
+            const targetSection = document.getElementById(targetId);
+
+            if (btn) btn.classList.add('active');
+            if (targetSection) targetSection.classList.add('active');
+
+            if (scroll && window.innerWidth <= 768 && btn) {
+                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+
+            if (updateHash) {
+                history.replaceState(null, '', `#${targetId}`);
+            }
+        }
+
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {
-                tabBtns.forEach(b => b.classList.remove('active'));
-                sections.forEach(s => s.classList.remove('active'));
-                btn.classList.add('active');
-
                 const targetId = btn.getAttribute('data-target');
-                const targetSection = document.getElementById(targetId);
-                if (targetSection) targetSection.classList.add('active');
-
-                if (window.innerWidth <= 768) {
-                    btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                }
+                activateTab(targetId);
             });
         });
 
-        // --- カテゴリ（オンオフボタン） ---
+        function activateTabFromHash() {
+            const hash = (location.hash || '').replace('#', '');
+            if (!hash) return;
+
+            if (document.getElementById(hash) && document.querySelector(`.tab-btn[data-target="${hash}"]`)) {
+                activateTab(hash, { scroll: false, updateHash: false });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            activateTabFromHash();
+        });
+
+        window.addEventListener('hashchange', () => {
+            activateTabFromHash();
+        });
+
+// --- カテゴリ（オンオフボタン） ---
         const catButtons = document.querySelectorAll('.cat-toggle');
         catButtons.forEach(btn => {
             btn.addEventListener('click', () => {
