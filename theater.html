@@ -268,7 +268,7 @@
         .gallery-card {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
+            border-radius: 0px;
             overflow: hidden;
             transition: transform 0.3s ease;
             display: flex; flex-direction: column;
@@ -280,7 +280,26 @@
             overflow: hidden;
             background: #000;
             cursor: pointer;
+            position: relative;
         }
+        .gallery-title-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px 10px 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            line-height: 1.3;
+            color: #ffffff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+            background: linear-gradient(0deg, rgba(0,0,0,0.62), rgba(0,0,0,0.0));
+            display: none; /* モバイルでのみ表示 */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .gallery-img {
             width: 100%; height: 100%;
             object-fit: cover;
@@ -291,6 +310,7 @@
         .gallery-date { font-size: 0.75rem; color: var(--accent-gold); margin-bottom: 0.3rem; }
         .gallery-title { font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem; }
         .gallery-desc { font-size: 0.9rem; line-height: 1.6; opacity: 0.8; white-space: pre-wrap; }
+        
 
         /* --- 4. Dev Log Styles --- */
         .devlog-timeline {
@@ -520,8 +540,11 @@
                 background: rgba(255,255,255,0.05); border-radius: 20px;
             }
 
-            .gallery-grid { grid-template-columns: 1fr; gap: 1.5rem; }
-
+            .gallery-grid { grid-template-columns: repeat(2, 1fr); gap: 0.3rem; }
+            .gallery-card { border-radius: 0px; }
+            .gallery-title-overlay { display: block; }
+            /* モバイルではカード本文を一覧から隠して、タップでモーダル表示 */
+            .gallery-content { display: none; }
             .devlog-timeline { margin-left: 0; padding-left: 20px; }
             .devlog-entry::before { left: -26px; width: 10px; height: 10px; top: 7px; }
             .devlog-content { padding: 1rem; font-size: 0.9rem; }
@@ -538,6 +561,39 @@
                 font-size: 0.92rem;
             }
         }
+
+/* --- Gallery Modal Alignment Fix (Image + Text left edges aligned) --- */
+#img-modal-inner {
+    width: min(820px, 95vw);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+}
+#img-modal-content {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+}
+#img-modal-text {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+@media (max-width: 768px) {
+    /* Ensure exact left-edge alignment on mobile */
+    #img-modal-inner {
+        width: 100%;
+    }
+    #img-modal-content,
+    #img-modal-text {
+        width: 100%;
+        max-width: 100%;
+    }
+}
     </style>
 </head>
 <body>
@@ -672,12 +728,18 @@
 
     </div>
 
-    <div id="img-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9000; justify-content:center; align-items:center;">
-        <img id="img-modal-content" src="" style="max-width:95%; max-height:80vh; border:1px solid #444; border-radius:4px;">
-        <button id="img-modal-close" style="position:absolute; bottom:30px; background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4); color:white; padding:8px 24px; border-radius:20px; cursor:pointer;">閉じる</button>
+    <div id="img-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9000; justify-content:center; align-items:center; padding: 24px;">
+    <div id="img-modal-inner">
+        <img id="img-modal-content" src="" style="max-height:62vh; border:0px solid #444; border-radius:0px; object-fit:contain;">
+        <div id="img-modal-text" style="color: #fff; display:none;">
+            <div id="img-modal-title" style="font-weight:700; font-size:1.05rem; margin-bottom:6px; line-height:1.4;"></div>
+            <div id="img-modal-desc" style="opacity:0.9; line-height:1.8; font-size:0.95rem; white-space: pre-wrap;"></div>
+        </div>
+        <button id="img-modal-close" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4); color:white; padding:8px 24px; border-radius:20px; cursor:pointer;">閉じる</button>
     </div>
+</div>
 
-    <script src="assets/js/script.js"></script>
+<script src="assets/js/script.js"></script>
     <script>
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const POST_URL = "https://3vtporkgipspcqyo3frdeesdu40gkmqw.lambda-url.ap-northeast-1.on.aws/";
@@ -886,26 +948,64 @@
 function renderGallery(items) {
             const container = document.getElementById('gallery-container');
             container.innerHTML = '';
-            if (items.length === 0) {
+
+            if (!items || items.length === 0) {
                 container.innerHTML = '<div class="empty-msg">まだ投稿はありません</div>';
                 return;
             }
-            items.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'gallery-card';
-                const imgHtml = item.image
-                    ? `<div class="gallery-img-container" onclick="openImageModal('${item.image}')"><img src="${item.image}" class="gallery-img" alt="Photo"></div>`
-                    : '';
 
-                div.innerHTML = `
-                    ${imgHtml}
-                    <div class="gallery-content">
-                        <div class="gallery-date">${item.date}</div>
-                        <div class="gallery-title">${escapeHtml(item.title)}</div>
-                        <div class="gallery-desc">${escapeHtml(item.desc)}</div>
-                    </div>
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'gallery-card';
+
+                // --- Image tile (square crop) + title overlay (mobile) ---
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'gallery-img-container';
+
+                if (item.image) {
+                    const img = document.createElement('img');
+                    img.className = 'gallery-img';
+                    img.src = item.image;
+                    img.alt = 'Photo';
+                    img.loading = 'lazy';
+                    imgContainer.appendChild(img);
+
+                    const overlay = document.createElement('div');
+                    overlay.className = 'gallery-title-overlay';
+                    overlay.textContent = item.title || '';
+                    imgContainer.appendChild(overlay);
+                } else {
+                    // no image fallback
+                    imgContainer.style.display = 'none';
+                }
+
+                // --- Content (shown on desktop / hidden on mobile by CSS) ---
+                const content = document.createElement('div');
+                content.className = 'gallery-content';
+                content.innerHTML = `
+                    <div class="gallery-date">${item.date || ''}</div>
+                    <div class="gallery-title">${escapeHtml(item.title)}</div>
+                    <div class="gallery-desc">${escapeHtml(item.desc)}</div>
                 `;
-                container.appendChild(div);
+
+                card.appendChild(imgContainer);
+                card.appendChild(content);
+
+                // Tap/click: show full image + title + body (modal)
+                const open = () => {
+                    if (!item.image) return;
+                    openGalleryModal(item.image, item.title || '', item.desc || '');
+                };
+
+                imgContainer.addEventListener('click', open);
+                // Desktop: allow opening from the card too
+                card.addEventListener('click', (e) => {
+                    // Avoid double-open when clicking image container (already handled)
+                    if (e.target && (e.target.classList.contains('gallery-img') || e.target.closest('.gallery-img-container'))) return;
+                    open();
+                });
+
+                container.appendChild(card);
             });
         }
 
@@ -1092,7 +1192,28 @@ function renderGallery(items) {
         const modal = document.getElementById('img-modal');
         const modalImg = document.getElementById('img-modal-content');
         const modalClose = document.getElementById('img-modal-close');
-        window.openImageModal = (src) => { modalImg.src = src; modal.style.display = 'flex'; };
+        const modalText = document.getElementById('img-modal-text');
+        const modalTitle = document.getElementById('img-modal-title');
+        const modalDesc = document.getElementById('img-modal-desc');
+
+        // 画像だけの表示（既存用途：devlog等）
+        window.openImageModal = (src) => {
+            modalImg.src = src;
+            if (modalText) modalText.style.display = 'none';
+            if (modalTitle) modalTitle.textContent = '';
+            if (modalDesc) modalDesc.textContent = '';
+            modal.style.display = 'flex';
+        };
+
+        // ギャラリー：画像 + タイトル + 本文を表示
+        window.openGalleryModal = (src, title, desc) => {
+            modalImg.src = src;
+            if (modalText) modalText.style.display = 'block';
+            if (modalTitle) modalTitle.textContent = title || '';
+            if (modalDesc) modalDesc.textContent = desc || '';
+            modal.style.display = 'flex';
+        };
+
         modalClose.addEventListener('click', () => { modal.style.display = 'none'; });
         modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
     </script>
