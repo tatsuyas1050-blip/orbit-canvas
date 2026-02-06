@@ -1007,7 +1007,26 @@
         `;
     }
 
-    // コメント削除処理 (リロードなし・アラートあり版)
+    
+
+    // ▼ ヨゾラジ：コメント増減で展開領域の高さ(max-height)を追従させる
+    // radio-card の展開は max-height を固定してアニメーションしているため、
+    // コメント数が増えると入力欄が見切れることがある。展開中は都度 scrollHeight を反映する。
+    function refreshRadioExpandHeightFrom(el) {
+        const card = el?.closest?.('.radio-card');
+        if (!card) return;
+
+        const expand = card.querySelector('.radio-expand');
+        if (!expand) return;
+
+        if (card.classList.contains('is-selected')) {
+            requestAnimationFrame(() => {
+                expand.style.maxHeight = expand.scrollHeight + 'px';
+            });
+        }
+    }
+
+// コメント削除処理 (リロードなし・アラートあり版)
     async function deleteComment(btnElement, contentId, commentId) {
         if (!confirm("このコメントを削除しますか？")) return;
 
@@ -1035,7 +1054,10 @@
                     // フェードアウトのようなアニメーションをつけて消す
                     commentItem.style.transition = "opacity 0.5s";
                     commentItem.style.opacity = "0";
-                    setTimeout(() => commentItem.remove(), 500);
+                    setTimeout(() => {
+                        commentItem.remove();
+                        refreshRadioExpandHeightFrom(btnElement);
+                    }, 500);
                 }
             } else {
                 throw new Error("削除エラー");
@@ -1110,7 +1132,10 @@
                 listContainer.scrollTop = listContainer.scrollHeight;
                 input.value = '';
 
-            } else {
+            
+                // コメント追加で展開領域の高さを更新（送信ボタンが見切れないようにする）
+                refreshRadioExpandHeightFrom(input);
+} else {
                 throw new Error("送信エラー");
             }
         } catch (e) {
