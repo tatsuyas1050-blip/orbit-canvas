@@ -10,6 +10,8 @@
 
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
+    
+    <script src="https://unpkg.com/aws-amplify@4.3.43/dist/aws-amplify.min.js"></script>
 
     <style>
         /* --- Sonocky's Room Specific Styles --- */
@@ -56,13 +58,13 @@
 
         .tab-btn:hover { opacity: 1; background: rgba(255,255,255,0.05); }
         .tab-btn.active {
-    opacity: 1;
-    color: #d8ecff;
-    background: linear-gradient(180deg, #1f4067, #16293e);
-    border-color: #3a6ea5;
-    font-weight: bold;
-    box-shadow: 0 0 12px rgba(91, 124, 163, 0.45);
-}
+            opacity: 1;
+            color: #d8ecff;
+            background: linear-gradient(180deg, #1f4067, #16293e);
+            border-color: #3a6ea5;
+            font-weight: bold;
+            box-shadow: 0 0 12px rgba(91, 124, 163, 0.45);
+        }
 
         /* --- 1. Radio Styles --- */
         .radio-list { display: flex; flex-direction: column; gap: 0.65rem; min-height: 200px; }
@@ -126,10 +128,7 @@
             color-scheme: dark;
             accent-color: var(--accent-gold);
         }
-        /*
-           Remove focus rings around the native audio controls.
-           (Tapping play/scrubber can show a gold outline on mobile/desktop.)
-        */
+        
         audio.radio-player:focus,
         audio.radio-player:focus-visible {
             outline: none !important;
@@ -177,16 +176,16 @@
             }
         }
         .radio-card.is-selected {
-    background: linear-gradient(
-        180deg,
-        rgba(40, 90, 150, 0.55),
-        rgba(20, 40, 70, 0.55)
-    );
-    border-color: rgba(120, 180, 255, 0.65);
-    box-shadow:
-        0 0 0 1px rgba(120, 180, 255, 0.25),
-        0 16px 34px rgba(0, 0, 0, 0.45);
-}
+            background: linear-gradient(
+                180deg,
+                rgba(40, 90, 150, 0.55),
+                rgba(20, 40, 70, 0.55)
+            );
+            border-color: rgba(120, 180, 255, 0.65);
+            box-shadow:
+                0 0 0 1px rgba(120, 180, 255, 0.25),
+                0 16px 34px rgba(0, 0, 0, 0.45);
+        }
 
 
         .radio-noaudio {
@@ -207,18 +206,14 @@
             filter: drop-shadow(0 0 6px rgba(216, 236, 255, 0.20));
         }
 
-
-
         /* --- Mobile: iPhone/Safari audio controls cleanup (no bg/border) --- */
         @media (max-width: 768px), (hover: none) and (pointer: coarse) {
-            /* Remove the outer box behind play button / scrubber on mobile */
             audio.radio-player {
                 border: none !important;
                 background: transparent !important;
                 box-shadow: none !important;
                 border-radius: 0 !important;
             }
-            /* iOS/Safari sometimes paints a panel background inside the native controls */
             audio.radio-player::-webkit-media-controls-enclosure,
             audio.radio-player::-webkit-media-controls-panel {
                 background: transparent !important;
@@ -227,7 +222,6 @@
                 border: none !important;
                 border-radius: 0 !important;
             }
-            /* Remove tap highlight flash on iOS */
             audio.radio-player,
             .radio-card,
             .tab-btn {
@@ -451,27 +445,21 @@
         .cat-toggle {
             appearance: none;
             -webkit-appearance: none;
-
             display: inline-flex;
             align-items: center;
             justify-content: center;
-
             width: auto;
             max-width: 100%;
-
             border: 1px solid rgba(255,255,255,0.22);
             background: rgba(255,255,255,0.05);
             color: rgba(255,255,255,0.92);
-
             border-radius: 999px;
             padding: 0.48rem 0.78rem;
-
             cursor: pointer;
             font-family: var(--font-main);
             font-size: 0.92rem;
             line-height: 1;
             text-align: center;
-
             transition:
                 transform 0.15s ease,
                 background 0.18s ease,
@@ -488,7 +476,6 @@
         }
         .cat-toggle:active { transform: translateY(1px); }
 
-        /* ON時：強い青 + 反転 + 発光（チェック表示なし） */
         .cat-toggle.is-on,
         .cat-toggle[aria-pressed="true"] {
             background: linear-gradient(180deg, rgba(40, 125, 255, 0.95), rgba(25, 85, 210, 0.95));
@@ -514,6 +501,30 @@
 
         .loading-msg { text-align: center; color: rgba(255,255,255,0.5); padding: 2rem; }
         .empty-msg { text-align: center; color: rgba(255,255,255,0.4); padding: 3rem; font-size: 0.9rem; }
+
+        /* --- Comment Section Styles --- */
+        .comment-section { margin-top: 10px; font-family: var(--font-body); }
+        .cmt-section-title { font-size: 0.9rem; color: var(--accent-gold); margin-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.2); display: inline-block; }
+        .cmt-list { margin-bottom: 15px; max-height: 300px; overflow-y: auto; }
+        .cmt-empty { font-size: 0.8rem; color: #888; }
+        .cmt-item { background: rgba(255,255,255,0.03); padding: 8px; margin-bottom: 6px; border-radius: 6px; }
+        .cmt-head { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #aaa; margin-bottom: 4px; }
+        .cmt-icon { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid #555; }
+        .cmt-icon-default { width: 20px; height: 20px; border-radius: 50%; background: #555; display: inline-block; }
+        .cmt-name { color: #ddd; font-weight: bold; }
+        .cmt-date { margin-left: auto; opacity: 0.6; }
+        .cmt-body { font-size: 0.9rem; line-height: 1.4; color: #eee; white-space: pre-wrap; }
+
+        .cmt-form { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .cmt-user-preview { font-size: 0.8rem; color: #ccc; margin-bottom: 6px; }
+        .cmt-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px; border-radius: 4px; font-family: inherit; margin-bottom: 8px; }
+        .cmt-submit-btn { background: var(--accent-gold); color: #000; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+        .cmt-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .cmt-login-req { text-align: center; padding: 20px; background: rgba(255,255,255,0.02); border-radius: 8px; }
+        .cmt-login-req p { font-size: 0.9rem; color: #aaa; margin-bottom: 10px; }
+        .cmt-login-link { display: inline-block; padding: 8px 16px; background: rgba(255,255,255,0.1); color: var(--accent-gold); text-decoration: none; border-radius: 20px; font-size: 0.9rem; border: 1px solid rgba(212,175,55,0.3); transition: 0.3s; }
+        .cmt-login-link:hover { background: var(--accent-gold); color: #000; }
 
         /* =========================================
            スマートフォン向け最適化 (Mobile Styles)
@@ -562,38 +573,38 @@
             }
         }
 
-/* --- Gallery Modal Alignment Fix (Image + Text left edges aligned) --- */
-#img-modal-inner {
-    width: min(820px, 95vw);
-    max-height: 88vh;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    align-items: center;
-}
-#img-modal-content {
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-}
-#img-modal-text {
-    width: 100%;
-    max-width: 100%;
-    padding-left: 0;
-    padding-right: 0;
-}
+        /* --- Gallery Modal Alignment Fix (Image + Text left edges aligned) --- */
+        #img-modal-inner {
+            width: min(820px, 95vw);
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            align-items: center;
+        }
+        #img-modal-content {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+        }
+        #img-modal-text {
+            width: 100%;
+            max-width: 100%;
+            padding-left: 0;
+            padding-right: 0;
+        }
 
-@media (max-width: 768px) {
-    /* Ensure exact left-edge alignment on mobile */
-    #img-modal-inner {
-        width: 100%;
-    }
-    #img-modal-content,
-    #img-modal-text {
-        width: 100%;
-        max-width: 100%;
-    }
-}
+        @media (max-width: 768px) {
+            /* Ensure exact left-edge alignment on mobile */
+            #img-modal-inner {
+                width: 100%;
+            }
+            #img-modal-content,
+            #img-modal-text {
+                width: 100%;
+                max-width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -729,27 +740,57 @@
     </div>
 
     <div id="img-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9000; justify-content:center; align-items:center; padding: 24px;">
-    <div id="img-modal-inner">
-        <img id="img-modal-content" src="" style="max-height:62vh; border:0px solid #444; border-radius:0px; object-fit:contain;">
-        <div id="img-modal-text" style="color: #fff; display:none;">
-            <div id="img-modal-title" style="font-weight:700; font-size:1.05rem; margin-bottom:6px; line-height:1.4;"></div>
-            <div id="img-modal-desc" style="opacity:0.9; line-height:1.8; font-size:0.95rem; white-space: pre-wrap;"></div>
+        <div id="img-modal-inner">
+            <img id="img-modal-content" src="" style="max-height:62vh; border:0px solid #444; border-radius:0px; object-fit:contain;">
+            <div id="img-modal-text" style="color: #fff; display:none;">
+                <div id="img-modal-title" style="font-weight:700; font-size:1.05rem; margin-bottom:6px; line-height:1.4;"></div>
+                <div id="img-modal-desc" style="opacity:0.9; line-height:1.8; font-size:0.95rem; white-space: pre-wrap;"></div>
+                
+                <div id="img-modal-comments" style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.3); padding-top:10px;"></div>
+            </div>
+            <button id="img-modal-close" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4); color:white; padding:8px 24px; border-radius:20px; cursor:pointer;">閉じる</button>
         </div>
-        <button id="img-modal-close" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4); color:white; padding:8px 24px; border-radius:20px; cursor:pointer;">閉じる</button>
     </div>
-</div>
 
-<script src="assets/js/script.js"></script>
+    <script src="assets/js/script.js"></script>
     <script>
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const POST_URL = "https://3vtporkgipspcqyo3frdeesdu40gkmqw.lambda-url.ap-northeast-1.on.aws/";
 
+        // --- 認証設定 (lifelog.html からコピー) ---
+        const COGNITO_REGION = 'ap-northeast-1';
+        const USER_POOL_ID = 'ap-northeast-1_kXEnG6ST0'; 
+        const CLIENT_ID = '1fsbv088bo29u6ob8gaavn4jll'; 
+
+        const { Auth } = aws_amplify;
+        aws_amplify.Amplify.configure({ Auth: { region: COGNITO_REGION, userPoolId: USER_POOL_ID, userPoolWebClientId: CLIENT_ID } });
+
+        let currentUser = null;
+        let userProfile = { name: 'ゲスト', icon: '' };
+
+        // 起動時にログイン状態を確認
+        async function checkAuthStatus() {
+            try {
+                const user = await Auth.currentAuthenticatedUser();
+                currentUser = user;
+                
+                // lifelog.html で保存したプロフィールを取得
+                const savedProfile = localStorage.getItem('starry_user_profile');
+                if (savedProfile) {
+                    userProfile = JSON.parse(savedProfile);
+                }
+                console.log("Logged in as:", userProfile.name);
+            } catch (err) {
+                console.log("Not logged in");
+            }
+        }
         
         // ソララジ：選択中の投稿キー（1件だけ再生UIを表示）
         let selectedRadioKey = null;
         let radioItems = [];
         let radioItemByKey = new Map();
-// --- タブ切り替え ---
+
+        // --- タブ切り替え ---
         const tabBtns = document.querySelectorAll('.tab-btn');
         const sections = document.querySelectorAll('.section-content');
 
@@ -811,6 +852,8 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            checkAuthStatus(); // 認証チェック
+            
             if (__initialHash) {
                 const activated = activateTabFromHash(__initialHash);
                 restoreHashWithoutJump(__initialHash);
@@ -820,6 +863,7 @@
             } else {
                 activateTabFromHash();
             }
+            fetchContents(); // データ取得開始
         });
 
         window.addEventListener('hashchange', () => {
@@ -835,7 +879,7 @@
             }
         });
 
-// --- カテゴリ（オンオフボタン） ---
+        // --- カテゴリ（オンオフボタン） ---
         const catButtons = document.querySelectorAll('.cat-toggle');
         catButtons.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -845,8 +889,6 @@
         });
 
         // --- データ取得・描画 ---
-        document.addEventListener('DOMContentLoaded', fetchContents);
-
         async function fetchContents() {
             try {
                 const res = await fetch(GET_URL);
@@ -882,6 +924,103 @@
                 document.getElementById('gallery-container').innerHTML = errMsg;
                 document.getElementById('devlog-container').innerHTML = errMsg;
                 document.getElementById('column-container').innerHTML = errMsg;
+            }
+        }
+
+        // --- コメント機能用スクリプト ---
+
+        // コメントエリアのHTMLを生成する関数
+        function createCommentSectionHtml(contentId, comments = []) {
+            let commentsListHtml = '';
+            
+            if (comments && comments.length > 0) {
+                comments.forEach(c => {
+                    const iconSrc = c.icon || ''; 
+                    const iconHtml = iconSrc ? `<img src="${iconSrc}" class="cmt-icon">` : `<span class="cmt-icon-default"></span>`;
+                    commentsListHtml += `
+                        <div class="cmt-item">
+                            <div class="cmt-head">${iconHtml}<span class="cmt-name">${escapeHtml(c.name)}</span><span class="cmt-date">${c.date}</span></div>
+                            <div class="cmt-body">${escapeHtml(c.text)}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                commentsListHtml = '<div class="cmt-empty">まだコメントはありません</div>';
+            }
+
+            // ログイン状態に応じたフォーム表示
+            let formHtml = '';
+            if (currentUser) {
+                formHtml = `
+                    <div class="cmt-form">
+                        <div class="cmt-user-preview">
+                            投稿者: <b>${escapeHtml(userProfile.name)}</b>
+                        </div>
+                        <textarea id="cmt-input-${contentId}" class="cmt-input" placeholder="感想やコメントを入力..." rows="2"></textarea>
+                        <button class="cmt-submit-btn" onclick="postComment('${contentId}')">送信</button>
+                    </div>
+                `;
+            } else {
+                formHtml = `
+                    <div class="cmt-login-req">
+                        <p>コメントするにはログインが必要です</p>
+                        <a href="/lifelog" class="cmt-login-link">ログイン画面へ (星空ライフログ)</a>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="comment-section">
+                    <h4 class="cmt-section-title">コメント</h4>
+                    <div class="cmt-list" id="cmt-list-${contentId}">
+                        ${commentsListHtml}
+                    </div>
+                    ${formHtml}
+                </div>
+            `;
+        }
+
+        // コメント送信処理
+        async function postComment(contentId) {
+            if (!currentUser) return;
+            
+            const input = document.getElementById(`cmt-input-${contentId}`);
+            const text = input.value.trim();
+            if (!text) return;
+
+            // 送信ボタンを無効化（連打防止）
+            const btn = input.nextElementSibling;
+            btn.disabled = true;
+            btn.textContent = "送信中...";
+
+            try {
+                const token = currentUser.signInUserSession.accessToken.jwtToken;
+                
+                const res = await fetch(POST_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'post_comment',
+                        token: token,
+                        contentId: contentId,
+                        comment: text,
+                        userName: userProfile.name,
+                        userIcon: userProfile.icon
+                    })
+                });
+
+                if (res.ok) {
+                    alert("コメントを送信しました！");
+                    input.value = '';
+                    location.reload(); 
+                } else {
+                    throw new Error("送信エラー");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("送信に失敗しました。");
+                btn.disabled = false;
+                btn.textContent = "送信";
             }
         }
 
@@ -925,6 +1064,11 @@
                     expandInner = `<p class="radio-noaudio">音声ファイルがありません</p>`;
                 }
 
+                // コメントエリア追加
+                const contentId = `radio_${item.date}`; // 一意なID
+                const commentHtml = createCommentSectionHtml(contentId, item.comments);
+                expandInner += `<div style="margin-top:1rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:1rem;">${commentHtml}</div>`;
+
                 div.innerHTML = topHtml + `
                     <div class="radio-expand" aria-hidden="true">
                         <div class="radio-expand-inner">${expandInner}</div>
@@ -938,8 +1082,8 @@
                 };
 
                 div.addEventListener('click', (e) => {
-                    // audio操作クリックでトグルしない（再生/シークがしやすい）
-                    if (e.target && (e.target.tagName === 'AUDIO' || e.target.closest('audio'))) return;
+                    // audio操作クリックやコメント操作でトグルしない
+                    if (e.target && (e.target.tagName === 'AUDIO' || e.target.closest('audio') || e.target.closest('.comment-section'))) return;
                     toggleSelect();
                 });
 
@@ -1011,7 +1155,7 @@
             });
         }
 
-function renderGallery(items) {
+        function renderGallery(items) {
             const container = document.getElementById('gallery-container');
             container.innerHTML = '';
 
@@ -1058,9 +1202,10 @@ function renderGallery(items) {
                 card.appendChild(content);
 
                 // Tap/click: show full image + title + body (modal)
+                const contentId = `gallery_${item.date}`;
                 const open = () => {
                     if (!item.image) return;
-                    openGalleryModal(item.image, item.title || '', item.desc || '');
+                    openGalleryModal(item.image, item.title || '', item.desc || '', contentId, item.comments);
                 };
 
                 imgContainer.addEventListener('click', open);
@@ -1121,6 +1266,8 @@ function renderGallery(items) {
 
                 const safeTitle = escapeHtml(item.title);
                 const safeDesc = escapeHtml(item.desc).replace(/\n/g, '<br>');
+                const contentId = `column_${item.date}`;
+                const commentHtml = createCommentSectionHtml(contentId, item.comments);
 
                 details.innerHTML = `
                     <summary>
@@ -1143,6 +1290,11 @@ function renderGallery(items) {
 
                     ${imgSection}
                     <div class="column-body">${safeDesc}</div>
+                    
+                    <div style="padding: 0 1.5rem 1.5rem;">
+                        ${commentHtml}
+                    </div>
+
                     <div class="column-close" role="button" tabindex="0" aria-label="閉じる">
                         <span class="close-label">閉じる</span>
                         <span class="close-arrow">≫</span>
@@ -1268,15 +1420,26 @@ function renderGallery(items) {
             if (modalText) modalText.style.display = 'none';
             if (modalTitle) modalTitle.textContent = '';
             if (modalDesc) modalDesc.textContent = '';
+            // コメント欄も非表示
+            const cmt = document.getElementById('img-modal-comments');
+            if(cmt) cmt.innerHTML = '';
+
             modal.style.display = 'flex';
         };
 
-        // ギャラリー：画像 + タイトル + 本文を表示
-        window.openGalleryModal = (src, title, desc) => {
+        // ギャラリー：画像 + タイトル + 本文を表示 + コメント
+        window.openGalleryModal = (src, title, desc, contentId, comments) => {
             modalImg.src = src;
             if (modalText) modalText.style.display = 'block';
             if (modalTitle) modalTitle.textContent = title || '';
             if (modalDesc) modalDesc.textContent = desc || '';
+            
+            const cmtContainer = document.getElementById('img-modal-comments');
+            if (cmtContainer) {
+                const id = contentId || src; 
+                cmtContainer.innerHTML = createCommentSectionHtml(id, comments);
+            }
+
             modal.style.display = 'flex';
         };
 

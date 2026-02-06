@@ -2818,22 +2818,30 @@ function makeCommentHtml(comment) {
             document.getElementById('preview-area').style.display='none';
         }
 
-        function extractProfileFromLogs(data) {
-            const profile = data.find(d => d.logId === 'profile' || d.type === 'profile');
-            if (profile) {
-                if(profile.target) {
-                    document.getElementById('display-name').textContent = profile.target;
-                    myProfile.name = profile.target;
-                }
-                if(profile.imageUrl) {
-                    document.getElementById('avatar-img').src = profile.imageUrl;
-                    document.getElementById('avatar-img').style.display = 'block';
-                    document.getElementById('avatar-default').style.display = 'none';
-                    myProfile.icon = profile.imageUrl;
-                }
-            }
-            syncFormCounters();
+        // lifelog.html 内の extractProfileFromLogs 関数を探して修正
+
+function extractProfileFromLogs(data) {
+    const profile = data.find(d => d.logId === 'profile' || d.type === 'profile');
+    if (profile) {
+        if(profile.target) {
+            document.getElementById('display-name').textContent = profile.target;
+            myProfile.name = profile.target;
         }
+        if(profile.imageUrl) {
+            document.getElementById('avatar-img').src = profile.imageUrl;
+            document.getElementById('avatar-img').style.display = 'block';
+            document.getElementById('avatar-default').style.display = 'none';
+            myProfile.icon = profile.imageUrl;
+        }
+        
+        // ★追加: theater.html で使うためにローカルストレージに保存
+        localStorage.setItem('starry_user_profile', JSON.stringify({
+            name: myProfile.name,
+            icon: myProfile.icon
+        }));
+    }
+    syncFormCounters();
+}
 
         function initiateConvert(planId) {
             let plan = myDataCache.find(d => d.logId === planId);
