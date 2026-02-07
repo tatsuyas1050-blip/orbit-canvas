@@ -329,7 +329,11 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
         .feed-img-col { background: #000; position: relative; min-height: 180px; border-right: 1px solid rgba(255,255,255,0.1); }
         .feed-img { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; transition: transform 0.5s; }
         .feed-card:hover .feed-img { transform: scale(1.05); opacity: 1; }
-        .feed-no-img { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 3rem; color: rgba(255,255,255,0.1); }
+        .feed-no-img {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, rgba(10,16,32,0.98), rgba(3,6,14,0.98));
+        }
         .feed-date-badge { position: absolute; top: 0; left: 0; background: rgba(212, 175, 55, 0.9); color: #000; padding: 4px 10px; font-family: var(--font-tech); font-weight: bold; font-size: 0.85rem; z-index: 5; }
         
         .feed-content { padding: 1.5rem; display: flex; flex-direction: column; }
@@ -1129,13 +1133,29 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
             }
 
             .feed-card:not(.open):not(.has-image) .feed-img-col {
-                display: none;
+                display: block;
+                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                z-index: 0; border: none; margin: 0;
+                background: linear-gradient(145deg, rgba(10,16,32,0.98), rgba(3,6,14,0.98));
+            }
+            .feed-card:not(.open):not(.has-image) .feed-img-col::after {
+                content: '';
+                position: absolute; top:0; left:0; width:100%; height:100%;
+                background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.75));
+                pointer-events: none;
             }
             .feed-card:not(.open):not(.has-image) .feed-content {
                 width: 100%;
+                position: relative; z-index: 1;
+                background: transparent;
+                text-shadow: 0 1px 4px rgba(0,0,0,0.8);
             }
             
-            .feed-card.open.has-image .feed-img-col {
+            
+            .feed-card:not(.open):not(.has-image) .feed-user-info {
+                margin-top: 25px;
+            }
+.feed-card.open.has-image .feed-img-col {
                 display: block;
                 position: relative;
                 height: 250px;
@@ -2321,7 +2341,7 @@ if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非�
 
             if (type === 'log') {
                 const stars = "★".repeat(parseInt(item.rating||0));
-                let thumbHtml = `<div class="feed-no-img">🔭</div>`;
+                let thumbHtml = `<div class="feed-no-img" aria-label="no image"></div>`;
                 if(item.imageUrl) {
                     thumbHtml = `<img src="${item.imageUrl}" class="feed-img" onclick="event.stopPropagation(); openImageModal(this.src)">`;
                     if(isMobile) {
