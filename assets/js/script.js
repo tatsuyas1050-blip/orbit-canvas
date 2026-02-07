@@ -1,5 +1,18 @@
+// assets/js/script.js
+
+// ▼▼▼ 設定エリア ▼▼▼
+// 1. 発行したVAPIDの公開鍵 (Public Key)
+const PUBLIC_VAPID_KEY = "BFTEWHggLHDw7FPQatTOKwC9-3c4-1qtI3s_y2BYtDcfIPin69PevQqHNnbeEBjm0oInxJ3dVdozExYLVD7wY1w";
+
+// 2. 作成した通知登録用LambdaのURL (SavePushSubscription)
+const SAVE_SUBSCRIPTION_URL = "https://raukhf5t4u5fzx3cuyno7muptu0dqrvp.lambda-url.ap-northeast-1.on.aws/";
+// ▲▲▲ 設定エリアここまで ▲▲▲
+
+
 document.addEventListener('DOMContentLoaded', () => {
-    /* UI Logic */
+    /* =========================================
+       UI Logic (Menu, Navigation, Animation)
+       ========================================= */
     const menuToggle = document.getElementById('menu-toggle');
     const navOverlay = document.getElementById('nav-overlay');
 
@@ -68,13 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
 
             
-            // タイムライン設定:
-            // 0.0s : タイトルfadeIn開始
-            // 2.5s : キャッチコピーfadeIn開始
-            // 5.0s : 円描画開始 (6秒かけて描画)
-            // 11.0s : 円描画完了
-            
-            // 11.0s後に「縮んで拡大フェードアウト」を開始し、すぐにメニューを開く
+            // タイムライン設定
             const exitDelay = 11000; 
 
             setTimeout(() => {
@@ -87,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     hero.classList.add('hero-exit'); 
                 }
 
-                // フェードアウト開始とほぼ同時にメニューを開く (100msの微小ディレイのみ)
+                // フェードアウト開始とほぼ同時にメニューを開く
                 autoMenuTimer = setTimeout(() => {
                     if (conceptModal && conceptModal.classList.contains('active')) return;
 
@@ -102,13 +109,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }, 600);
                     }
-                }, 100); // 描画完了後「すぐ」
+                }, 100); 
 
             }, exitDelay); 
         }
     }
 
-    /* Canvas Logic (Top Page Only) */
+    /* =========================================
+       Canvas Logic (Top Page Only)
+       ========================================= */
     const canvas = document.getElementById('starry-sky');
     if (canvas) {
         const ctx = canvas.getContext('2d');
@@ -233,66 +242,120 @@ document.addEventListener('DOMContentLoaded', () => {
         resize();
         animate();
     }
+
+
+    /* =========================================
+       PWA Push Notification Logic (Button Trigger)
+       ========================================= */
+
+    const pushBtn = document.getElementById('push-subscribe-btn');
+    const pushMsg = document.getElementById('push-status-msg');
+
+    // 1. Service Workerの登録（画面が開かれたら裏で準備だけしておく）
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('SW Registered');
+                initializePushState(registration);
+            })
+            .catch(err => console.error('SW Error:', err));
+    }
+
+    // 2. ボタンの状態を初期化する関数
+    async function initializePushState(registration) {
+        if (!pushBtn) return; 
+
+        // 既に通知が許可されているかチェック
+        if (Notification.permission === 'denied') {
+            pushMsg.textContent = "通知がブロックされています。本体設定から許可してください。";
+            pushBtn.disabled = true;
+            pushBtn.style.opacity = 0.5;
+            return;
+        }
+
+        // 既に購読済みかチェック
+        const subscription = await registration.pushManager.getSubscription();
+        
+        if (subscription) {
+            // 購読済みの場合
+            pushBtn.textContent = "✅ 通知設定済み";
+            pushBtn.style.borderColor = "#4CAF50";
+            pushBtn.style.color = "#4CAF50";
+            
+            // 念のためサーバーに最新情報を再送信しておく（期限切れ対策）
+            updateSubscriptionOnServer(subscription);
+        } else {
+            // 未購読の場合：クリックイベントを設定
+            pushBtn.addEventListener('click', () => subscribeUser(registration));
+        }
+    }
+
+    // 3. ユーザーがボタンを押した時の処理
+    async function subscribeUser(registration) {
+        if (!PUBLIC_VAPID_KEY) {
+            alert("VAPIDキーが設定されていません。script.jsを確認してください。");
+            return;
+        }
+
+        pushBtn.disabled = true;
+        pushMsg.textContent = "設定中...";
+
+        try {
+            // ★ここで「許可しますか？」のダイアログが出ます（iOS対応）
+            const permission = await Notification.requestPermission();
+
+            if (permission === 'granted') {
+                // 許可されたら、購読情報を発行
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+                });
+
+                // サーバーに保存
+                const isSaved = await updateSubscriptionOnServer(subscription);
+                
+                if (isSaved) {
+                    pushBtn.textContent = "✅ 通知設定済み";
+                    pushBtn.style.borderColor = "#4CAF50";
+                    pushBtn.style.color = "#4CAF50";
+                    pushMsg.textContent = "登録しました！";
+                } else {
+                    throw new Error("サーバー保存失敗");
+                }
+            } else {
+                pushMsg.textContent = "通知が許可されませんでした。";
+                pushBtn.disabled = false;
+            }
+        } catch (err) {
+            console.error('Push setup failed:', err);
+            pushMsg.textContent = "エラーが発生しました。通信環境を確認してください。";
+            pushBtn.disabled = false;
+        }
+    }
+
+    // 4. サーバー保存処理
+    async function updateSubscriptionOnServer(subscription) {
+        if (!SAVE_SUBSCRIPTION_URL) {
+            console.error("LambdaのURLが設定されていません script.jsを確認してください");
+            return false;
+        }
+        
+        try {
+            await fetch(SAVE_SUBSCRIPTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(subscription)
+            });
+            console.log('Subscription sent to server.');
+            return true;
+        } catch (e) {
+            console.error('Save error:', e);
+            return false;
+        }
+    }
 });
 
-// --- Service Worker & Push Notification Logic (PWA) ---
-
-// 重要: ここにVAPIDの公開鍵を設定してください (サーバー側の秘密鍵とペアになるもの)
-const PUBLIC_VAPID_KEY = "BFTEWHggLHDw7FPQatTOKwC9-3c4-1qtI3s_y2BYtDcfIPin69PevQqHNnbeEBjm0oInxJ3dVdozExYLVD7wY1w"; 
-
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        // ルートディレクトリにあるsw.jsを登録
-        navigator.serviceWorker.register('/sw.js')
-            .then(async (registration) => {
-                console.log('ServiceWorker registration successful');
-                // 既に許可済みなら購読を確認、未許可ならリクエストしない（ユーザーアクションで呼ぶのがベストですが今回は自動登録を試みる例）
-                if (Notification.permission === 'granted') {
-                    subscribeUser(registration);
-                } else if (Notification.permission !== 'denied') {
-                    // ここでユーザーに許可を求めることもできます
-                    // const permission = await Notification.requestPermission();
-                    // if (permission === 'granted') subscribeUser(registration);
-                }
-            })
-            .catch(err => {
-                console.log('ServiceWorker registration failed: ', err);
-            });
-    });
-}
-
-async function subscribeUser(registration) {
-    if (!PUBLIC_VAPID_KEY || PUBLIC_VAPID_KEY === "BFTEWHggLHDw7FPQatTOKwC9-3c4-1qtI3s_y2BYtDcfIPin69PevQqHNnbeEBjm0oInxJ3dVdozExYLVD7wY1w") {
-        console.warn("Push通知設定: VAPIDキーが設定されていません。");
-        return;
-    }
-
-    try {
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
-        });
-        
-        console.log('User Subscribed:', JSON.stringify(subscription));
-        
-        // ★ ここを修正！
-        // 発行したLambdaのURLに書き換えてください
-        const SAVE_SUBSCRIPTION_URL = "https://tfhgq2qnzh472jf37sry24oylu0rlfvq.lambda-url.ap-northeast-1.on.aws/";
-
-        await fetch(SAVE_SUBSCRIPTION_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(subscription)
-        });
-        console.log('Subscription sent to server.');
-
-    } catch (err) {
-        console.error('Failed to subscribe the user: ', err);
-    }
-}
-
+// VAPIDキー変換用ユーティリティ
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
