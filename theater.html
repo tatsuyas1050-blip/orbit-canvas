@@ -635,6 +635,20 @@
     #img-modal-content { max-height: clamp(160px, 32vh, 420px); }
 }
 
+
+
+/* --- Gallery portrait/landscape height rules --- */
+#img-modal-inner.is-portrait #img-modal-content {
+    max-height: 50vh; /* 縦長は画面の半分程度に制限してコメント領域を確保 */
+}
+#img-modal-inner.is-landscape #img-modal-content {
+    max-height: 48vh; /* 横長は従来どおり */
+}
+@media (max-width: 768px) {
+    #img-modal-inner.is-portrait #img-modal-content { max-height: 45vh; }
+    #img-modal-inner.is-landscape #img-modal-content { max-height: 40vh; }
+}
+
 </style>
 </head>
 <body>
@@ -1582,6 +1596,35 @@
 
         modalClose.addEventListener('click', () => { modal.style.display = 'none'; });
         modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
-    </script>
+    
+
+// ギャラリーモーダル：縦長/横長で画像の最大高さを切り替え（縦長はコメント領域確保のため制限）
+function setGalleryAspectClass() {
+    const inner = document.getElementById('img-modal-inner');
+    const img = document.getElementById('img-modal-content');
+    if (!inner || !img) return;
+
+    // 一旦クリア
+    inner.classList.remove('is-portrait', 'is-landscape');
+
+    const w = img.naturalWidth || 0;
+    const h = img.naturalHeight || 0;
+    if (!w || !h) return;
+
+    if (h > w) {
+        inner.classList.add('is-portrait');
+    } else {
+        inner.classList.add('is-landscape');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const img = document.getElementById('img-modal-content');
+    if (img) {
+        img.addEventListener('load', setGalleryAspectClass);
+    }
+});
+
+</script>
 </body>
 </html>
