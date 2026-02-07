@@ -11,8 +11,8 @@
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/home.css">
     <link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
 </head>
 <body>
 
@@ -60,12 +60,19 @@
         </button>
         
         <nav id="nav-overlay" class="nav-overlay">
-<ul class="nav-list">
-    <li><a href="/stars" class="nav-link">星を探す<span>Star Chart</span></a></li>
-    <li><a href="/events" class="nav-link">星空情報局<span>Sky Events</span></a></li>
-    <li><a href="/lifelog" class="nav-link">星空ライフログ<span>My Starry Sky Log</span></a></li>
-    <li><a href="/theater" class="nav-link">ソノッキーの部屋<span>Sonocky's Room</span></a></li>
-</ul>
+            <ul class="nav-list">
+                <li><a href="/stars" class="nav-link">星を探す<span>Star Chart</span></a></li>
+                <li><a href="/events" class="nav-link">星空情報局<span>Sky Events</span></a></li>
+                <li><a href="/lifelog" class="nav-link">星空ライフログ<span>My Starry Sky Log</span></a></li>
+                <li><a href="/theater" class="nav-link">ソノッキーの部屋<span>Sonocky's Room</span></a></li>
+                
+                <li class="nav-item" style="margin-top: 20px; text-align: center;">
+                    <button id="push-subscribe-btn" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.4); color:white; padding:10px 20px; border-radius:30px; font-size:0.9rem; cursor:pointer; width:90%; font-family: 'Shippori Mincho', serif; transition: all 0.3s;">
+                        🔔 更新通知を受け取る
+                    </button>
+                    <p id="push-status-msg" style="font-size:0.7rem; color:rgba(255,255,255,0.6); margin-top:8px;"></p>
+                </li>
+                </ul>
         </nav>
     </div>
 
