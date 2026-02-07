@@ -839,7 +839,11 @@
             }
         }
         
-        // ソララジ：選択中の投稿キー（1件だけ再生UIを表示）
+        
+        // 全コンテンツを contentId で引けるように保持（コメントの最新取得・反映に使用）
+        let latestItemIndex = new Map();
+
+// ソララジ：選択中の投稿キー（1件だけ再生UIを表示）
         let selectedRadioKey = null;
         let radioItems = [];
         let radioItemByKey = new Map();
@@ -949,6 +953,9 @@
                 if (!res.ok) throw new Error("通信エラー");
                 const allData = await res.json();
 
+                // fetch のたびにインデックスを更新
+                latestItemIndex = new Map();
+
                 let items = [];
                 const targets = ['radio', 'gallery', 'devlog', 'column'];
 
@@ -964,6 +971,12 @@
                             items.push({ ...item, date: date });
                         }
                     }
+                });
+
+                // contentId をキーに参照できるようインデックス化（後続のコメント更新に使う）
+                items.forEach(it => {
+                    const cid = it.contentId || `${it.category}_${it.date}`;
+                    latestItemIndex.set(cid, it);
                 });
 
                 initRadio(items.filter(i => i.category === 'radio'));
@@ -1053,7 +1066,59 @@
     // ▼ ヨゾラジ：コメント増減で展開領域の高さ(max-height)を追従させる
     // radio-card の展開は max-height を固定してアニメーションしているため、
     // コメント数が増えると入力欄が見切れることがある。展開中は都度 scrollHeight を反映する。
-    function refreshRadioExpandHeightFrom(el) {
+    
+        // --- コメントを最新化して表示に反映 ---
+        async function fetchLatestComments(contentId) {
+            try {
+                const res = await fetch(`${GET_URL}?ts=${Date.now()}`, { cache: 'no-store' });
+                if (!res.ok) throw new Error("通信エラー");
+                const allData = await res.json();
+
+                const targets = ['radio', 'gallery', 'devlog', 'column'];
+                const dates = Object.keys(allData).sort((a, b) => new Date(b) - new Date(a));
+
+                for (const date of dates) {
+                    const arr = allData[date] || [];
+                    for (let i = arr.length - 1; i >= 0; i--) {
+                        const item = arr[i];
+                        if (!item.category || !targets.includes(item.category)) continue;
+
+                        const cid = item.contentId || `${item.category}_${date}`;
+                        if (cid === contentId) {
+                            return item.comments || [];
+                        }
+                    }
+                }
+                return null;
+            } catch (e) {
+                console.error("fetchLatestComments error:", e);
+                return null;
+            }
+        }
+
+        async function refreshCommentsForContent(contentId) {
+            const listEl = document.getElementById(`cmt-list-${contentId}`);
+            if (!listEl) return;
+
+            const latest = await fetchLatestComments(contentId);
+            if (!latest) return;
+
+            // キャッシュ（再オープン時の描画）も更新
+            const cached = latestItemIndex.get(contentId);
+            if (cached) cached.comments = latest;
+
+            // 既存の comment-section を差し替え
+            const sectionEl = listEl.closest('.comment-section');
+            if (sectionEl) {
+                sectionEl.outerHTML = createCommentSectionHtml(contentId, latest);
+
+                // radio 展開中なら高さを更新（送信ボタンが見切れないように）
+                const newList = document.getElementById(`cmt-list-${contentId}`);
+                if (newList) refreshRadioExpandHeightFrom(newList);
+            }
+        }
+
+function refreshRadioExpandHeightFrom(el) {
         const card = el?.closest?.('.radio-card');
         if (!card) return;
 
@@ -1097,6 +1162,19 @@
                     commentItem.style.opacity = "0";
                     setTimeout(() => {
                         commentItem.remove();
+
+                        // キャッシュからも削除
+                        const cached = latestItemIndex.get(contentId);
+                        if (cached && Array.isArray(cached.comments)) {
+                            cached.comments = cached.comments.filter(c => c && c.commentId !== commentId);
+                        }
+
+                        // 空になったらメッセージ表示
+                        const list = document.getElementById(`cmt-list-${contentId}`);
+                        if (list && list.querySelectorAll('.cmt-item').length === 0) {
+                            list.innerHTML = '<div class=\"cmt-empty\">まだコメントはありません</div>';
+                        }
+
                         refreshRadioExpandHeightFrom(btnElement);
                     }, 500);
                 }
@@ -1172,6 +1250,14 @@
                 listContainer.insertAdjacentHTML('beforeend', newCommentHtml);
                 listContainer.scrollTop = listContainer.scrollHeight;
                 input.value = '';
+
+                // キャッシュ（再オープン時の描画）にも反映
+                const cached = latestItemIndex.get(contentId);
+                if (cached) {
+                    const next = Array.isArray(cached.comments) ? cached.comments.slice() : [];
+                    next.push({ commentId: savedCommentId, name: userProfile.name, icon: iconSrc, text: text, createdAt: createdAtIso });
+                    cached.comments = next;
+                }
 
             
                 // コメント追加で展開領域の高さを更新（送信ボタンが見切れないようにする）
@@ -1292,6 +1378,12 @@
                         requestAnimationFrame(() => {
                             expand.style.maxHeight = expand.scrollHeight + 'px';
                         });
+
+                        // 展開のたびにコメントを最新化
+                        if (item) {
+                            const contentId = item.contentId || `radio_${item.date}`;
+                            refreshCommentsForContent(contentId);
+                        }
                     } else {
                         expand.setAttribute('aria-hidden', 'true');
                         expand.style.maxHeight = '0px';
@@ -1468,6 +1560,8 @@
                 details.addEventListener('toggle', () => {
                     updateColumnToggle(details);
                     if (!details.open) return;
+                    // 開くたびにコメントを最新化
+                    refreshCommentsForContent(contentId);
                     container.querySelectorAll('details.column-article').forEach(d => {
                         if (d !== details) d.open = false;
                     });
@@ -1599,6 +1693,8 @@
             if (cmtContainer) {
                 const id = contentId || src; 
                 cmtContainer.innerHTML = createCommentSectionHtml(id, comments);
+                // 開くたびにコメントを最新化
+                refreshCommentsForContent(id);
             }
 
             modal.style.display = 'flex';
