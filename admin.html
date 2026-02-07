@@ -232,6 +232,13 @@
                         <textarea id="theater-desc" rows="5" required placeholder="本文を入力..."></textarea>
                     </div>
 
+                    <div style="margin-bottom:1rem; padding:10px; background:rgba(255,255,255,0.05); border-radius:4px;">
+                        <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="theater-send-push">
+                            <span>アプリユーザーに通知を送る</span>
+                        </label>
+                    </div>
+
                     <div style="display:flex; gap:10px; margin-top:1rem;">
                         <button type="submit" class="btn-submit" id="btn-save-theater">保存</button>
                         <button type="button" class="btn-submit" onclick="clearTheaterForm()" style="background:#555;">クリア</button>
@@ -567,6 +574,9 @@
             const btn = document.getElementById('btn-save-theater');
             btn.textContent = "更新する (上書き)";
             btn.style.background = "#4CAF50";
+            
+            // 編集時は誤送信防止のため、通知チェックを外しておくのが無難です
+            document.getElementById('theater-send-push').checked = false;
         };
 
         window.clearEventForm = () => {
@@ -589,6 +599,7 @@
             document.getElementById('theater-title').value = "";
             document.getElementById('theater-desc').value = "";
             clearFile('theater');
+            document.getElementById('theater-send-push').checked = false; // クリア時にチェックも外す
             const btn = document.getElementById('btn-save-theater');
             btn.textContent = "保存";
             btn.style.background = "var(--accent-gold)";
@@ -678,6 +689,9 @@
             return data.publicUrl;
         }
 
+        // ★ 作成したLambdaのURL (SendPushNotification) に書き換えてください
+        const SEND_PUSH_URL = "https://あなたの新しい関数URL.lambda-url.ap-northeast-1.on.aws/";
+
         async function saveData(payloadDate, dataObj, btnId) {
             const pass = globalPass.value;
             if(!pass) { alert("パスワードを入力してください"); return; }
@@ -688,14 +702,45 @@
 
             try {
                 const action = dataObj.id ? "edit" : "add";
+                // 既存のデータ保存処理 (DynamoDB/S3への保存)
                 const res = await fetch(PUT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password: pass, date: payloadDate, action: action, eventData: dataObj })
                 });
                 const result = await res.json();
+
                 if(res.ok) {
-                    statusMsg.textContent = "✅ 保存完了";
+                    // --- ここから追加・修正: 通知送信処理 ---
+                    if (dataObj.sendPush) {
+                        statusMsg.textContent = "通知を送信中...";
+                        try {
+                            // 通知用Lambdaへの送信
+                            // ※Theaterコンテンツの場合、URLは通常 '/theater.html' ですが、
+                            // 個別のラジオや記事を開かせたい場合はURLパラメータなど工夫も可能です
+                            await fetch(SEND_PUSH_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    title: dataObj.title || 'ソノッキーの部屋',
+                                    message: '新しいコンテンツが投稿されました！',
+                                    // 通知をクリックしたときに開くURL
+                                    url: '/theater.html' 
+                                })
+                            });
+                            console.log("Push notification requested");
+                            statusMsg.textContent = "✅ 保存＆通知送信完了";
+                        } catch (pushErr) {
+                            console.error("Push notification failed:", pushErr);
+                            // 保存はできているので、ユーザーには注意だけ促す
+                            alert("データは保存されましたが、通知の送信に失敗しました。");
+                            statusMsg.textContent = "⚠️ 保存完了(通知失敗)";
+                        }
+                    } else {
+                        statusMsg.textContent = "✅ 保存完了";
+                    }
+                    // --- 追加・修正ここまで ---
+
                     await fetchData();
                     renderCalendar(currentYear, currentMonth);
                     selectDate(selectedDateStr);
@@ -745,6 +790,9 @@
             const cat = document.getElementById('theater-category').value;
             const constraint = cat === 'radio' ? 'audio' : 'image';
             
+            // 通知を送るかどうかのフラグを取得
+            const sendPush = document.getElementById('theater-send-push').checked;
+            
             try {
                 const newFile = await handleFileUpload(document.getElementById('theater-file'), constraint);
                 if(newFile) fileUrl = newFile;
@@ -761,7 +809,8 @@
                 title: document.getElementById('theater-title').value,
                 desc: document.getElementById('theater-desc').value,
                 image: fileUrl, 
-                category: cat
+                category: cat,
+                sendPush: sendPush // バックエンド側でこのフラグを見て通知処理を行う想定
             };
             saveData(document.getElementById('theater-date').value, data, 'btn-save-theater');
         });

@@ -234,3 +234,72 @@ document.addEventListener('DOMContentLoaded', () => {
         animate();
     }
 });
+
+// --- Service Worker & Push Notification Logic (PWA) ---
+
+// 重要: ここにVAPIDの公開鍵を設定してください (サーバー側の秘密鍵とペアになるもの)
+const PUBLIC_VAPID_KEY = "BFTEWHggLHDw7FPQatTOKwC9-3c4-1qtI3s_y2BYtDcfIPin69PevQqHNnbeEBjm0oInxJ3dVdozExYLVD7wY1w"; 
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        // ルートディレクトリにあるsw.jsを登録
+        navigator.serviceWorker.register('/sw.js')
+            .then(async (registration) => {
+                console.log('ServiceWorker registration successful');
+                // 既に許可済みなら購読を確認、未許可ならリクエストしない（ユーザーアクションで呼ぶのがベストですが今回は自動登録を試みる例）
+                if (Notification.permission === 'granted') {
+                    subscribeUser(registration);
+                } else if (Notification.permission !== 'denied') {
+                    // ここでユーザーに許可を求めることもできます
+                    // const permission = await Notification.requestPermission();
+                    // if (permission === 'granted') subscribeUser(registration);
+                }
+            })
+            .catch(err => {
+                console.log('ServiceWorker registration failed: ', err);
+            });
+    });
+}
+
+async function subscribeUser(registration) {
+    if (!PUBLIC_VAPID_KEY || PUBLIC_VAPID_KEY === "BFTEWHggLHDw7FPQatTOKwC9-3c4-1qtI3s_y2BYtDcfIPin69PevQqHNnbeEBjm0oInxJ3dVdozExYLVD7wY1w") {
+        console.warn("Push通知設定: VAPIDキーが設定されていません。");
+        return;
+    }
+
+    try {
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
+        });
+        
+        console.log('User Subscribed:', JSON.stringify(subscription));
+        
+        // ★ ここを修正！
+        // 発行したLambdaのURLに書き換えてください
+        const SAVE_SUBSCRIPTION_URL = "https://tfhgq2qnzh472jf37sry24oylu0rlfvq.lambda-url.ap-northeast-1.on.aws/";
+
+        await fetch(SAVE_SUBSCRIPTION_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(subscription)
+        });
+        console.log('Subscription sent to server.');
+
+    } catch (err) {
+        console.error('Failed to subscribe the user: ', err);
+    }
+}
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
