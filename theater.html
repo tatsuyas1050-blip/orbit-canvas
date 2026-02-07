@@ -911,6 +911,18 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             checkAuthStatus(); // 認証チェック
+
+            // コメント入力欄で Enter/Space を押したときに親のトグルが反応して
+            // コンテンツが閉じないよう、イベント伝播をここで止める（改行はデフォルト動作で行う）
+            document.addEventListener('keydown', (e) => {
+                const t = e.target;
+                if (t && t.classList && t.classList.contains('cmt-input')) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation();
+                    }
+                }
+            }, true);
+
             
             if (__initialHash) {
                 const activated = activateTabFromHash(__initialHash);
@@ -1338,6 +1350,8 @@ function refreshRadioExpandHeightFrom(el) {
                 });
 
                 div.addEventListener('keydown', (e) => {
+                    // コメント入力中やフォーム操作中はトグルしない（Enter/Space で閉じるのを防ぐ）
+                    if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('.comment-section'))) return;
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         toggleSelect();
