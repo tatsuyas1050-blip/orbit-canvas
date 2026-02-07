@@ -5,7 +5,7 @@
 const PUBLIC_VAPID_KEY = "BFTEWHggLHDw7FPQatTOKwC9-3c4-1qtI3s_y2BYtDcfIPin69PevQqHNnbeEBjm0oInxJ3dVdozExYLVD7wY1w";
 
 // 2. 作成した通知登録用LambdaのURL (SavePushSubscription)
-const SAVE_SUBSCRIPTION_URL = "https://raukhf5t4u5fzx3cuyno7muptu0dqrvp.lambda-url.ap-northeast-1.on.aws/";
+const SAVE_SUBSCRIPTION_URL = "https://tfhgq2qnzh472jf37sry24oylu0rlfvq.lambda-url.ap-northeast-1.on.aws/";
 // ▲▲▲ 設定エリアここまで ▲▲▲
 
 
