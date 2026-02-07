@@ -586,42 +586,53 @@
             }
         }
 
-        /* --- Gallery Modal Alignment Fix (Image + Text left edges aligned) --- */
-        #img-modal-inner {
-            width: min(820px, 95vw);
-            max-height: 88vh;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            align-items: center;
-        }
-        #img-modal-content {
-            width: 100%;
-            max-width: 100%;
-            margin: 0;
-        }
-        #img-modal-text {
-            width: 100%;
-            max-width: 100%;
-            padding-left: 0;
-            padding-right: 0;
-        }
+        /* --- Gallery Modal Layout Fix (画像全体 + コメント欄が必ず画面内に収まる) --- */
+#img-modal {
+    /* モーダル全体は画面内に固定し、内部でスクロール制御 */
+    overflow: hidden;
+}
 
-        @media (max-width: 768px) {
-            /* Ensure exact left-edge alignment on mobile */
-            #img-modal-inner {
-                width: 100%;
-            }
-            #img-modal-content,
-            #img-modal-text {
-                width: 100%;
-                max-width: 100%;
-            }
-        }
-    
-/* コメント送信ボタン右寄せ */
-.comment-form {
-    text-align: right;
+#img-modal-inner {
+    width: min(820px, 95vw);
+    max-height: 92vh;          /* 画面内に収める */
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+    overflow: hidden;          /* 子要素のスクロール制御に任せる */
+}
+
+/* 画像は「全体表示（contain）」のまま、画面内に収まるように縮小される */
+#img-modal-content {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    object-fit: contain;
+    flex: 0 0 auto;
+    max-height: 48vh;          /* 画像が大きい場合はここで縮小してコメント欄の余白を確保 */
+}
+
+/* タイトル・本文・コメントはこの領域内でスクロール */
+#img-modal-text {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+
+    flex: 1 1 auto;
+    min-height: 0;             /* overflow を効かせるために必要 */
+    overflow-y: auto;
+}
+
+/* コメント欄が長い場合でも入力欄が押せるように、下方向に余白を確保 */
+#img-modal-comments {
+    padding-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+    /* モバイルでは余白を抑えつつ、画像とコメントを確実に表示 */
+    #img-modal-inner { width: 100%; max-height: 92vh; }
+    #img-modal-content { max-height: 40vh; }
 }
 
 </style>
