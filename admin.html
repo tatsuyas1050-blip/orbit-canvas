@@ -232,13 +232,6 @@
                         <textarea id="theater-desc" rows="5" required placeholder="本文を入力..."></textarea>
                     </div>
 
-                    <div style="margin-bottom:1rem; padding:10px; background:rgba(255,255,255,0.05); border-radius:4px;">
-                        <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
-                            <input type="checkbox" id="theater-send-push">
-                            <span>アプリユーザーに通知を送る</span>
-                        </label>
-                    </div>
-
                     <div style="display:flex; gap:10px; margin-top:1rem;">
                         <button type="submit" class="btn-submit" id="btn-save-theater">保存</button>
                         <button type="button" class="btn-submit" onclick="clearTheaterForm()" style="background:#555;">クリア</button>
@@ -259,18 +252,9 @@
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
 
-
         // --- CloudFront settings (audio delivery) ---
-        // NOTE: If you recreate the CloudFront distribution, update the domain below.
-        // CloudFront Origin path is set to "/events". Therefore the CloudFront URL SHOULD NOT include "/events".
         const CLOUDFRONT_BASE = "https://d1lcefeb8rw1vj.cloudfront.net";
 
-        /**
-         * Convert an S3 object URL to the CloudFront URL.
-         * - Only used for radio (audio) posts.
-         * - If the S3 path starts with /events/, it will be stripped because Origin path=/events already adds it.
-         * - Non-S3 URLs are returned as-is.
-         */
         function toCloudFrontUrlIfS3(url) {
             try {
                 const u = new URL(url);
@@ -285,7 +269,6 @@
                 if (!looksLikeS3) return url;
 
                 let path = u.pathname || "/";
-                // Origin path=/events 対応: 二重にならないように先頭の /events/ を剥がす
                 path = path.replace(/^\/events\//, "/");
 
                 return `${CLOUDFRONT_BASE}${path}`;
@@ -294,7 +277,7 @@
             }
         }
         
-        // 音声ファイルのみサイズ制限 (10MB)
+        // 音声ファイルのみサイズ制限 (50MB)
         const AUDIO_MAX_SIZE = 50 * 1024 * 1024; 
         // 画像リサイズ設定
         const IMG_MAX_WIDTH = 1200;
@@ -334,7 +317,6 @@
             renderCalendar(currentYear, currentMonth);
             selectDate(selectedDateStr);
             
-            // 初期状態はラジオモードでセットアップ
             switchTheaterSub('radio');
         }
         init();
@@ -361,7 +343,7 @@
             } else {
                 document.querySelector('.nav-btn:nth-child(2)').classList.add('active');
                 document.getElementById('view-theater').classList.add('active');
-                switchTheaterSub(currentTheaterCat); // Re-apply current sub-tab settings
+                switchTheaterSub(currentTheaterCat);
             }
         };
 
@@ -369,17 +351,14 @@
             currentTheaterCat = cat;
             document.getElementById('theater-category').value = cat;
             
-            // Update UI buttons
             const buttons = document.querySelectorAll('.subnav-btn');
             buttons.forEach(b => b.classList.remove('active'));
             
-            // ボタンの順序: Radio(0), Column(1), Gallery(2), Devlog(3)
             if(cat === 'radio') buttons[0].classList.add('active');
             if(cat === 'column') buttons[1].classList.add('active');
             if(cat === 'gallery') buttons[2].classList.add('active');
             if(cat === 'devlog') buttons[3].classList.add('active');
 
-            // Update Labels & Form Attributes based on category
             const labelMap = { 'radio': 'ラジオ', 'column': '星空コラム', 'gallery': 'ギャラリー', 'devlog': '開発日誌' };
             document.getElementById('theater-category-label').textContent = labelMap[cat];
 
@@ -392,7 +371,6 @@
                 fileInput.accept = "audio/*";
                 fileNotice.textContent = "※50MB以下の音声ファイル (MP3, WAV, M4A)";
             } else {
-                // コラム、ギャラリー、開発日誌はすべて画像
                 fileLabel.textContent = "画像・写真 (添付)";
                 fileInput.accept = "image/png, image/jpeg, image/gif, image/webp";
                 fileNotice.textContent = "※自動でリサイズされます (大きな画像もOK)";
@@ -506,7 +484,6 @@
                 const div = document.createElement('div');
                 div.className = 'content-item';
                 
-                // アイコン表示の出し分け
                 let thumbHtml = '';
                 if (currentTheaterCat === 'radio') {
                     thumbHtml = `<div class="content-audio-icon">♪</div>`;
@@ -553,7 +530,7 @@
             document.getElementById('theater-title').value = item.title;
             document.getElementById('theater-desc').value = item.desc;
             
-            const fileUrl = item.image || ""; // theater.html側では全て "image" プロパティとして扱っているため
+            const fileUrl = item.image || "";
             document.getElementById('theater-file-url').value = fileUrl;
             
             const previewArea = document.getElementById('theater-preview-area');
@@ -562,7 +539,6 @@
             if(fileUrl) {
                 previewArea.style.display = 'block';
                 if (currentTheaterCat === 'radio') {
-                    // 日本語や"#"などを含むURLでもプレビュー再生できるようにエンコードしてから渡す
                     previewContent.innerHTML = `<audio controls src="${encodeURI(fileUrl)}" style="width:100%;"></audio>`;
                 } else {
                     previewContent.innerHTML = `<img src="${fileUrl}" class="preview-img">`;
@@ -574,9 +550,6 @@
             const btn = document.getElementById('btn-save-theater');
             btn.textContent = "更新する (上書き)";
             btn.style.background = "#4CAF50";
-            
-            // 編集時は誤送信防止のため、通知チェックを外しておくのが無難です
-            document.getElementById('theater-send-push').checked = false;
         };
 
         window.clearEventForm = () => {
@@ -599,7 +572,6 @@
             document.getElementById('theater-title').value = "";
             document.getElementById('theater-desc').value = "";
             clearFile('theater');
-            document.getElementById('theater-send-push').checked = false; // クリア時にチェックも外す
             const btn = document.getElementById('btn-save-theater');
             btn.textContent = "保存";
             btn.style.background = "var(--accent-gold)";
@@ -634,7 +606,6 @@
 
                     canvas.toBlob((blob) => {
                         if (blob) {
-                            // blobのnameプロパティなどは標準ではないが、アップロード時にファイル名が必要なら元の名前を使う
                             const newFile = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
                             resolve(newFile);
                         } else {
@@ -654,16 +625,13 @@
             
             statusMsg.textContent = "ファイルを準備中...";
 
-            // バリデーション & リサイズ処理
             if (typeConstraint === 'audio') {
                 if (!file.type.startsWith('audio/')) throw new Error("音声ファイルを選択してください。");
                 if (file.size > AUDIO_MAX_SIZE) throw new Error("ファイルサイズが大きすぎます (50MB以下)");
             } else if (typeConstraint === 'image') {
                 if (!file.type.startsWith('image/')) throw new Error("画像ファイルを選択してください。");
-                // 画像の場合はリサイズを実行
                 try {
                     file = await resizeImage(file);
-                    console.log(`Resized image size: ${(file.size / 1024).toFixed(2)} KB`);
                 } catch(e) {
                     console.error(e);
                     throw new Error("画像のリサイズに失敗しました");
@@ -673,7 +641,6 @@
             statusMsg.textContent = "ファイルアップロード中...";
             const pass = globalPass.value;
             
-            // 署名付きURL取得
             const res = await fetch(PUT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -682,15 +649,11 @@
             if (!res.ok) throw new Error("アップロード許可失敗");
             const data = await res.json();
             
-            // S3へPUT
             const uploadRes = await fetch(data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
             if (!uploadRes.ok) throw new Error("保存失敗: バックエンドの設定を確認してください");
             
             return data.publicUrl;
         }
-
-        // ★ 作成したLambdaのURL (SendPushNotification) に書き換えてください
-        const SEND_PUSH_URL = "https://raukhf5t4u5fzx3cuyno7muptu0dqrvp.lambda-url.ap-northeast-1.on.aws/";
 
         async function saveData(payloadDate, dataObj, btnId) {
             const pass = globalPass.value;
@@ -702,45 +665,14 @@
 
             try {
                 const action = dataObj.id ? "edit" : "add";
-                // 既存のデータ保存処理 (DynamoDB/S3への保存)
                 const res = await fetch(PUT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password: pass, date: payloadDate, action: action, eventData: dataObj })
                 });
                 const result = await res.json();
-
                 if(res.ok) {
-                    // --- ここから追加・修正: 通知送信処理 ---
-                    if (dataObj.sendPush) {
-                        statusMsg.textContent = "通知を送信中...";
-                        try {
-                            // 通知用Lambdaへの送信
-                            // ※Theaterコンテンツの場合、URLは通常 '/theater.html' ですが、
-                            // 個別のラジオや記事を開かせたい場合はURLパラメータなど工夫も可能です
-                            await fetch(SEND_PUSH_URL, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    title: dataObj.title || 'ソノッキーの部屋',
-                                    message: '新しいコンテンツが投稿されました！',
-                                    // 通知をクリックしたときに開くURL
-                                    url: '/theater.html' 
-                                })
-                            });
-                            console.log("Push notification requested");
-                            statusMsg.textContent = "✅ 保存＆通知送信完了";
-                        } catch (pushErr) {
-                            console.error("Push notification failed:", pushErr);
-                            // 保存はできているので、ユーザーには注意だけ促す
-                            alert("データは保存されましたが、通知の送信に失敗しました。");
-                            statusMsg.textContent = "⚠️ 保存完了(通知失敗)";
-                        }
-                    } else {
-                        statusMsg.textContent = "✅ 保存完了";
-                    }
-                    // --- 追加・修正ここまで ---
-
+                    statusMsg.textContent = "✅ 保存完了";
                     await fetchData();
                     renderCalendar(currentYear, currentMonth);
                     selectDate(selectedDateStr);
@@ -766,7 +698,6 @@
             e.preventDefault();
             let imgUrl = document.getElementById('event-image-url').value;
             try {
-                // 画像なので typeConstraint='image' を指定
                 const newImg = await handleFileUpload(document.getElementById('event-file'), 'image');
                 if(newImg) imgUrl = newImg;
             } catch(err) { alert(err.message); statusMsg.textContent = "エラー"; return; }
@@ -790,16 +721,11 @@
             const cat = document.getElementById('theater-category').value;
             const constraint = cat === 'radio' ? 'audio' : 'image';
             
-            // 通知を送るかどうかのフラグを取得
-            const sendPush = document.getElementById('theater-send-push').checked;
-            
             try {
                 const newFile = await handleFileUpload(document.getElementById('theater-file'), constraint);
                 if(newFile) fileUrl = newFile;
             } catch(err) { alert(err.message); statusMsg.textContent = "エラー"; return; }
 
-            
-            // Radio audio is delivered via CloudFront (S3 direct URLs will 403 with OAC).
             if (cat === 'radio' && fileUrl) {
                 fileUrl = toCloudFrontUrlIfS3(fileUrl);
             }
@@ -809,8 +735,7 @@
                 title: document.getElementById('theater-title').value,
                 desc: document.getElementById('theater-desc').value,
                 image: fileUrl, 
-                category: cat,
-                sendPush: sendPush // バックエンド側でこのフラグを見て通知処理を行う想定
+                category: cat
             };
             saveData(document.getElementById('theater-date').value, data, 'btn-save-theater');
         });
