@@ -2779,14 +2779,85 @@ function makeCommentHtml(comment) {
             
             const name = document.getElementById('input-display-name').value;
             const dataObj = { type: 'profile', target: name, imageBase64: profileImageBase64 };
-            const curr = myDataCache.find(d => d.logId === 'profile');
+            
+            // 既存のプロフィールデータを取得（更新用）
+            const currIndex = myDataCache.findIndex(d => d.logId === 'profile' || d.type === 'profile');
+            const curr = (currIndex > -1) ? myDataCache[currIndex] : null;
+
             if(curr && !profileImageBase64) dataObj.imageUrl = curr.imageUrl;
             
             try {
-                await saveItem(dataObj, 'profile');
-                location.reload();
+                // サーバーへ保存
+                const result = await saveItem(dataObj, 'profile');
+                
+                // --- 即時反映処理 (リロード不要) ---
+                
+                // 1. プロフィール情報（グローバル変数）を即座に更新
+                myProfile.name = name;
+                
+                // 画像URLの決定:
+                // サーバーからのレスポンス(result)に新しいimageUrlが含まれていればそれを使用。
+                // なければ、アップロードしたBase64画像をそのまま表示に使う（これが最も即時性が高いです）。
+                let newSrc = profileImageBase64;
+                
+                if (result && result.imageUrl) {
+                    // サーバーから確定したURLが返ってきた場合
+                    newSrc = result.imageUrl;
+                    // ※同じURLで中身が変わった場合のキャッシュ対策として、パラメータを付与しても良いですが、
+                    //  通常はBase64か新しいURLを使うことで解決します。
+                } else if (!newSrc && curr) {
+                    // 画像を変更していない場合
+                    newSrc = curr.imageUrl;
+                }
+
+                // 2. 画面のアイコンと名前を直接書き換え
+                if (newSrc) {
+                    myProfile.icon = newSrc;
+                    const avatarImg = document.getElementById('avatar-img');
+                    avatarImg.src = newSrc;
+                    avatarImg.style.display = 'block';
+                    document.getElementById('avatar-default').style.display = 'none';
+                }
+                document.getElementById('display-name').textContent = name;
+                
+                // 3. データキャッシュも更新（フィード一覧の再描画などで使われるため）
+                if (curr) {
+                    curr.target = name;
+                    if (newSrc) curr.imageUrl = newSrc;
+                } else {
+                    // プロフィールがまだ無かった場合
+                    myDataCache.push({
+                        logId: 'profile',
+                        type: 'profile',
+                        target: name,
+                        imageUrl: newSrc
+                    });
+                }
+
+                // 4. ローカルストレージ更新（他ページ遷移時用）
+                localStorage.setItem('starry_user_profile', JSON.stringify({
+                    name: myProfile.name,
+                    icon: myProfile.icon
+                }));
+
+                // 5. 投稿一覧（フィード）に表示されている自分のアイコン/名前も更新するために再描画
+                // renderMainList は getLatestAuthorInfo で myProfile を参照するため、再実行するだけで更新されます。
+                const listToRender = (currentMode === 'global') ? publicDataCache : myDataCache;
+                const typeToRender = (currentMode === 'plans') ? 'plan' : 'log';
+                if (typeof renderMainList === 'function' && document.getElementById('logs-list')) {
+                    // 現在表示中のリストをフィルタリングして再描画
+                    const items = listToRender.filter(d => d.type === typeToRender);
+                    renderMainList(items, typeToRender);
+                }
+
+                // モーダルを閉じる
+                closeProfileModal();
+                
+                // location.reload(); // ←削除：これでリロード待ちやキャッシュの問題がなくなります
+
             } catch(e){
-                alert(e.message);
+                console.error(e);
+                alert("保存に失敗しました: " + (e.message || "Unknown error"));
             } finally {
                 btn.disabled = false;
                 btn.textContent = "変更を保存";
