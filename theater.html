@@ -1054,10 +1054,18 @@
                 </div>
             `;
         } else {
+            // ★修正: 現在開いているタブに戻ってこられるようにパラメータを付与
+            // 現在アクティブなタブのIDを取得（取得できなければデフォルトで tab-gallery 等）
+            const activeTab = document.querySelector('.tab-btn.active')?.dataset.target || 'tab-gallery';
+            
+            // 戻り先のURLを作成（/theater#tab-gallery のような形）
+            // ※URLエンコードを行ってパラメータとして安全に渡せるようにします
+            const redirectUrl = encodeURIComponent(`/theater#${activeTab}`);
+
             formHtml = `
                 <div class="cmt-login-req">
                     <p>コメントするにはログインが必要です</p>
-                    <a href="/lifelog" class="cmt-login-link">ログイン画面へ (星空ライフログ)</a>
+                    <a href="/lifelog?redirect=${redirectUrl}" class="cmt-login-link">ログイン画面へ (星空ライフログ)</a>
                 </div>
             `;
         }

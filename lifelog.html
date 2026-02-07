@@ -1825,10 +1825,20 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
 
         // 修正: 表示名の初期設定を「表示名設定無し」にする
         function showDashboard(user) {
+            // ★追加: URLパラメータに 'redirect' があれば、ログイン完了後にそこへ移動する
+            const params = new URLSearchParams(window.location.search);
+            const redirectDest = params.get('redirect');
+            if (redirectDest) {
+                window.location.href = redirectDest;
+                return; // ここで処理を終了して遷移
+            }
+
+            // --- ここから下は既存のコード ---
             document.getElementById('auth-overlay').style.display = 'none';
             document.getElementById('app-container').style.display = ''; 
             
             const email = user.attributes.email;
+            // ... (以下略)
             document.getElementById('display-email-sub').textContent = email;
 
             // サインアップ時に登録した表示名（Cognitoの標準 attribute: name）
