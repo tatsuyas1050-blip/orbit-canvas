@@ -726,6 +726,15 @@
                 <div style="font-size:3rem; opacity:0.2; margin-bottom:10px;">📡</div>
                 <p>Live Stream Offline</p>
             </div>
+
+            <div id="live-comments-wrap" class="panel-bg" style="margin-top:1.2rem; display:none;">
+                <h3 style="font-size:1rem; color:var(--accent-gold); margin-bottom:0.5rem;">ライブコメント</h3>
+                <p id="live-comments-note" style="font-size:0.9rem; opacity:0.85; margin:0 0 0.9rem; line-height:1.6;">
+                    配信中のみコメントできます。コメントはリアルタイムで更新されます。
+                </p>
+                <div id="live-comment-section"></div>
+            </div>
+
             <div class="panel-bg" style="margin-top:1.5rem;">
                 <h3 style="font-size:1rem; color:var(--accent-gold); margin-bottom:0.5rem;">配信について</h3>
                 <p style="font-size:0.9rem;">
@@ -819,9 +828,11 @@
         const LIVE_API_URL = "https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/";
         const YOUTUBE_CHANNEL_ID = "UC3cQ26PkdA3BaQwNfMtjF5w";
         const LIVE_POLL_INTERVAL_MS = 20000;
+        const LIVE_COMMENT_POLL_MS = 3000;
 
-        let __liveState = { isLive: false, lastChecked: 0, lastError: "" };
+        let __liveState = { isLive: false, videoId: null, embedUrl: null, lastChecked: 0, lastError: "" };
         let __livePollTimer = null;
+        let __liveCommentTimer = null;
 
         function isLiveTabActive() {
             const liveSection = document.getElementById('tab-live');
@@ -842,16 +853,29 @@
             }
         }
 
-        function renderLiveFrame(isLive) {
+        function renderLiveFrame(state) {
             const frame = document.getElementById('live-frame');
             if (!frame) return;
 
+            const isLive = !!(state && state.isLive);
+            const embedUrl = (state && state.embedUrl) ? String(state.embedUrl) : "";
+            const origin = encodeURIComponent(window.location.origin);
+
             // ライブタブがアクティブな時だけ iframe を挿入（他タブで無駄にロードしない）
             if (isLive && isLiveTabActive()) {
-                const embed = `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(YOUTUBE_CHANNEL_ID)}&autoplay=1&mute=1`;
+                // まずは「配信中の動画ID由来の埋め込みURL」を優先（限定公開などで channel 埋め込みが失敗するケースがあるため）
+                // fallback として channel ベースも用意
+                const primary = embedUrl && embedUrl.startsWith('https://www.youtube.com/embed/')
+                    ? `${embedUrl}?autoplay=1&mute=1&playsinline=1&origin=${origin}`
+                    : '';
+
+                const fallback = `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(YOUTUBE_CHANNEL_ID)}&autoplay=1&mute=1&playsinline=1&origin=${origin}`;
+
+                const src = primary || fallback;
+
                 frame.innerHTML = `
                     <iframe
-                        src="${embed}"
+                        src="${src}"
                         title="Live Stream"
                         frameborder="0"
                         allow="autoplay; encrypted-media; picture-in-picture"
@@ -879,10 +903,10 @@
                 }
 
                 const isLive = !!data.isLive;
-                __liveState = { isLive, lastChecked: Date.now(), lastError: "" };
+                __liveState = { isLive, embedUrl: data.embedUrl || null, videoId: data.videoId || null, lastChecked: Date.now(), lastError: "" };
 
                 setLiveBadge(isLive);
-                renderLiveFrame(isLive);
+                renderLiveFrame(__liveState);
             } catch (e) {
                 __liveState.lastError = String(e && e.message ? e.message : e);
                 // エラー時は表示は維持（オフライン扱いにしないで、最後の状態を残す）
@@ -899,6 +923,170 @@
         function onLiveTabActivated() {
             // タブを開いた瞬間に最新化（配信開始直後に気づきやすい）
             fetchLiveStatusOnce();
+            syncLiveCommentUI(true);
+        }
+
+
+        // ---- Live Comments (配信中のみ) ----
+        function stopLiveCommentPolling() {
+            if (__liveCommentTimer) {
+                clearInterval(__liveCommentTimer);
+                __liveCommentTimer = null;
+            }
+        }
+
+        function setLiveCommentsVisible(isVisible) {
+            const wrap = document.getElementById('live-comments-wrap');
+            if (!wrap) return;
+            wrap.style.display = isVisible ? 'block' : 'none';
+        }
+
+        function ensureLiveCommentSectionHtml() {
+            const container = document.getElementById('live-comment-section');
+            if (!container) return;
+            if (container.dataset.ready === "1") return;
+            container.dataset.ready = "1";
+            container.innerHTML = createLiveCommentSectionHtml([]);
+        }
+
+        function createLiveCommentSectionHtml(comments = []) {
+            // 既存のコメントUIと同じ見た目（.cmt-*）を流用し、他機能へ影響しないよう別IDで管理
+            let listHtml = '';
+            if (comments && comments.length > 0) {
+                comments.forEach(c => {
+                    const iconSrc = c.icon || '';
+                    const iconHtml = iconSrc ? `<img src="${iconSrc}" class="cmt-icon">` : `<span class="cmt-icon-default"></span>`;
+                    const dateStr = c.createdAt ? new Date(c.createdAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+                    listHtml += `
+                        <div class="cmt-item">
+                            <div class="cmt-head">
+                                ${iconHtml}
+                                <span class="cmt-name">${escapeHtml(c.name || 'ゲスト')}</span>
+                                <span class="cmt-date">${dateStr}</span>
+                            </div>
+                            <div class="cmt-body">${escapeHtml(c.text || '')}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                listHtml = '<div class="cmt-empty">まだコメントはありません</div>';
+            }
+
+            let formHtml = '';
+            if (currentUser) {
+                formHtml = `
+                    <div class="cmt-form">
+                        <div class="cmt-user-preview">
+                            投稿者: <b>${escapeHtml(userProfile.name)}</b>
+                        </div>
+                        <textarea id="live-cmt-input" class="cmt-input" placeholder="配信へのコメントを入力..." rows="2"></textarea>
+                        <button id="live-cmt-submit" class="cmt-submit-btn" onclick="postLiveComment()">送信</button>
+                    </div>
+                `;
+            } else {
+                const redirectUrl = encodeURIComponent(`/theater#tab-live`);
+                formHtml = `
+                    <div class="cmt-login-req">
+                        <p>コメントするにはログインが必要です</p>
+                        <a href="/lifelog?redirect=${redirectUrl}" class="cmt-login-link">ログイン画面へ (星空ライフログ)</a>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="comment-section">
+                    <h4 class="cmt-section-title">ライブコメント</h4>
+                    <div class="cmt-list" id="live-cmt-list">
+                        ${listHtml}
+                    </div>
+                    ${formHtml}
+                </div>
+            `;
+        }
+
+        async function fetchLiveCommentsOnce() {
+            try {
+                if (!__liveState.isLive || !__liveState.videoId) return;
+
+                const url = `${LIVE_API_URL}?action=live_comments&videoId=${encodeURIComponent(__liveState.videoId)}&ts=${Date.now()}`;
+                const res = await fetch(url, { cache: 'no-store' });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data || data.ok === false) throw new Error((data && data.error) ? data.error : 'live_comments error');
+
+                const comments = Array.isArray(data.comments) ? data.comments : [];
+                const container = document.getElementById('live-comment-section');
+                if (!container) return;
+
+                container.innerHTML = createLiveCommentSectionHtml(comments);
+
+                const listEl = document.getElementById('live-cmt-list');
+                if (listEl) listEl.scrollTop = listEl.scrollHeight;
+            } catch (e) {
+                console.warn('Live comments fetch failed:', e && e.message ? e.message : e);
+            }
+        }
+
+        async function postLiveComment() {
+            if (!currentUser) return;
+            if (!__liveState.isLive || !__liveState.videoId) return;
+
+            const input = document.getElementById('live-cmt-input');
+            const btn = document.getElementById('live-cmt-submit');
+            if (!input || !btn) return;
+
+            const text = input.value.trim();
+            if (!text) return;
+
+            btn.disabled = true;
+            btn.textContent = '送信中...';
+
+            try {
+                const token = currentUser?.signInUserSession?.accessToken?.jwtToken || '';
+
+                const res = await fetch(LIVE_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'post_live_comment',
+                        token,
+                        videoId: __liveState.videoId,
+                        comment: text,
+                        userName: userProfile.name,
+                        userIcon: userProfile.icon
+                    })
+                });
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data || data.ok === false) throw new Error((data && data.error) ? data.error : 'post_live_comment error');
+
+                input.value = '';
+                fetchLiveCommentsOnce();
+            } catch (e) {
+                console.error(e);
+                alert('送信に失敗しました。');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '送信';
+            }
+        }
+
+        function syncLiveCommentUI(forceStart = false) {
+            // UIは「配信中」かつ「ライブタブ表示中」かつ「videoIdが取得できた」時だけ出す
+            const canShow = !!(__liveState.isLive && __liveState.videoId && isLiveTabActive());
+            if (!canShow) {
+                stopLiveCommentPolling();
+                setLiveCommentsVisible(false);
+                return;
+            }
+
+            ensureLiveCommentSectionHtml();
+            setLiveCommentsVisible(true);
+
+            if (forceStart || !__liveCommentTimer) {
+                stopLiveCommentPolling();
+                fetchLiveCommentsOnce();
+                __liveCommentTimer = setInterval(fetchLiveCommentsOnce, LIVE_COMMENT_POLL_MS);
+            }
         }
 
 
@@ -968,7 +1156,9 @@
                 } else {
                     renderLiveFrame(__liveState.isLive);
                 }
-            } catch (e) {}
+            
+                    syncLiveCommentUI();
+} catch (e) {}
         }
 
         tabBtns.forEach(btn => {
