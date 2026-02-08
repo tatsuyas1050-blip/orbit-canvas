@@ -190,16 +190,17 @@
                 <button class="subnav-btn" onclick="switchTheaterSub('column')">📰 コラム</button>
                 <button class="subnav-btn" onclick="switchTheaterSub('gallery')">📷 ギャラリー</button>
                 <button class="subnav-btn" onclick="switchTheaterSub('devlog')">💻 開発日誌</button>
+                <button class="subnav-btn" onclick="switchTheaterSub('live')">📡 ライブ配信</button>
             </div>
 
-            <div class="panel-box" style="margin-bottom:2rem;">
+            <div class="panel-box" id="theater-list-panel" style="margin-bottom:2rem;">
                 <h3 class="section-header">投稿済みコンテンツ一覧 (<span id="theater-category-label">ラジオ</span>)</h3>
                 <div id="theater-list" class="content-list-container">
                     <p style="text-align:center; padding:2rem; opacity:0.5;">読み込み中...</p>
                 </div>
             </div>
 
-            <div class="panel-box">
+            <div class="panel-box" id="theater-editor-panel">
                 <h3 class="section-header">✏️ コンテンツ投稿・編集</h3>
                 <form id="theater-form">
                     <input type="hidden" id="theater-id">
@@ -241,7 +242,7 @@
         </div>
 
         
-        <div class="panel-box" id="live-settings-panel" style="margin-top:2rem;">
+        <div class="panel-box" id="live-settings-panel" style="margin-top:2rem; display:none;">
             <h3 class="section-header">📡 ライブ配信設定</h3>
             <p style="font-size:0.92rem; line-height:1.7; opacity:0.85; margin:-0.2rem 0 1.2rem;">
                 ここでは「ライブ配信の表示設定」を管理します。<br>
@@ -251,7 +252,7 @@
 
             <div class="form-group">
                 <label>ライブAPI（Lambda Function URL）</label>
-                <input type="text" id="live-api-url" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
+                <input type="text" id="live-api-url" value="https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
                 <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
                     ※このURLは<strong>このブラウザにだけ保存</strong>されます（localStorage）。共有PCの場合は注意してください。
                 </p>
@@ -259,7 +260,7 @@
 
             <div class="form-group">
                 <label>YouTube チャンネルID</label>
-                <input type="text" id="live-channel-id" placeholder="UCxxxxxxxxxxxxxxxxxxxx" style="width:100%;">
+                <input type="text" id="live-channel-id" value="UC3cQ26PkdA3BaQwNfMtjF5w" placeholder="UCxxxxxxxxxxxxxxxxxxxx" style="width:100%;">
             </div>
 
             <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.8rem;">
@@ -289,7 +290,7 @@
         const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
 
 
-        const LIVE_API_URL_DEFAULT = "YOUR_LAMBDA_FUNCTION_URL_HERE"; // 例: https://xxxx.lambda-url.ap-northeast-1.on.aws/
+        const LIVE_API_URL_DEFAULT = "https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/"; // 例: https://xxxx.lambda-url.ap-northeast-1.on.aws/
 
         const LIVE_API_URL_STORAGE_KEY = "sonocky_live_api_url";
 
@@ -418,11 +419,31 @@
             const buttons = document.querySelectorAll('.subnav-btn');
             buttons.forEach(b => b.classList.remove('active'));
             
-            // ボタンの順序: Radio(0), Column(1), Gallery(2), Devlog(3)
+            // ボタンの順序: Radio(0), Column(1), Gallery(2), Devlog(3), Live(4)
             if(cat === 'radio') buttons[0].classList.add('active');
             if(cat === 'column') buttons[1].classList.add('active');
             if(cat === 'gallery') buttons[2].classList.add('active');
             if(cat === 'devlog') buttons[3].classList.add('active');
+            if(cat === 'live') buttons[4].classList.add('active');
+
+            // Liveタブは「投稿一覧/投稿フォーム」を隠し、ライブ設定だけ表示
+            const listPanel = document.getElementById('theater-list-panel');
+            const editorPanel = document.getElementById('theater-editor-panel');
+            const livePanel = document.getElementById('live-settings-panel');
+
+            if (cat === 'live') {
+                if (listPanel) listPanel.style.display = 'none';
+                if (editorPanel) editorPanel.style.display = 'none';
+                if (livePanel) livePanel.style.display = 'block';
+                // ラベルは固定表示
+                const labelEl = document.getElementById('theater-category-label');
+                if (labelEl) labelEl.textContent = 'ライブ配信';
+                return;
+            } else {
+                if (listPanel) listPanel.style.display = 'block';
+                if (editorPanel) editorPanel.style.display = 'block';
+                if (livePanel) livePanel.style.display = 'none';
+            }
 
             // Update Labels & Form Attributes based on category
             const labelMap = { 'radio': 'ラジオ', 'column': '星空コラム', 'gallery': 'ギャラリー', 'devlog': '開発日誌' };
@@ -913,7 +934,7 @@
         function initLiveAdminPanel() {
             const apiInput = document.getElementById("live-api-url");
             if (apiInput) {
-                apiInput.value = getLiveApiUrl().includes("https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/") ? "" : getLiveApiUrl();
+                apiInput.value = getLiveApiUrl().includes("YOUR_LAMBDA_FUNCTION_URL_HERE") ? "" : getLiveApiUrl();
                 apiInput.addEventListener("change", () => {
                     const v = apiInput.value.trim();
                     setLiveApiUrl(v);
