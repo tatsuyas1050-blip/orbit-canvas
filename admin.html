@@ -240,7 +240,43 @@
             </div>
         </div>
 
-        <div style="margin-top:2rem; padding-top:1rem; border-top:1px dashed rgba(255,255,255,0.2);">
+        
+        <div class="panel-box" id="live-settings-panel" style="margin-top:2rem;">
+            <h3 class="section-header">📡 ライブ配信設定</h3>
+            <p style="font-size:0.92rem; line-height:1.7; opacity:0.85; margin:-0.2rem 0 1.2rem;">
+                ここでは「ライブ配信の表示設定」を管理します。<br>
+                ストリームキーは<strong>この管理画面には保存しません</strong>（OBSに手入力してください）。<br>
+                「配信中判定」や「ON AIR表示」は、別途作成したLambda（Function URL）を利用します。
+            </p>
+
+            <div class="form-group">
+                <label>ライブAPI（Lambda Function URL）</label>
+                <input type="text" id="live-api-url" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
+                <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
+                    ※このURLは<strong>このブラウザにだけ保存</strong>されます（localStorage）。共有PCの場合は注意してください。
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label>YouTube チャンネルID</label>
+                <input type="text" id="live-channel-id" placeholder="UCxxxxxxxxxxxxxxxxxxxx" style="width:100%;">
+            </div>
+
+            <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.8rem;">
+                <button type="button" class="btn-submit" id="live-refresh-btn" style="width:auto; padding:10px 16px;">読み込み</button>
+                <button type="button" class="btn-submit" id="live-save-btn" style="width:auto; padding:10px 16px;">保存</button>
+                <button type="button" class="btn-submit" id="live-test-status-btn" style="width:auto; padding:10px 16px;">配信状況をテスト</button>
+            </div>
+
+            <p id="live-admin-status" style="margin-top:0.9rem; min-height:1.2em; font-size:0.9rem;"></p>
+
+            <details style="margin-top:1rem;">
+                <summary style="cursor:pointer; opacity:0.9;">デバッグ（返ってきたJSONを見る）</summary>
+                <pre id="live-debug" style="white-space:pre-wrap; word-break:break-word; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); padding:12px; border-radius:8px; margin-top:0.6rem;"></pre>
+            </details>
+        </div>
+
+<div style="margin-top:2rem; padding-top:1rem; border-top:1px dashed rgba(255,255,255,0.2);">
             <label>🔑 管理パスワード (合言葉)</label>
             <input type="password" id="global-password" placeholder="luna1234" style="max-width:300px;">
             <p id="global-status" style="color:var(--accent-gold); font-weight:bold; margin-top:5px; min-height:1.5em;"></p>
@@ -252,9 +288,34 @@
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
 
-        // --- CloudFront settings (audio delivery) ---
+
+        const LIVE_API_URL_DEFAULT = "YOUR_LAMBDA_FUNCTION_URL_HERE"; // 例: https://xxxx.lambda-url.ap-northeast-1.on.aws/
+
+        const LIVE_API_URL_STORAGE_KEY = "sonocky_live_api_url";
+
+        function getLiveApiUrl() {
+            return localStorage.getItem(LIVE_API_URL_STORAGE_KEY) || LIVE_API_URL_DEFAULT;
+        }
+
+        function setLiveApiUrl(url) {
+            if (!url) {
+                localStorage.removeItem(LIVE_API_URL_STORAGE_KEY);
+            } else {
+                localStorage.setItem(LIVE_API_URL_STORAGE_KEY, url);
+            }
+        }
+
+// --- CloudFront settings (audio delivery) ---
+        // NOTE: If you recreate the CloudFront distribution, update the domain below.
+        // CloudFront Origin path is set to "/events". Therefore the CloudFront URL SHOULD NOT include "/events".
         const CLOUDFRONT_BASE = "https://d1lcefeb8rw1vj.cloudfront.net";
 
+        /**
+         * Convert an S3 object URL to the CloudFront URL.
+         * - Only used for radio (audio) posts.
+         * - If the S3 path starts with /events/, it will be stripped because Origin path=/events already adds it.
+         * - Non-S3 URLs are returned as-is.
+         */
         function toCloudFrontUrlIfS3(url) {
             try {
                 const u = new URL(url);
@@ -269,6 +330,7 @@
                 if (!looksLikeS3) return url;
 
                 let path = u.pathname || "/";
+                // Origin path=/events 対応: 二重にならないように先頭の /events/ を剥がす
                 path = path.replace(/^\/events\//, "/");
 
                 return `${CLOUDFRONT_BASE}${path}`;
@@ -277,7 +339,7 @@
             }
         }
         
-        // 音声ファイルのみサイズ制限 (50MB)
+        // 音声ファイルのみサイズ制限 (10MB)
         const AUDIO_MAX_SIZE = 50 * 1024 * 1024; 
         // 画像リサイズ設定
         const IMG_MAX_WIDTH = 1200;
@@ -317,6 +379,7 @@
             renderCalendar(currentYear, currentMonth);
             selectDate(selectedDateStr);
             
+            // 初期状態はラジオモードでセットアップ
             switchTheaterSub('radio');
         }
         init();
@@ -343,7 +406,7 @@
             } else {
                 document.querySelector('.nav-btn:nth-child(2)').classList.add('active');
                 document.getElementById('view-theater').classList.add('active');
-                switchTheaterSub(currentTheaterCat);
+                switchTheaterSub(currentTheaterCat); // Re-apply current sub-tab settings
             }
         };
 
@@ -351,14 +414,17 @@
             currentTheaterCat = cat;
             document.getElementById('theater-category').value = cat;
             
+            // Update UI buttons
             const buttons = document.querySelectorAll('.subnav-btn');
             buttons.forEach(b => b.classList.remove('active'));
             
+            // ボタンの順序: Radio(0), Column(1), Gallery(2), Devlog(3)
             if(cat === 'radio') buttons[0].classList.add('active');
             if(cat === 'column') buttons[1].classList.add('active');
             if(cat === 'gallery') buttons[2].classList.add('active');
             if(cat === 'devlog') buttons[3].classList.add('active');
 
+            // Update Labels & Form Attributes based on category
             const labelMap = { 'radio': 'ラジオ', 'column': '星空コラム', 'gallery': 'ギャラリー', 'devlog': '開発日誌' };
             document.getElementById('theater-category-label').textContent = labelMap[cat];
 
@@ -371,6 +437,7 @@
                 fileInput.accept = "audio/*";
                 fileNotice.textContent = "※50MB以下の音声ファイル (MP3, WAV, M4A)";
             } else {
+                // コラム、ギャラリー、開発日誌はすべて画像
                 fileLabel.textContent = "画像・写真 (添付)";
                 fileInput.accept = "image/png, image/jpeg, image/gif, image/webp";
                 fileNotice.textContent = "※自動でリサイズされます (大きな画像もOK)";
@@ -484,6 +551,7 @@
                 const div = document.createElement('div');
                 div.className = 'content-item';
                 
+                // アイコン表示の出し分け
                 let thumbHtml = '';
                 if (currentTheaterCat === 'radio') {
                     thumbHtml = `<div class="content-audio-icon">♪</div>`;
@@ -530,7 +598,7 @@
             document.getElementById('theater-title').value = item.title;
             document.getElementById('theater-desc').value = item.desc;
             
-            const fileUrl = item.image || "";
+            const fileUrl = item.image || ""; // theater.html側では全て "image" プロパティとして扱っているため
             document.getElementById('theater-file-url').value = fileUrl;
             
             const previewArea = document.getElementById('theater-preview-area');
@@ -539,6 +607,7 @@
             if(fileUrl) {
                 previewArea.style.display = 'block';
                 if (currentTheaterCat === 'radio') {
+                    // 日本語や"#"などを含むURLでもプレビュー再生できるようにエンコードしてから渡す
                     previewContent.innerHTML = `<audio controls src="${encodeURI(fileUrl)}" style="width:100%;"></audio>`;
                 } else {
                     previewContent.innerHTML = `<img src="${fileUrl}" class="preview-img">`;
@@ -606,6 +675,7 @@
 
                     canvas.toBlob((blob) => {
                         if (blob) {
+                            // blobのnameプロパティなどは標準ではないが、アップロード時にファイル名が必要なら元の名前を使う
                             const newFile = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
                             resolve(newFile);
                         } else {
@@ -625,13 +695,16 @@
             
             statusMsg.textContent = "ファイルを準備中...";
 
+            // バリデーション & リサイズ処理
             if (typeConstraint === 'audio') {
                 if (!file.type.startsWith('audio/')) throw new Error("音声ファイルを選択してください。");
                 if (file.size > AUDIO_MAX_SIZE) throw new Error("ファイルサイズが大きすぎます (50MB以下)");
             } else if (typeConstraint === 'image') {
                 if (!file.type.startsWith('image/')) throw new Error("画像ファイルを選択してください。");
+                // 画像の場合はリサイズを実行
                 try {
                     file = await resizeImage(file);
+                    console.log(`Resized image size: ${(file.size / 1024).toFixed(2)} KB`);
                 } catch(e) {
                     console.error(e);
                     throw new Error("画像のリサイズに失敗しました");
@@ -641,6 +714,7 @@
             statusMsg.textContent = "ファイルアップロード中...";
             const pass = globalPass.value;
             
+            // 署名付きURL取得
             const res = await fetch(PUT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -649,6 +723,7 @@
             if (!res.ok) throw new Error("アップロード許可失敗");
             const data = await res.json();
             
+            // S3へPUT
             const uploadRes = await fetch(data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
             if (!uploadRes.ok) throw new Error("保存失敗: バックエンドの設定を確認してください");
             
@@ -698,6 +773,7 @@
             e.preventDefault();
             let imgUrl = document.getElementById('event-image-url').value;
             try {
+                // 画像なので typeConstraint='image' を指定
                 const newImg = await handleFileUpload(document.getElementById('event-file'), 'image');
                 if(newImg) imgUrl = newImg;
             } catch(err) { alert(err.message); statusMsg.textContent = "エラー"; return; }
@@ -726,6 +802,8 @@
                 if(newFile) fileUrl = newFile;
             } catch(err) { alert(err.message); statusMsg.textContent = "エラー"; return; }
 
+            
+            // Radio audio is delivered via CloudFront (S3 direct URLs will 403 with OAC).
             if (cat === 'radio' && fileUrl) {
                 fileUrl = toCloudFrontUrlIfS3(fileUrl);
             }
@@ -758,6 +836,116 @@
                 } else { alert("削除失敗"); }
             } catch(e) { alert("通信エラー"); }
         };
-    </script>
+    
+        // =========================
+        // Live Admin Panel
+        // =========================
+        async function liveApiRequest(action, { method = "GET", bodyObj = null } = {}) {
+            const base = getLiveApiUrl();
+            if (!base || base.includes("YOUR_LAMBDA_FUNCTION_URL_HERE")) {
+                throw new Error("ライブAPI URL が未設定です（ライブ設定パネルに貼り付けてください）");
+            }
+            const url = `${base}?action=${encodeURIComponent(action)}`;
+
+            const opts = {
+                method,
+                headers: { "Content-Type": "application/json" }
+            };
+            if (bodyObj) opts.body = JSON.stringify(bodyObj);
+
+            const res = await fetch(url, opts);
+            const text = await res.text();
+            let json;
+            try { json = JSON.parse(text); } catch { json = { raw: text }; }
+            return { ok: res.ok, status: res.status, json };
+        }
+
+        function setLiveAdminStatus(msg, { ok = true } = {}) {
+            const el = document.getElementById("live-admin-status");
+            if (!el) return;
+            el.textContent = msg || "";
+            el.style.color = ok ? "var(--accent-gold)" : "#ff6666";
+        }
+
+        function setLiveDebug(obj) {
+            const pre = document.getElementById("live-debug");
+            if (!pre) return;
+            try {
+                pre.textContent = JSON.stringify(obj, null, 2);
+            } catch {
+                pre.textContent = String(obj);
+            }
+        }
+
+        async function refreshLiveConfig() {
+            setLiveAdminStatus("読み込み中...", { ok: true });
+            const { json } = await liveApiRequest("get_config");
+            if (!json?.ok) throw new Error(json?.error || "get_config に失敗しました");
+            const channelId = json?.config?.channelId || "";
+            const input = document.getElementById("live-channel-id");
+            if (input) input.value = channelId;
+            setLiveAdminStatus("✅ 設定を読み込みました", { ok: true });
+            setLiveDebug(json);
+        }
+
+        async function saveLiveConfig() {
+            const channelId = (document.getElementById("live-channel-id")?.value || "").trim();
+            if (!channelId) {
+                setLiveAdminStatus("⛔ チャンネルIDを入力してください", { ok: false });
+                return;
+            }
+            setLiveAdminStatus("保存中...", { ok: true });
+            const { json } = await liveApiRequest("set_config", { method: "POST", bodyObj: { channelId } });
+            if (!json?.ok) throw new Error(json?.error || "set_config に失敗しました");
+            setLiveAdminStatus("✅ 保存しました", { ok: true });
+            setLiveDebug(json);
+        }
+
+        async function testLiveStatus() {
+            setLiveAdminStatus("配信状況を確認中...", { ok: true });
+            const { json } = await liveApiRequest("live_status");
+            if (!json?.ok) throw new Error(json?.error || "live_status に失敗しました");
+            const isLive = !!json?.isLive;
+            setLiveAdminStatus(isLive ? "🔴 ON AIR（配信中）" : "● オフライン", { ok: true });
+            setLiveDebug(json);
+        }
+
+        function initLiveAdminPanel() {
+            const apiInput = document.getElementById("live-api-url");
+            if (apiInput) {
+                apiInput.value = getLiveApiUrl().includes("https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/") ? "" : getLiveApiUrl();
+                apiInput.addEventListener("change", () => {
+                    const v = apiInput.value.trim();
+                    setLiveApiUrl(v);
+                });
+            }
+
+            document.getElementById("live-refresh-btn")?.addEventListener("click", async () => {
+                try { await refreshLiveConfig(); }
+                catch (e) { setLiveAdminStatus("⛔ " + (e?.message || e), { ok: false }); setLiveDebug({ error: String(e) }); }
+            });
+
+            document.getElementById("live-save-btn")?.addEventListener("click", async () => {
+                try { await saveLiveConfig(); }
+                catch (e) { setLiveAdminStatus("⛔ " + (e?.message || e), { ok: false }); setLiveDebug({ error: String(e) }); }
+            });
+
+            document.getElementById("live-test-status-btn")?.addEventListener("click", async () => {
+                try { await testLiveStatus(); }
+                catch (e) { setLiveAdminStatus("⛔ " + (e?.message || e), { ok: false }); setLiveDebug({ error: String(e) }); }
+            });
+
+            // 初回は自動で設定を読み込み（API URL が入力されている場合のみ）
+            try {
+                const base = getLiveApiUrl();
+                if (base && !base.includes("YOUR_LAMBDA_FUNCTION_URL_HERE")) {
+                    refreshLiveConfig().catch(() => {});
+                }
+            } catch {}
+        }
+
+        document.addEventListener("DOMContentLoaded", initLiveAdminPanel);
+
+</script>
 </body>
 </html>
