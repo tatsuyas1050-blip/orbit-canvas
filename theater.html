@@ -907,7 +907,10 @@
 
                 setLiveBadge(isLive);
                 renderLiveFrame(__liveState);
-            } catch (e) {
+            
+                // ★追加: 配信状況が変わったらライブコメント表示も追従
+                syncLiveCommentUI(false);
+} catch (e) {
                 __liveState.lastError = String(e && e.message ? e.message : e);
                 // エラー時は表示は維持（オフライン扱いにしないで、最後の状態を残す）
                 console.warn('Live status fetch failed:', __liveState.lastError);
