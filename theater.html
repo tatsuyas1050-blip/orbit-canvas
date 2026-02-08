@@ -252,7 +252,9 @@
         }
         .status-offline { background: rgba(255,255,255,0.1); color: #aaa; border: 1px solid rgba(255,255,255,0.2); }
 
-        /* --- 3. Gallery Styles (Card Layout) --- */
+        
+        .status-online { background: rgba(255,0,0,0.18); color: #ff6b6b; border: 1px solid rgba(255,0,0,0.45); box-shadow: 0 0 10px rgba(255,0,0,0.18); }
+/* --- 3. Gallery Styles (Card Layout) --- */
         .gallery-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -714,13 +716,13 @@
         <div id="tab-live" class="section-content">
             <div class="section-header">不定期ライブ配信</div>
             <div style="text-align:center;">
-                <span class="live-status-badge status-offline">● オフライン</span>
+                <span id="live-badge" class="live-status-badge status-offline">● オフライン</span>
                 <p style="font-size:0.9rem; opacity:0.8; margin-bottom:1rem; line-height:1.6;">
                     気まぐれに配信中。<br>
                     天文台に限らず、その時ソノッキーがいる「星の見える場所」からお届けします。
                 </p>
             </div>
-            <div class="live-frame">
+            <div id="live-frame" class="live-frame">
                 <div style="font-size:3rem; opacity:0.2; margin-bottom:10px;">📡</div>
                 <p>Live Stream Offline</p>
             </div>
@@ -811,6 +813,95 @@
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const POST_URL = "https://3vtporkgipspcqyo3frdeesdu40gkmqw.lambda-url.ap-northeast-1.on.aws/";
 
+
+        // --- Live (YouTube) ---
+        // ※配信キーはOBSに手入力。ここでは「配信中か？」判定と埋め込み表示だけを行います。
+        const LIVE_API_URL = "https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/";
+        const YOUTUBE_CHANNEL_ID = "UC3cQ26PkdA3BaQwNfMtjF5w";
+        const LIVE_POLL_INTERVAL_MS = 20000;
+
+        let __liveState = { isLive: false, lastChecked: 0, lastError: "" };
+        let __livePollTimer = null;
+
+        function isLiveTabActive() {
+            const liveSection = document.getElementById('tab-live');
+            return !!(liveSection && liveSection.classList.contains('active'));
+        }
+
+        function setLiveBadge(isLive) {
+            const badge = document.getElementById('live-badge');
+            if (!badge) return;
+
+            badge.classList.remove('status-offline', 'status-online');
+            if (isLive) {
+                badge.classList.add('status-online');
+                badge.textContent = '● ON AIR';
+            } else {
+                badge.classList.add('status-offline');
+                badge.textContent = '● オフライン';
+            }
+        }
+
+        function renderLiveFrame(isLive) {
+            const frame = document.getElementById('live-frame');
+            if (!frame) return;
+
+            // ライブタブがアクティブな時だけ iframe を挿入（他タブで無駄にロードしない）
+            if (isLive && isLiveTabActive()) {
+                const embed = `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(YOUTUBE_CHANNEL_ID)}&autoplay=1&mute=1`;
+                frame.innerHTML = `
+                    <iframe
+                        src="${embed}"
+                        title="Live Stream"
+                        frameborder="0"
+                        allow="autoplay; encrypted-media; picture-in-picture"
+                        allowfullscreen
+                        style="width:100%; height:100%; position:relative; z-index:1;">
+                    </iframe>
+                `;
+                return;
+            }
+
+            // オフライン or タブ非表示：ダミー表示（元の見た目を維持）
+            frame.innerHTML = `
+                <div style="font-size:3rem; opacity:0.2; margin-bottom:10px; position:relative; z-index:1;">📡</div>
+                <p style="position:relative; z-index:1;">${isLive ? 'Loading...' : 'Live Stream Offline'}</p>
+            `;
+        }
+
+        async function fetchLiveStatusOnce() {
+            try {
+                const res = await fetch(`${LIVE_API_URL}?action=live_status&ts=${Date.now()}`, { cache: 'no-store' });
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || !data || data.ok === false) {
+                    throw new Error((data && data.error) ? data.error : 'live_status error');
+                }
+
+                const isLive = !!data.isLive;
+                __liveState = { isLive, lastChecked: Date.now(), lastError: "" };
+
+                setLiveBadge(isLive);
+                renderLiveFrame(isLive);
+            } catch (e) {
+                __liveState.lastError = String(e && e.message ? e.message : e);
+                // エラー時は表示は維持（オフライン扱いにしないで、最後の状態を残す）
+                console.warn('Live status fetch failed:', __liveState.lastError);
+            }
+        }
+
+        function startLivePolling() {
+            if (__livePollTimer) clearInterval(__livePollTimer);
+            fetchLiveStatusOnce();
+            __livePollTimer = setInterval(fetchLiveStatusOnce, LIVE_POLL_INTERVAL_MS);
+        }
+
+        function onLiveTabActivated() {
+            // タブを開いた瞬間に最新化（配信開始直後に気づきやすい）
+            fetchLiveStatusOnce();
+        }
+
+
         // --- 認証設定 (lifelog.html からコピー) ---
         const COGNITO_REGION = 'ap-northeast-1';
         const USER_POOL_ID = 'ap-northeast-1_kXEnG6ST0'; 
@@ -869,6 +960,15 @@
             if (updateHash) {
                 history.replaceState(null, '', `#${targetId}`);
             }
+
+            // Live tab behavior: show iframe only when the tab is active
+            try {
+                if (targetId === 'tab-live') {
+                    onLiveTabActivated();
+                } else {
+                    renderLiveFrame(__liveState.isLive);
+                }
+            } catch (e) {}
         }
 
         tabBtns.forEach(btn => {
@@ -934,6 +1034,7 @@
                 activateTabFromHash();
             }
             fetchContents(); // データ取得開始
+            startLivePolling(); // ライブ配信状況の監視開始
         });
 
         window.addEventListener('hashchange', () => {
