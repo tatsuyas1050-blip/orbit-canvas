@@ -825,7 +825,7 @@
 
         // --- Live (YouTube) ---
         // ※配信キーはOBSに手入力。ここでは「配信中か？」判定と埋め込み表示だけを行います。
-        const LIVE_API_URL = "https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/";
+        const LIVE_API_URL = "https://6edh7r5ofafnwfl2ov3s3cb5pa0qsmzp.lambda-url.ap-northeast-1.on.aws/";
         // const YOUTUBE_CHANNEL_ID = ""; // A案では不要（YouTube API 不使用）
         const LIVE_POLL_INTERVAL_MS = 20000;
         const LIVE_COMMENT_POLL_MS = 3000;
@@ -853,7 +853,6 @@
             }
         }
 
-        
         function renderLiveFrame(state) {
             const frame = document.getElementById('live-frame');
             if (!frame) return;
@@ -865,17 +864,8 @@
             // ライブタブがアクティブな時だけ iframe を挿入（他タブで無駄にロードしない）
             if (isLive && isLiveTabActive() && videoId) {
                 const src = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=1&playsinline=1&origin=${origin}`;
-
-                // ★同じ動画を再描画しない（再ロードによる一瞬の黒画面を防ぐ）
-                const existing = frame.querySelector('iframe#live-yt-iframe');
-                if (existing) {
-                    const cur = existing.getAttribute('src') || '';
-                    if (cur === src) return; // 何もしない
-                }
-
                 frame.innerHTML = `
                     <iframe
-                        id="live-yt-iframe"
                         src="${src}"
                         title="Live Stream"
                         frameborder="0"
@@ -888,14 +878,10 @@
             }
 
             // オフライン or タブ非表示：ダミー表示（元の見た目を維持）
-            // すでにダミー表示なら再描画しない
-            if (!frame.querySelector('iframe#live-yt-iframe') && frame.dataset.offlineRendered === "1") return;
-            frame.dataset.offlineRendered = "1";
             frame.innerHTML = `
                 <div style="font-size:3rem; opacity:0.2; margin-bottom:10px; position:relative; z-index:1;">📡</div>
                 <p style="position:relative; z-index:1;">${isLive ? 'Loading...' : 'Live Stream Offline'}</p>
             `;
-        }
         }
 
         async function fetchLiveStatusOnce() {
@@ -1032,27 +1018,7 @@
                 const container = document.getElementById('live-comment-section');
                 if (!container) return;
 
-                
-                // ★入力中の内容をポーリング更新で消さない（フォームを再描画しても復元する）
-                const prevInput = document.getElementById('live-cmt-input');
-                const prevVal = prevInput ? prevInput.value : "";
-                const prevSelStart = prevInput && typeof prevInput.selectionStart === "number" ? prevInput.selectionStart : null;
-                const prevSelEnd = prevInput && typeof prevInput.selectionEnd === "number" ? prevInput.selectionEnd : null;
-                const wasFocused = prevInput ? (document.activeElement === prevInput) : false;
-
                 container.innerHTML = createLiveCommentSectionHtml(comments);
-
-                const nextInput = document.getElementById('live-cmt-input');
-                if (nextInput) {
-                    // ユーザーが入力していた場合のみ復元
-                    if (prevVal) nextInput.value = prevVal;
-                    if (wasFocused) {
-                        nextInput.focus();
-                        if (prevSelStart !== null && prevSelEnd !== null) {
-                            try { nextInput.setSelectionRange(prevSelStart, prevSelEnd); } catch (e) {}
-                        }
-                    }
-                }
 
                 const listEl = document.getElementById('live-cmt-list');
                 if (listEl) listEl.scrollTop = listEl.scrollHeight;
