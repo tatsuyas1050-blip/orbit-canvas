@@ -860,9 +860,19 @@
             const isLive = !!(state && state.isLive);
             const videoId = (state && state.videoId) ? String(state.videoId) : "";
             const origin = encodeURIComponent(window.location.origin);
+            const tabActive = isLiveTabActive();
+
+            // ★ポーリング毎に iframe を作り直すと一瞬黒くなる（再読み込み）ので、
+            //   状態が変わった時だけ描画を更新する
+            const renderKey = (isLive && tabActive && videoId)
+                ? `ON:${videoId}`
+                : (isLive ? (tabActive ? 'ON:loading' : 'ON:inactive') : 'OFF');
+
+            if (frame.dataset.renderKey === renderKey) return;
+            frame.dataset.renderKey = renderKey;
 
             // ライブタブがアクティブな時だけ iframe を挿入（他タブで無駄にロードしない）
-            if (isLive && isLiveTabActive() && videoId) {
+            if (isLive && tabActive && videoId) {
                 const src = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=1&playsinline=1&origin=${origin}`;
                 frame.innerHTML = `
                     <iframe
@@ -878,9 +888,10 @@
             }
 
             // オフライン or タブ非表示：ダミー表示（元の見た目を維持）
+            const msg = isLive ? (tabActive ? 'Loading...' : '（ライブ準備中）') : 'Live Stream Offline';
             frame.innerHTML = `
                 <div style="font-size:3rem; opacity:0.2; margin-bottom:10px; position:relative; z-index:1;">📡</div>
-                <p style="position:relative; z-index:1;">${isLive ? 'Loading...' : 'Live Stream Offline'}</p>
+                <p style="position:relative; z-index:1;">${msg}</p>
             `;
         }
 
@@ -950,8 +961,7 @@
             container.innerHTML = createLiveCommentSectionHtml([]);
         }
 
-        function createLiveCommentSectionHtml(comments = []) {
-            // 既存のコメントUIと同じ見た目（.cmt-*）を流用し、他機能へ影響しないよう別IDで管理
+        function buildLiveCommentListHtml(comments = []) {
             let listHtml = '';
             if (comments && comments.length > 0) {
                 comments.forEach(c => {
@@ -972,6 +982,12 @@
             } else {
                 listHtml = '<div class="cmt-empty">まだコメントはありません</div>';
             }
+            return listHtml;
+        }
+
+        function createLiveCommentSectionHtml(comments = []) {
+            // 既存のコメントUIと同じ見た目（.cmt-*）を流用し、他機能へ影響しないよう別IDで管理
+            const listHtml = buildLiveCommentListHtml(comments);
 
             let formHtml = '';
             if (currentUser) {
@@ -1018,16 +1034,27 @@
                 const container = document.getElementById('live-comment-section');
                 if (!container) return;
 
-                container.innerHTML = createLiveCommentSectionHtml(comments);
+                // ★入力欄が消える問題対策：
+                //   ポーリング毎に container.innerHTML を作り直すと textarea が再生成されて入力がリセットされる。
+                //   そのため、初回だけセクションを生成し、以降はリスト部分だけ更新する。
+                ensureLiveCommentSectionHtml();
 
                 const listEl = document.getElementById('live-cmt-list');
-                if (listEl) listEl.scrollTop = listEl.scrollHeight;
+                if (!listEl) return;
+
+                // 末尾に自動スクロールするかどうか（ユーザーが上を読んでいる時は邪魔しない）
+                const nearBottom = (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight) < 60;
+
+                listEl.innerHTML = buildLiveCommentListHtml(comments);
+
+                if (nearBottom) {
+                    listEl.scrollTop = listEl.scrollHeight;
+                }
             } catch (e) {
                 console.warn('Live comments fetch failed:', e && e.message ? e.message : e);
             }
         }
 
-        async function postLiveComment() {
             if (!currentUser) return;
             if (!__liveState.isLive || !__liveState.videoId) return;
 
