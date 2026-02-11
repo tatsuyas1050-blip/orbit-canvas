@@ -1055,6 +1055,8 @@
             }
         }
 
+        async function postLiveComment() {
+
             if (!currentUser) return;
             if (!__liveState.isLive || !__liveState.videoId) return;
 
