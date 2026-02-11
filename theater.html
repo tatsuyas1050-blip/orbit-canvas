@@ -826,11 +826,11 @@
         // --- Live (YouTube) ---
         // ※配信キーはOBSに手入力。ここでは「配信中か？」判定と埋め込み表示だけを行います。
         const LIVE_API_URL = "https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/";
-        const YOUTUBE_CHANNEL_ID = "UC3cQ26PkdA3BaQwNfMtjF5w";
+        // const YOUTUBE_CHANNEL_ID = ""; // A案では不要（YouTube API 不使用）
         const LIVE_POLL_INTERVAL_MS = 20000;
         const LIVE_COMMENT_POLL_MS = 3000;
 
-        let __liveState = { isLive: false, videoId: null, embedUrl: null, lastChecked: 0, lastError: "" };
+        let __liveState = { isLive: false, videoId: null, title: "", embedUrl: null, lastChecked: 0, lastError: "" };
         let __livePollTimer = null;
         let __liveCommentTimer = null;
 
@@ -858,21 +858,12 @@
             if (!frame) return;
 
             const isLive = !!(state && state.isLive);
-            const embedUrl = (state && state.embedUrl) ? String(state.embedUrl) : "";
+            const videoId = (state && state.videoId) ? String(state.videoId) : "";
             const origin = encodeURIComponent(window.location.origin);
 
             // ライブタブがアクティブな時だけ iframe を挿入（他タブで無駄にロードしない）
-            if (isLive && isLiveTabActive()) {
-                // まずは「配信中の動画ID由来の埋め込みURL」を優先（限定公開などで channel 埋め込みが失敗するケースがあるため）
-                // fallback として channel ベースも用意
-                const primary = embedUrl && embedUrl.startsWith('https://www.youtube.com/embed/')
-                    ? `${embedUrl}?autoplay=1&mute=1&playsinline=1&origin=${origin}`
-                    : '';
-
-                const fallback = `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(YOUTUBE_CHANNEL_ID)}&autoplay=1&mute=1&playsinline=1&origin=${origin}`;
-
-                const src = primary || fallback;
-
+            if (isLive && isLiveTabActive() && videoId) {
+                const src = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=1&playsinline=1&origin=${origin}`;
                 frame.innerHTML = `
                     <iframe
                         src="${src}"
@@ -895,22 +886,29 @@
 
         async function fetchLiveStatusOnce() {
             try {
-                const res = await fetch(`${LIVE_API_URL}?action=live_status&ts=${Date.now()}`, { cache: 'no-store' });
+                const res = await fetch(`${LIVE_API_URL}?action=get_config&ts=${Date.now()}`, { cache: 'no-store' });
                 const data = await res.json().catch(() => ({}));
 
                 if (!res.ok || !data || data.ok === false) {
-                    throw new Error((data && data.error) ? data.error : 'live_status error');
+                    throw new Error((data && data.error) ? data.error : 'get_config error');
                 }
 
-                const isLive = !!data.isLive;
-                __liveState = { isLive, embedUrl: data.embedUrl || null, videoId: data.videoId || null, lastChecked: Date.now(), lastError: "" };
+                const manualLive = data?.config?.manualLive || { isOnAir: false, videoId: "", title: "" };
+
+                const isLive = !!manualLive.isOnAir;
+                const videoId = manualLive.videoId || null;
+                const title = manualLive.title || "";
+
+                const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+
+                __liveState = { isLive, videoId, title, embedUrl, lastChecked: Date.now(), lastError: "" };
 
                 setLiveBadge(isLive);
                 renderLiveFrame(__liveState);
-            
-                // ★追加: 配信状況が変わったらライブコメント表示も追従
+
+                // ★配信状況が変わったらライブコメント表示も追従
                 syncLiveCommentUI(false);
-} catch (e) {
+            } catch (e) {
                 __liveState.lastError = String(e && e.message ? e.message : e);
                 // エラー時は表示は維持（オフライン扱いにしないで、最後の状態を残す）
                 console.warn('Live status fetch failed:', __liveState.lastError);

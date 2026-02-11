@@ -258,15 +258,27 @@
                 </p>
             </div>
 
-            <div class="form-group">
-                <label>YouTube チャンネルID</label>
-                <input type="text" id="live-channel-id" value="UC3cQ26PkdA3BaQwNfMtjF5w" placeholder="UCxxxxxxxxxxxxxxxxxxxx" style="width:100%;">
+                        <div class="form-group">
+                <label>YouTube ライブ動画ID（例：dQw4w9WgXcQ）</label>
+                <input type="text" id="live-video-id" value="" placeholder="XXXXXXXXXXX" style="width:100%;">
+                <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
+                    ※URL全体ではなく <strong>動画IDのみ</strong> を貼り付けてください（https://www.youtube.com/watch?v=<b>動画ID</b>）。
+                </p>
             </div>
 
-            <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.8rem;">
+            <div class="form-group">
+                <label>配信タイトル（任意）</label>
+                <input type="text" id="live-title" value="" placeholder="例：ソノッキーの部屋 #12" style="width:100%;">
+            </div>
+
+            <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="live-is-on-air" style="transform:scale(1.2);">
+                <label for="live-is-on-air" style="margin:0;">🔴 ON AIR（配信中）にする</label>
+            </div>
+<div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.8rem;">
                 <button type="button" class="btn-submit" id="live-refresh-btn" style="width:auto; padding:10px 16px;">読み込み</button>
                 <button type="button" class="btn-submit" id="live-save-btn" style="width:auto; padding:10px 16px;">保存</button>
-                <button type="button" class="btn-submit" id="live-test-status-btn" style="width:auto; padding:10px 16px;">配信状況をテスト</button>
+                <button type="button" class="btn-submit" id="live-test-status-btn" style="width:auto; padding:10px 16px;">現在の設定を確認</button>
             </div>
 
             <p id="live-admin-status" style="margin-top:0.9rem; min-height:1.2em; font-size:0.9rem;"></p>
@@ -902,32 +914,64 @@
             setLiveAdminStatus("読み込み中...", { ok: true });
             const { json } = await liveApiRequest("get_config");
             if (!json?.ok) throw new Error(json?.error || "get_config に失敗しました");
-            const channelId = json?.config?.channelId || "";
-            const input = document.getElementById("live-channel-id");
-            if (input) input.value = channelId;
+
+            const manualLive = json?.config?.manualLive || { isOnAir: false, videoId: "", title: "" };
+
+            const videoInput = document.getElementById("live-video-id");
+            const titleInput = document.getElementById("live-title");
+            const onAirChk   = document.getElementById("live-is-on-air");
+
+            if (videoInput) videoInput.value = manualLive.videoId || "";
+            if (titleInput) titleInput.value = manualLive.title || "";
+            if (onAirChk)   onAirChk.checked = !!manualLive.isOnAir;
+
             setLiveAdminStatus("✅ 設定を読み込みました", { ok: true });
             setLiveDebug(json);
         }
 
         async function saveLiveConfig() {
-            const channelId = (document.getElementById("live-channel-id")?.value || "").trim();
-            if (!channelId) {
-                setLiveAdminStatus("⛔ チャンネルIDを入力してください", { ok: false });
+            const videoId = (document.getElementById("live-video-id")?.value || "").trim();
+            const title   = (document.getElementById("live-title")?.value || "").trim();
+            const isOnAir = !!document.getElementById("live-is-on-air")?.checked;
+
+            if (isOnAir && !videoId) {
+                setLiveAdminStatus("⛔ ON AIR のときは動画IDが必須です", { ok: false });
                 return;
             }
+
+            // 簡易バリデーション（YouTubeの動画IDは通常 11文字）
+            if (videoId && videoId.length < 6) {
+                setLiveAdminStatus("⛔ 動画IDが短すぎます（URL全体ではなくIDのみを入力してください）", { ok: false });
+                return;
+            }
+
+            const manualLive = {
+                isOnAir,
+                videoId: videoId || "",
+                title: title || ""
+            };
+
             setLiveAdminStatus("保存中...", { ok: true });
-            const { json } = await liveApiRequest("set_config", { method: "POST", bodyObj: { channelId } });
+            const { json } = await liveApiRequest("set_config", { method: "POST", bodyObj: { manualLive } });
             if (!json?.ok) throw new Error(json?.error || "set_config に失敗しました");
+
             setLiveAdminStatus("✅ 保存しました", { ok: true });
             setLiveDebug(json);
         }
 
         async function testLiveStatus() {
-            setLiveAdminStatus("配信状況を確認中...", { ok: true });
-            const { json } = await liveApiRequest("live_status");
-            if (!json?.ok) throw new Error(json?.error || "live_status に失敗しました");
-            const isLive = !!json?.isLive;
-            setLiveAdminStatus(isLive ? "🔴 ON AIR（配信中）" : "● オフライン", { ok: true });
+            setLiveAdminStatus("設定を確認中...", { ok: true });
+            const { json } = await liveApiRequest("get_config");
+            if (!json?.ok) throw new Error(json?.error || "get_config に失敗しました");
+
+            const manualLive = json?.config?.manualLive || {};
+            const isOnAir = !!manualLive.isOnAir;
+            const videoId = manualLive.videoId || "";
+
+            setLiveAdminStatus(
+                isOnAir ? `🔴 ON AIR（配信中） / videoId=${videoId || "(未設定)"}` : "● オフライン（OFF）",
+                { ok: true }
+            );
             setLiveDebug(json);
         }
 
