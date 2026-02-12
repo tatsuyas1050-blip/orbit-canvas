@@ -772,8 +772,11 @@
                     </div>
 
                     <div class="form-group">
-                        <label>メールアドレス (返信が必要な場合)</label>
-                        <input type="email" id="msg-email" placeholder="example@email.com" required>
+                        <label>メールアドレス（任意／返信が必要な場合のみ）</label>
+                        <input type="email" id="msg-email" placeholder="example@email.com">
+                        <p style="margin:0.35rem 0 0; font-size:0.85rem; opacity:0.75; line-height:1.5;">
+                            ※未入力でも送信できます。返信をご希望の場合のみご入力ください。
+                        </p>
                     </div>
 
                     <div class="form-group">
@@ -1942,8 +1945,16 @@ function refreshRadioExpandHeightFrom(el) {
             const btn = document.getElementById('msg-btn');
             const status = document.getElementById('msg-status');
             const name = document.getElementById('msg-name').value;
-            const email = document.getElementById('msg-email').value;
+            const emailInput = document.getElementById('msg-email');
+            const email = (emailInput?.value || '').trim();
             const body = document.getElementById('msg-body').value;
+
+            // メールは任意。ただし入力された場合は形式チェックを行う。
+            if (email && emailInput && !emailInput.checkValidity()) {
+                status.textContent = "⛔ メールアドレスの形式が正しくありません。";
+                status.style.color = "#ff4444";
+                return;
+            }
 
             const selectedCategories = Array.from(document.querySelectorAll('.cat-toggle.is-on'))
                 .map(el => el.dataset.value)
@@ -1965,6 +1976,7 @@ function refreshRadioExpandHeightFrom(el) {
                     body: JSON.stringify({
                         action: 'send_message',
                         name: name,
+                        // email は未入力でも送れる（バックエンド側で Reply-To 等に使う想定）
                         email: email,
                         message: messageWithCategory,
                         categories: selectedCategories
