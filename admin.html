@@ -329,20 +329,19 @@
                 </li>
                 <li>
                     保存を実行
-                    <button type="button" class="btn-submit" data-step="5" id="live-save-btn" style="width:auto; padding:10px 16px;">保存</button>
+                    <button type="button" class="btn-submit" id="live-save-btn" style="width:auto; padding:10px 16px;">保存</button>
                 </li>
                 <li>
                     現在の設定を確認する
-                    <button type="button" class="btn-submit" data-step="6" id="live-test-status-btn" style="width:auto; padding:10px 16px;">現在の設定を確認</button>
+                    <button type="button" class="btn-submit"  id="live-test-status-btn" style="width:auto; padding:10px 16px;">現在の設定を確認</button>
                 </li>
                 <li>
                     再読み込み（必要に応じて）
-                    <button type="button" class="btn-submit" data-step="7" id="live-refresh-btn" style="width:auto; padding:10px 16px;">読み込み</button>
+                    <button type="button" class="btn-submit" id="live-refresh-btn" style="width:auto; padding:10px 16px;">読み込み</button>
                 </li>
                 <li>
                     （初回のみ）ライブAPI（Lambda Function URL）を設定
                     <div class="form-group">
-                        <label>ライブAPI URL</label>
                         <input type="text" id="live-api-url" value="https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
                         <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
                             ※このURLは<strong>このブラウザにだけ保存</strong>されます（localStorage）。共有PCの場合は注意してください。
