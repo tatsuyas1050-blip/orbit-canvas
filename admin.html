@@ -108,6 +108,26 @@
             border-color: rgba(40, 200, 120, 0.55);
             color: #eafff1;
         }
+        .live-steps {
+            margin: 0 0 0.9rem 1.2rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            list-style: decimal;
+        }
+        .live-steps li { margin: 0.2rem 0; }
+        .live-steps-note {
+            font-size: 0.82rem;
+            opacity: 0.75;
+            margin: -0.3rem 0 1rem;
+        }
+        .btn-submit[data-step]::before {
+            content: attr(data-step) ". ";
+            color: var(--accent-gold);
+            font-weight: 700;
+            margin-right: 0.25rem;
+        }
+        .live-steps .form-group { margin-top: 0.4rem; }
+        .live-steps .btn-submit { margin-top: 0.4rem; }
 
         @media (max-width: 900px) { 
             .admin-wrapper { grid-template-columns: 1fr; }
@@ -283,41 +303,55 @@
                 ストリームキーは<strong>この管理画面には保存しません</strong>（OBSに手入力してください）。<br>
                 「配信中判定」や「ON AIR表示」は、別途作成したLambda（Function URL）を利用します。
             </p>
-
-
-                        <div class="form-group">
-                <label>YouTube ライブ動画ID（例：dQw4w9WgXcQ）</label>
-                <input type="text" id="live-video-id" value="" placeholder="XXXXXXXXXXX" style="width:100%;">
-                <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
-                    ※URL全体ではなく <strong>動画IDのみ</strong> を貼り付けてください（https://www.youtube.com/watch?v=<b>動画ID</b>）。
-                </p>
-            </div>
-
-            <div class="form-group">
-                <label>配信タイトル（任意）</label>
-                <input type="text" id="live-title" value="" placeholder="例：ソノッキーの部屋 #12" style="width:100%;">
-            </div>
-
-            <div class="form-group live-on-air-row" style="gap:10px;">
-                <input type="checkbox" id="live-is-on-air" style="position:absolute; opacity:0; pointer-events:none;">
-                <button type="button" class="btn-submit live-on-air-btn" id="live-on-air-btn" aria-pressed="false">🔴 ON AIR（配信中）にする</button>
-            </div>
-<div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.8rem;">
-                <button type="button" class="btn-submit" id="live-save-btn" style="width:auto; padding:10px 16px;">保存</button>
-                <button type="button" class="btn-submit" id="live-test-status-btn" style="width:auto; padding:10px 16px;">現在の設定を確認</button>
-                <button type="button" class="btn-submit" id="live-refresh-btn" style="width:auto; padding:10px 16px;">読み込み</button>
-            </div>
+            <ol class="live-steps">
+                <li>YouTubeライブ動画を設定</li>
+                <li>
+                    ライブ動画ID（例：dQw4w9WgXcQ）を取得して貼り付け
+                    <div class="form-group" data-step="2">
+                        <input type="text" id="live-video-id" value="" placeholder="XXXXXXXXXXX" style="width:100%;">
+                        <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
+                            ※URL全体ではなく <strong>動画IDのみ</strong> を貼り付けてください（https://www.youtube.com/watch?v=<b>動画ID</b>）。
+                        </p>
+                    </div>
+                </li>
+                <li>
+                    配信タイトルを入力（任意）
+                    <div class="form-group" data-step="3">
+                        <input type="text" id="live-title" value="" placeholder="例：ソノッキーの部屋 #12" style="width:100%;">
+                    </div>
+                </li>
+                <li>
+                    ON AIR（配信中）に切り替え
+                    <div class="form-group live-on-air-row" style="gap:10px;">
+                        <input type="checkbox" id="live-is-on-air" style="position:absolute; opacity:0; pointer-events:none;">
+                        <button type="button" class="btn-submit live-on-air-btn"  id="live-on-air-btn" aria-pressed="false">🔴 ON AIR（配信中）にする</button>
+                    </div>
+                </li>
+                <li>
+                    保存を実行
+                    <button type="button" class="btn-submit" data-step="5" id="live-save-btn" style="width:auto; padding:10px 16px;">保存</button>
+                </li>
+                <li>
+                    現在の設定を確認する
+                    <button type="button" class="btn-submit" data-step="6" id="live-test-status-btn" style="width:auto; padding:10px 16px;">現在の設定を確認</button>
+                </li>
+                <li>
+                    再読み込み（必要に応じて）
+                    <button type="button" class="btn-submit" data-step="7" id="live-refresh-btn" style="width:auto; padding:10px 16px;">読み込み</button>
+                </li>
+                <li>
+                    （初回のみ）ライブAPI（Lambda Function URL）を設定
+                    <div class="form-group">
+                        <label>ライブAPI URL</label>
+                        <input type="text" id="live-api-url" value="https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
+                        <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
+                            ※このURLは<strong>このブラウザにだけ保存</strong>されます（localStorage）。共有PCの場合は注意してください。
+                        </p>
+                    </div>
+                </li>
+            </ol>
 
             <p id="live-admin-status" style="margin-top:0.9rem; min-height:1.2em; font-size:0.9rem;"></p>
-
-            <div class="form-group">
-                <label>ライブAPI（Lambda Function URL）</label>
-                <input type="text" id="live-api-url" value="https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
-                <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
-                    ※このURLは<strong>このブラウザにだけ保存</strong>されます（localStorage）。共有PCの場合は注意してください。
-                </p>
-            </div>
-
 
             <details style="margin-top:1rem;">
                 <summary style="cursor:pointer; opacity:0.9;">デバッグ（返ってきたJSONを見る）</summary>
