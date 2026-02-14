@@ -284,13 +284,6 @@
                 「配信中判定」や「ON AIR表示」は、別途作成したLambda（Function URL）を利用します。
             </p>
 
-            <div class="form-group">
-                <label>ライブAPI（Lambda Function URL）</label>
-                <input type="text" id="live-api-url" value="https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
-                <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
-                    ※このURLは<strong>このブラウザにだけ保存</strong>されます（localStorage）。共有PCの場合は注意してください。
-                </p>
-            </div>
 
                         <div class="form-group">
                 <label>YouTube ライブ動画ID（例：dQw4w9WgXcQ）</label>
@@ -310,12 +303,21 @@
                 <button type="button" class="btn-submit live-on-air-btn" id="live-on-air-btn" aria-pressed="false">🔴 ON AIR（配信中）にする</button>
             </div>
 <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:0.8rem;">
-                <button type="button" class="btn-submit" id="live-refresh-btn" style="width:auto; padding:10px 16px;">読み込み</button>
                 <button type="button" class="btn-submit" id="live-save-btn" style="width:auto; padding:10px 16px;">保存</button>
                 <button type="button" class="btn-submit" id="live-test-status-btn" style="width:auto; padding:10px 16px;">現在の設定を確認</button>
+                <button type="button" class="btn-submit" id="live-refresh-btn" style="width:auto; padding:10px 16px;">読み込み</button>
             </div>
 
             <p id="live-admin-status" style="margin-top:0.9rem; min-height:1.2em; font-size:0.9rem;"></p>
+
+            <div class="form-group">
+                <label>ライブAPI（Lambda Function URL）</label>
+                <input type="text" id="live-api-url" value="https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
+                <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
+                    ※このURLは<strong>このブラウザにだけ保存</strong>されます（localStorage）。共有PCの場合は注意してください。
+                </p>
+            </div>
+
 
             <details style="margin-top:1rem;">
                 <summary style="cursor:pointer; opacity:0.9;">デバッグ（返ってきたJSONを見る）</summary>
