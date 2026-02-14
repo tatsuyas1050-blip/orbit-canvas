@@ -100,6 +100,26 @@
             .nav-btn { padding: 0.5rem 1rem; font-size: 0.9rem; }
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- UI Refresh (Safe Overrides v2) --- */
+        body {
+            color: rgba(255,255,255,0.92);
+            background: linear-gradient(160deg, #070a12, #0c1220 60%);
+            background-attachment: fixed;
+        }
+        .admin-nav {
+            background: rgba(8,12,22,0.7);
+            border-color: rgba(255,255,255,0.12);
+        }
+        .nav-btn:hover {
+            background: rgba(255,255,255,0.04);
+            color: #fff;
+        }
+        .nav-btn.active { box-shadow: 0 8px 20px rgba(212,175,55,0.18); }
+        .calendar-section, .panel-box { box-shadow: 0 12px 28px rgba(0,0,0,0.3); }
+        .content-list-container { background: rgba(6,10,18,0.45); }
+        .preview-area { border-color: rgba(255,255,255,0.14); }
+        .btn-submit { box-shadow: 0 8px 18px rgba(0,0,0,0.25); }
     </style>
 </head>
 <body>
