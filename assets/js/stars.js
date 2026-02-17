@@ -11,6 +11,8 @@ const MAX_METEOR_TIME_LABELS = 80;
 const METEOR_START_ICON_URL = "assets/img/ss_start.png";
 const METEOR_END_ICON_URL   = "assets/img/ss_end.png";
 const METEOR_MARK_ICON_URL  = "assets/img/ss_mark.png";
+const LIFELOG_CAPTURE_STORAGE_KEY = 'starry_pending_lifelog_capture';
+const LIFELOG_BUTTON_ICON_URL = 'assets/img/lifelog_mark_white.jpg';
 
 
 
@@ -133,6 +135,7 @@ let filterButtons = {};
 let meteorUi = {
     container: null,
     btn: null,
+    lifelogBtn: null,
     modeBanner: null,
     modal: null,
     modalOk: null,
@@ -1265,7 +1268,7 @@ function injectCustomStyles() {
 }
 
 /* Give UI a consistent type feel without touching the whole page */
-#meteor-modal, #meteor-save-modal, #meteor-actions, #meteor-icon-btn, #gyro-icon-btn, #meteor-hint, #selected-star-name-display {
+#meteor-modal, #meteor-save-modal, #meteor-actions, #meteor-icon-btn, #lifelog-icon-btn, #gyro-icon-btn, #meteor-hint, #selected-star-name-display {
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
     letter-spacing: 0.01em;
 }
@@ -1645,6 +1648,150 @@ function onMouseWheel(event) {
     camera.fov += event.deltaY * speed;
     camera.fov = Math.max(CONFIG.minFov, Math.min(CONFIG.maxFov, camera.fov));
     camera.updateProjectionMatrix();
+}
+
+function toDateInputValue(dateObj) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}`;
+}
+
+function toDateTimeLabel(dateObj) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${dateObj.getFullYear()}/${pad(dateObj.getMonth() + 1)}/${pad(dateObj.getDate())} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
+}
+
+function normalizeCaptureDataUrl(sourceCanvas, maxSide, quality) {
+    const srcW = sourceCanvas?.width || 0;
+    const srcH = sourceCanvas?.height || 0;
+    if (!srcW || !srcH) return null;
+
+    const safeMaxSide = Math.max(320, Math.min(2200, Math.round(Number(maxSide) || 1400)));
+    const safeQuality = Math.max(0.55, Math.min(0.92, Number(quality) || 0.8));
+
+    let outW = srcW;
+    let outH = srcH;
+    const longest = Math.max(srcW, srcH);
+    if (longest > safeMaxSide) {
+        const scale = safeMaxSide / longest;
+        outW = Math.max(1, Math.round(srcW * scale));
+        outH = Math.max(1, Math.round(srcH * scale));
+    }
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = outW;
+    outCanvas.height = outH;
+    const ctx = outCanvas.getContext('2d', { alpha: false });
+    if (!ctx) return null;
+    ctx.drawImage(sourceCanvas, 0, 0, outW, outH);
+    return outCanvas.toDataURL('image/jpeg', safeQuality);
+}
+
+function captureSkyDataUrlWithFallback(targetMaxChars = 1900000) {
+    if (!renderer || !renderer.domElement) return null;
+    renderer.render(scene, camera);
+
+    const srcCanvas = renderer.domElement;
+    const presets = [
+        { maxSide: 1800, quality: 0.85 },
+        { maxSide: 1400, quality: 0.78 },
+        { maxSide: 1100, quality: 0.72 }
+    ];
+
+    let fallback = null;
+    for (const p of presets) {
+        const dataUrl = normalizeCaptureDataUrl(srcCanvas, p.maxSide, p.quality);
+        if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
+            fallback = dataUrl;
+            if (!targetMaxChars || dataUrl.length <= targetMaxChars) return dataUrl;
+        }
+    }
+    return fallback;
+}
+
+function isStorageQuotaError(err) {
+    const msg = String(err?.message || err || '');
+    if (msg.includes('QuotaExceededError') || msg.includes('quota') || msg.includes('storage')) {
+        return true;
+    }
+    if (typeof err?.code === 'number' && err.code === 22) return true;
+    return false;
+}
+
+function persistLifelogCapturePayload() {
+    const tryLimits = [1900000, 1400000, 1000000];
+    let lastError = null;
+
+    for (const limit of tryLimits) {
+        const imageBase64 = captureSkyDataUrlWithFallback(limit);
+        if (!imageBase64) continue;
+        const payload = buildLifelogCapturePayload(imageBase64);
+
+        try {
+            localStorage.setItem(LIFELOG_CAPTURE_STORAGE_KEY, JSON.stringify(payload));
+            return true;
+        } catch (e) {
+            lastError = e;
+            if (!isStorageQuotaError(e)) throw e;
+        }
+    }
+
+    if (lastError) throw lastError;
+    return null;
+}
+
+function openLifelogPopupShell() {
+    const w = Math.max(420, Math.min(620, Math.round(window.innerWidth * 0.92)));
+    const h = Math.max(620, Math.min(920, Math.round(window.innerHeight * 0.94)));
+    const left = Math.max(0, Math.round((window.screen.width - w) / 2));
+    const top = Math.max(0, Math.round((window.screen.height - h) / 2));
+    const features = `popup=yes,width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+    return window.open('about:blank', 'starry_lifelog_compose', features);
+}
+
+function saveSkyCaptureForLifelog() {
+    const popup = openLifelogPopupShell();
+    if (!popup) {
+        alert('ポップアップがブロックされました。ポップアップを許可して再試行してください。');
+        return;
+    }
+
+    try {
+        const payload = persistLifelogCapturePayload();
+        if (!payload) {
+            alert('スクリーンショットの取得に失敗しました。もう一度お試しください。');
+            try { popup.close(); } catch (e) {}
+            return;
+        }
+        popup.location.href = '/lifelog?compose=1&from=stars';
+        try { popup.focus(); } catch (e) {}
+    } catch (e) {
+        console.error(e);
+        try { popup.close(); } catch (closeErr) {}
+        alert('ライフログへの受け渡しに失敗しました。端末の空き容量をご確認のうえ再試行してください。');
+    }
+}
+
+function buildLifelogCapturePayload(imageBase64) {
+    const shotDate = (state?.date instanceof Date && !isNaN(state.date.getTime())) ? new Date(state.date.getTime()) : new Date();
+
+    let target = '';
+    try {
+        if (state?.selectedObject) target = String(getObjectName(state.selectedObject) || '').trim();
+    } catch (e) {}
+    if (target === 'Unknown Object') target = '';
+
+    return {
+        v: 1,
+        source: 'stars',
+        createdAt: new Date().toISOString(),
+        observedDateIso: shotDate.toISOString(),
+        dateForInput: toDateInputValue(shotDate),
+        observedText: toDateTimeLabel(shotDate),
+        lat: Number.isFinite(state?.lat) ? Number(state.lat) : null,
+        lon: Number.isFinite(state?.lon) ? Number(state.lon) : null,
+        target: target,
+        imageBase64: imageBase64
+    };
 }
 
 function setupUI() {
@@ -4727,6 +4874,18 @@ function initMeteorUi() {
         openMeteorConfirm();
     });
 
+    const lifelogBtn = document.createElement('button');
+    lifelogBtn.id = 'lifelog-icon-btn';
+    lifelogBtn.setAttribute('aria-label', '星空ライフログへ記録');
+    lifelogBtn.type = 'button';
+    lifelogBtn.innerHTML = `<img src="${LIFELOG_BUTTON_ICON_URL}" alt="lifelog">`;
+    lifelogBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); }, { passive: true });
+    lifelogBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
+    lifelogBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        saveSkyCaptureForLifelog();
+    });
+
     // ヒント
     const hint = document.createElement('div');
     hint.id = 'meteor-hint';
@@ -4811,8 +4970,10 @@ function initMeteorUi() {
     const gyroBtn = document.getElementById('gyro-icon-btn');
     if (gyroBtn && gyroBtn.parentNode) {
         gyroBtn.parentNode.insertBefore(btn, gyroBtn.nextSibling);
+        gyroBtn.parentNode.insertBefore(lifelogBtn, btn.nextSibling);
     } else {
         document.body.appendChild(btn);
+        document.body.appendChild(lifelogBtn);
     }
     document.body.appendChild(hint);
     document.body.appendChild(modeBanner);
@@ -4822,6 +4983,7 @@ function initMeteorUi() {
 
     meteorUi.container = document.body;
     meteorUi.btn = btn;
+    meteorUi.lifelogBtn = lifelogBtn;
     meteorUi.hint = hint;
     meteorUi.hintText = document.getElementById('meteor-hint-text');
 
@@ -4960,6 +5122,7 @@ function initMeteorUi() {
 function updateMeteorButtonPosition() {
     const btn = document.getElementById('meteor-icon-btn');
     if (!btn) return;
+    const lifelogBtn = document.getElementById('lifelog-icon-btn');
 
     const fallbackLeft = 14;
     const fallbackTop = 14;
@@ -4981,43 +5144,53 @@ function updateMeteorButtonPosition() {
         }
     }
 
-    // CSSで丸ボタンにする（gyroと似た感じ）
-    btn.style.position = 'fixed';
-    btn.style.left = `${left}px`;
-    btn.style.top = `${top}px`;
-    btn.style.width = `${size}px`;
-    btn.style.height = `${size}px`;
-    btn.style.borderRadius = '999px';
-    btn.style.display = 'flex';
-    btn.style.alignItems = 'center';
-    btn.style.justifyContent = 'center';
-    btn.style.zIndex = '30000';
-    btn.style.background = 'rgba(10, 14, 20, 0.55)';
-    btn.style.border = '1px solid rgba(255,255,255,0.25)';
-    btn.style.backdropFilter = 'blur(8px)';
-    btn.style.webkitBackdropFilter = 'blur(8px)';
+    const applyRoundIconButtonStyle = (el, topPx) => {
+        if (!el) return;
+        el.style.position = 'fixed';
+        el.style.left = `${left}px`;
+        el.style.top = `${topPx}px`;
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
+        el.style.borderRadius = '999px';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+        el.style.zIndex = '30000';
+        el.style.background = 'rgba(10, 14, 20, 0.55)';
+        el.style.border = '1px solid rgba(255,255,255,0.25)';
+        el.style.backdropFilter = 'blur(8px)';
+        el.style.webkitBackdropFilter = 'blur(8px)';
+        el.style.padding = '0';
+        el.style.overflow = 'hidden';
 
-    const img = btn.querySelector('img');
-    if (img) {
-        img.style.width = '68%';
-        img.style.height = '68%';
-        img.style.objectFit = 'contain';
-        img.style.pointerEvents = 'none';
-        img.style.display = 'block';
-        img.style.filter = 'drop-shadow(0 0 6px rgba(255,255,255,0.25))';
-    }
+        const img = el.querySelector('img');
+        if (img) {
+            img.style.width = '68%';
+            img.style.height = '68%';
+            img.style.objectFit = (el.id === 'lifelog-icon-btn') ? 'cover' : 'contain';
+            if (el.id === 'lifelog-icon-btn') img.style.borderRadius = '999px';
+            img.style.pointerEvents = 'none';
+            img.style.display = 'block';
+            img.style.filter = 'drop-shadow(0 0 6px rgba(255,255,255,0.25))';
+        }
+    };
+
+    applyRoundIconButtonStyle(btn, top);
+    const lifelogTop = top + size + 10;
+    applyRoundIconButtonStyle(lifelogBtn, lifelogTop);
+    const infoAnchorTop = lifelogBtn ? (lifelogTop + size) : (top + size);
 
     // ヒントの位置も追従
     const hint = document.getElementById('meteor-hint');
     if (hint) {
         hint.style.left = `${left}px`;
-        hint.style.top = `${top + size + 8}px`;
+        hint.style.top = `${infoAnchorTop + 8}px`;
     }
 
     const actions = document.getElementById('meteor-actions');
     if (actions) {
         actions.style.left = `${left}px`;
-        actions.style.top = `${top + size + 64}px`;
+        actions.style.top = `${infoAnchorTop + 64}px`;
     }
 }
 
