@@ -254,6 +254,156 @@
 
         
         .status-online { background: rgba(255,0,0,0.18); color: #ff6b6b; border: 1px solid rgba(255,0,0,0.45); box-shadow: 0 0 10px rgba(255,0,0,0.18); }
+        .live-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+            gap: 1.6rem;
+            align-items: start;
+        }
+        .live-main,
+        .live-side {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+            min-width: 0;
+        }
+        .live-hero {
+            padding: 1.4rem;
+            border-color: rgba(212,175,55,0.25);
+        }
+        .live-hero-head {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.6rem;
+            margin-bottom: 0.9rem;
+            text-align: left;
+        }
+        .live-hero-head .live-status-badge { margin-bottom: 0; }
+        .live-title-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .live-title-label {
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            color: rgba(216,236,255,0.65);
+        }
+        .live-title {
+            font-size: 1.12rem;
+            font-weight: 600;
+            line-height: 1.4;
+            color: #f2f6ff;
+            word-break: break-word;
+        }
+        .live-title.is-empty {
+            color: rgba(216,236,255,0.6);
+            font-weight: 500;
+        }
+        .live-title.is-live {
+            text-shadow: 0 0 14px rgba(255, 107, 107, 0.25);
+        }
+        .live-hero-desc {
+            margin: 0;
+            font-size: 0.92rem;
+            opacity: 0.85;
+            line-height: 1.6;
+            color: #ddd;
+        }
+        .live-hero .live-frame { margin-bottom: 0; }
+        .live-panel { padding: 1.4rem; }
+        .live-info { margin-top: 1.4rem; }
+        .live-panel-title {
+            font-size: 1rem;
+            color: var(--accent-gold);
+            margin: 0 0 0.5rem;
+            border-bottom: 1px solid rgba(212,175,55,0.25);
+            padding-bottom: 0.35rem;
+        }
+        .live-panel-desc {
+            font-size: 0.9rem;
+            opacity: 0.85;
+            margin: 0 0 0.9rem;
+            line-height: 1.6;
+        }
+        .live-comments-note {
+            background: rgba(255,255,255,0.04);
+            border: 1px dashed rgba(212,175,55,0.2);
+            border-radius: 8px;
+            padding: 0.6rem 0.8rem;
+        }
+        #live-comments-wrap.is-inactive .live-comments-note {
+            border-color: rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.72);
+        }
+        #live-comments-wrap.is-inactive .cmt-form {
+            opacity: 0.55;
+            pointer-events: none;
+            filter: grayscale(0.2);
+        }
+        #live-comments-wrap.is-inactive .cmt-list {
+            opacity: 0.75;
+        }
+        .live-info-list {
+            margin: 0;
+            padding-left: 1.1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #ddd;
+        }
+        .live-info-list li { margin: 0.35rem 0; }
+
+        @media (max-width: 980px) {
+            .live-layout { grid-template-columns: 1fr; }
+        }
+        @media (min-width: 981px) {
+            .live-layout {
+                grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.9fr);
+                align-items: stretch;
+            }
+            .live-hero,
+            .live-chat-panel {
+                height: min(70vh, 640px);
+            }
+            .live-hero {
+                display: flex;
+                flex-direction: column;
+                gap: 0.9rem;
+                overflow: hidden;
+            }
+            .live-hero-head {
+                margin-bottom: 0;
+            }
+            .live-frame {
+                margin-bottom: 0;
+                flex: 1 1 auto;
+                min-height: 0;
+                aspect-ratio: auto;
+            }
+            .live-chat-panel {
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+            #live-comment-section {
+                flex: 1 1 auto;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+            #live-comments-wrap .comment-section {
+                flex: 1 1 auto;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+            #live-comments-wrap .cmt-list {
+                flex: 1 1 auto;
+                max-height: none;
+                overflow-y: auto;
+            }
+        }
 /* --- 3. Gallery Styles (Card Layout) --- */
         .gallery-grid {
             display: grid;
@@ -715,32 +865,43 @@
 
         <div id="tab-live" class="section-content">
             <div class="section-header">不定期ライブ配信</div>
-            <div style="text-align:center;">
-                <span id="live-badge" class="live-status-badge status-offline">● オフライン</span>
-                <p style="font-size:0.9rem; opacity:0.8; margin-bottom:1rem; line-height:1.6;">
-                    気まぐれに配信中。<br>
-                    天文台に限らず、その時ソノッキーがいる「星の見える場所」からお届けします。
-                </p>
-            </div>
-            <div id="live-frame" class="live-frame">
-                <div style="font-size:3rem; opacity:0.2; margin-bottom:10px;">📡</div>
-                <p>Live Stream Offline</p>
-            </div>
+            <div class="live-layout">
+                <div class="live-main">
+                    <div class="panel-bg live-hero">
+                        <div class="live-hero-head">
+                            <span id="live-badge" class="live-status-badge status-offline">● オフライン</span>
+                            <div class="live-title-wrap">
+                                <span class="live-title-label">配信タイトル</span>
+                                <span id="live-title" class="live-title is-empty">未設定</span>
+                            </div>
+                            <p class="live-hero-desc">
+                                気まぐれに配信中。<br>
+                                天文台に限らず、その時ソノッキーがいる「星の見える場所」からお届けします。
+                            </p>
+                        </div>
+                        <div id="live-frame" class="live-frame">
+                            <div style="font-size:3rem; opacity:0.2; margin-bottom:10px;">📡</div>
+                            <p>Live Stream Offline</p>
+                        </div>
+                    </div>
+                </div>
 
-            <div id="live-comments-wrap" class="panel-bg" style="margin-top:1.2rem; display:none;">
-                <h3 style="font-size:1rem; color:var(--accent-gold); margin-bottom:0.5rem;">ライブコメント</h3>
-                <p id="live-comments-note" style="font-size:0.9rem; opacity:0.85; margin:0 0 0.9rem; line-height:1.6;">
-                    配信中のみコメントできます。コメントはリアルタイムで更新されます。
-                </p>
-                <div id="live-comment-section"></div>
+                <aside class="live-side">
+                    <div id="live-comments-wrap" class="panel-bg live-panel live-chat-panel">
+                        <h3 class="live-panel-title">ライブコメント</h3>
+                        <p id="live-comments-note" class="live-panel-desc live-comments-note">
+                            配信中のみコメントできます。コメントはリアルタイムで更新されます。
+                        </p>
+                        <div id="live-comment-section"></div>
+                    </div>
+                </aside>
             </div>
-
-            <div class="panel-bg" style="margin-top:1.5rem;">
-                <h3 style="font-size:1rem; color:var(--accent-gold); margin-bottom:0.5rem;">配信について</h3>
-                <p style="font-size:0.9rem;">
-                    実施する場合はSNS等で告知します。通知をオンにしてお待ちください。<br>
-                    ※通信環境により映像が乱れる場合があります。
-                </p>
+            <div class="panel-bg live-panel live-info">
+                <h3 class="live-panel-title">配信について</h3>
+                <ul class="live-info-list">
+                    <li>実施する場合はSNS等で告知します。通知をオンにしてお待ちください。</li>
+                    <li>通信環境により映像が乱れる場合があります。</li>
+                </ul>
             </div>
         </div>
 
@@ -856,6 +1017,17 @@
             }
         }
 
+        function setLiveTitle(title, isLive) {
+            const el = document.getElementById('live-title');
+            if (!el) return;
+            const cleanTitle = String(title || '').trim();
+            const hasTitle = cleanTitle.length > 0;
+            el.textContent = hasTitle ? cleanTitle : '未設定';
+            el.title = hasTitle ? cleanTitle : '';
+            el.classList.toggle('is-empty', !hasTitle);
+            el.classList.toggle('is-live', !!isLive);
+        }
+
         function renderLiveFrame(state) {
             const frame = document.getElementById('live-frame');
             if (!frame) return;
@@ -918,6 +1090,7 @@
                 __liveState = { isLive, videoId, title, embedUrl, lastChecked: Date.now(), lastError: "" };
 
                 setLiveBadge(isLive);
+                setLiveTitle(title, isLive);
                 renderLiveFrame(__liveState);
 
                 // ★配信状況が変わったらライブコメント表示も追従
@@ -931,6 +1104,7 @@
 
         function startLivePolling() {
             if (__livePollTimer) clearInterval(__livePollTimer);
+            syncLiveCommentUI(false);
             fetchLiveStatusOnce();
             __livePollTimer = setInterval(fetchLiveStatusOnce, LIVE_POLL_INTERVAL_MS);
         }
@@ -953,12 +1127,38 @@
         function setLiveCommentsVisible(isVisible) {
             const wrap = document.getElementById('live-comments-wrap');
             if (!wrap) return;
-            wrap.style.display = isVisible ? 'block' : 'none';
+            wrap.style.display = 'block';
+        }
+
+        function setLiveCommentInteractivity(isActive) {
+            const wrap = document.getElementById('live-comments-wrap');
+            if (!wrap) return;
+            wrap.classList.toggle('is-inactive', !isActive);
+
+            const note = document.getElementById('live-comments-note');
+            if (note) {
+                note.textContent = isActive
+                    ? '配信中のみコメントできます。コメントはリアルタイムで更新されます。'
+                    : '現在オフラインのためコメントは非アクティブです。配信開始時に自動で有効化されます。';
+            }
+
+            const input = document.getElementById('live-cmt-input');
+            const btn = document.getElementById('live-cmt-submit');
+            if (input) input.disabled = !isActive;
+            if (btn) {
+                const isBusy = btn.dataset.busy === "1";
+                if (!isActive) {
+                    btn.disabled = true;
+                } else if (!isBusy) {
+                    btn.disabled = false;
+                }
+            }
         }
 
         function ensureLiveCommentSectionHtml() {
             const container = document.getElementById('live-comment-section');
             if (!container) return;
+            if (!__authChecked) return;
             if (container.dataset.ready === "1") return;
             container.dataset.ready = "1";
             container.innerHTML = createLiveCommentSectionHtml([]);
@@ -1072,6 +1272,7 @@
 
             btn.disabled = true;
             btn.textContent = '送信中...';
+            btn.dataset.busy = "1";
 
             try {
                 const token = currentUser?.signInUserSession?.accessToken?.jwtToken || '';
@@ -1098,22 +1299,26 @@
                 console.error(e);
                 alert('送信に失敗しました。');
             } finally {
-                btn.disabled = false;
+                const isActive = !!(__liveState.isLive && __liveState.videoId);
+                btn.dataset.busy = "";
+                btn.disabled = !isActive;
                 btn.textContent = '送信';
             }
         }
 
         function syncLiveCommentUI(forceStart = false) {
-            // UIは「配信中」かつ「ライブタブ表示中」かつ「videoIdが取得できた」時だけ出す
-            const canShow = !!(__liveState.isLive && __liveState.videoId && isLiveTabActive());
-            if (!canShow) {
-                stopLiveCommentPolling();
-                setLiveCommentsVisible(false);
-                return;
-            }
-
+            // コメント欄は常時表示。配信中のみアクティブ＆更新。
             ensureLiveCommentSectionHtml();
             setLiveCommentsVisible(true);
+
+            const isActive = !!(__liveState.isLive && __liveState.videoId);
+            setLiveCommentInteractivity(isActive);
+
+            const canPoll = !!(isActive && isLiveTabActive());
+            if (!canPoll) {
+                stopLiveCommentPolling();
+                return;
+            }
 
             if (forceStart || !__liveCommentTimer) {
                 stopLiveCommentPolling();
@@ -1133,6 +1338,7 @@
 
         let currentUser = null;
         let userProfile = { name: 'ゲスト', icon: '' };
+        let __authChecked = false;
 
         // 起動時にログイン状態を確認
         async function checkAuthStatus() {
@@ -1148,6 +1354,9 @@
                 console.log("Logged in as:", userProfile.name);
             } catch (err) {
                 console.log("Not logged in");
+            } finally {
+                __authChecked = true;
+                syncLiveCommentUI(false);
             }
         }
         
