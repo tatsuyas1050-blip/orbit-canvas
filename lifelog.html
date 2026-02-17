@@ -1793,9 +1793,6 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
         const { Auth } = aws_amplify;
         aws_amplify.Amplify.configure({ Auth: { region: COGNITO_REGION, userPoolId: USER_POOL_ID, userPoolWebClientId: CLIENT_ID } });
 
-        const PENDING_STAR_CAPTURE_KEY = 'starry_pending_lifelog_capture';
-        const PENDING_STAR_CAPTURE_MAX_AGE_MS = 60 * 60 * 1000;
-
         let currentSession = null;
         let selectedImageBase64 = null; 
         let profileImageBase64 = null;  
@@ -1808,7 +1805,6 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
         // 自分のアイコンをキャッシュクリア無しで即時反映するためのバージョン値
         // 画像URL自体は変えず、表示時のみ ?v=... を付けてブラウザキャッシュを回避します
         let myIconVersion = localStorage.getItem('starry_icon_v') || "";
-        let pendingStarCapture = null;
 
         function iconUrlForDisplay(url, userId) {
             if (!url) return url;
@@ -1838,111 +1834,8 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
             updateViewLayout();
         });
 
-        function removePendingStarCaptureFromStorage() {
-            try { localStorage.removeItem(PENDING_STAR_CAPTURE_KEY); } catch (e) {}
-        }
-
-        function loadPendingStarCaptureFromStorage() {
-            try {
-                const raw = localStorage.getItem(PENDING_STAR_CAPTURE_KEY);
-                if (!raw) return null;
-
-                const parsed = JSON.parse(raw);
-                if (!parsed || typeof parsed !== 'object') {
-                    removePendingStarCaptureFromStorage();
-                    return null;
-                }
-
-                if (typeof parsed.imageBase64 !== 'string' || !parsed.imageBase64.startsWith('data:image/')) {
-                    removePendingStarCaptureFromStorage();
-                    return null;
-                }
-
-                const createdMs = Date.parse(parsed.createdAt || '');
-                if (!Number.isFinite(createdMs) || (Date.now() - createdMs) > PENDING_STAR_CAPTURE_MAX_AGE_MS) {
-                    removePendingStarCaptureFromStorage();
-                    return null;
-                }
-
-                return parsed;
-            } catch (e) {
-                removePendingStarCaptureFromStorage();
-                return null;
-            }
-        }
-
-        function consumePendingStarCapture() {
-            pendingStarCapture = null;
-            removePendingStarCaptureFromStorage();
-        }
-
-        function cleanupComposeQueryParams() {
-            try {
-                const u = new URL(window.location.href);
-                u.searchParams.delete('compose');
-                u.searchParams.delete('from');
-                window.history.replaceState({}, '', u.toString());
-            } catch (e) {}
-        }
-
-        function applyPendingStarCaptureToLogModal() {
-            if (!pendingStarCapture || !pendingStarCapture.imageBase64) return false;
-
-            selectedImageBase64 = pendingStarCapture.imageBase64;
-            document.getElementById('upload-box').style.display = 'none';
-            document.getElementById('preview-area').style.display = 'block';
-            document.getElementById('preview-img-tag').src = pendingStarCapture.imageBase64;
-
-            const dateInput = document.getElementById('input-date');
-            const payloadDate = String(pendingStarCapture.dateForInput || '').trim();
-            if (dateInput && /^\d{4}-\d{2}-\d{2}$/.test(payloadDate)) {
-                dateInput.value = payloadDate;
-            }
-
-            const targetInput = document.getElementById('input-target');
-            if (targetInput && !targetInput.value.trim()) {
-                const incomingTarget = String(pendingStarCapture.target || '').trim();
-                targetInput.value = incomingTarget || '星図スクリーンショット';
-                clampTitleInput(targetInput);
-            }
-
-            const locationInput = document.getElementById('input-location');
-            if (locationInput && !locationInput.value.trim() && Number.isFinite(pendingStarCapture.lat) && Number.isFinite(pendingStarCapture.lon)) {
-                const lat = Number(pendingStarCapture.lat);
-                const lon = Number(pendingStarCapture.lon);
-                const loc = `${lat >= 0 ? 'N' : 'S'}${Math.abs(lat).toFixed(2)} ${lon >= 0 ? 'E' : 'W'}${Math.abs(lon).toFixed(2)}`;
-                locationInput.value = loc;
-                clampLocationInput(locationInput);
-            }
-
-            const commentInput = document.getElementById('input-comment');
-            if (commentInput && !commentInput.value.trim()) {
-                const observed = String(pendingStarCapture.observedText || '').trim();
-                commentInput.value = observed ? `「星を探す」で撮影したスクリーンショット（${observed}）` : '「星を探す」で撮影したスクリーンショット';
-            }
-
-            consumePendingStarCapture();
-            return true;
-        }
-
-        function maybeOpenLogComposerFromQuery() {
-            const params = new URLSearchParams(window.location.search);
-            const shouldCompose = params.get('compose') === '1';
-            if (!shouldCompose) return;
-            if (params.get('openLog')) return;
-
-            editingLog = null;
-            convertingPlanId = null;
-            openModal('log');
-            applyPendingStarCaptureToLogModal();
-            cleanupComposeQueryParams();
-        }
-
-        pendingStarCapture = loadPendingStarCaptureFromStorage();
-
         // ページロード時に保存されたメールアドレスがあればセットする
         document.addEventListener('DOMContentLoaded', () => {
-            pendingStarCapture = loadPendingStarCaptureFromStorage();
             const savedEmail = localStorage.getItem('starry_login_email');
             if (savedEmail) {
                 document.getElementById('login-email').value = savedEmail;
@@ -2006,9 +1899,8 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
             document.getElementById('display-name').textContent = defaultName;
             myProfile.name = defaultName;
             
-            fetchMyDataAndInit(true).then(async () => {
-                try { await handleDeepLink(); } catch(e) { /* no-op */ }
-                try { maybeOpenLogComposerFromQuery(); } catch(e) { /* no-op */ }
+            fetchMyDataAndInit(true).then(() => {
+                try { handleDeepLink(); } catch(e) { /* no-op */ }
             });
             updateViewLayout(); 
         }
@@ -2613,10 +2505,6 @@ if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非�
                 updateRating(3);
                             const locEl = document.getElementById('input-location');
                 if(locEl) locEl.value = '';
-
-                if (!editingLog && !convertingPlanId) {
-                    applyPendingStarCaptureToLogModal();
-                }
 }
             syncFormCounters();
         }
