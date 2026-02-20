@@ -18,17 +18,31 @@
 
 function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
   if (!el) return;
+
+  // NOTE: body is overflow:hidden in this app, so scrolling must be done on the feed scroller (right column),
+  // not on window.
+  const scroller =
+    el.closest('.right-column') ||
+    document.getElementById('content-column') ||
+    document.querySelector('.right-column');
+
   const header = document.querySelector('.common-header');
   const headerH = header ? header.getBoundingClientRect().height : 0;
+  const pad = 8;
 
-  // If we were given a card, prefer scrolling to its visible "header" row (author/icon area),
-  // so it won't be covered by the fixed header.
-  const anchor = el.classList && el.classList.contains('feed-card')
-    ? (el.querySelector('.feed-user-info') || el)
-    : el;
+  // Fallback (should rarely happen)
+  if (!scroller) {
+    const y = window.pageYOffset + el.getBoundingClientRect().top - headerH - pad;
+    window.scrollTo({ top: Math.max(0, y), behavior });
+    return;
+  }
 
-  const y = window.pageYOffset + anchor.getBoundingClientRect().top - headerH - 12; // padding
-  window.scrollTo({ top: Math.max(0, y), behavior });
+  // Convert element position to scroller's coordinate space and adjust scrollTop
+  const scRect = scroller.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const top = scroller.scrollTop + (elRect.top - scRect.top) - headerH - pad;
+
+  scroller.scrollTo({ top: Math.max(0, top), behavior });
 }
 
 </script>
