@@ -1824,6 +1824,8 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
 </script>
     <script>
         const API_URL = "https://ef7yxsmrds7qxjopbqyg5x6omm0uaomt.lambda-url.ap-northeast-1.on.aws/";
+        // Xカード用HTMLを返すエンドポイント（通常はAPI_URLと同じ。別Lambdaに分けるならここだけ差し替え）
+        const SHARE_URL = "https://tuv6g7memvpsgkhja4ezwfz2om0qbzpi.lambda-url.ap-northeast-1.on.aws/";
         const COGNITO_REGION = 'ap-northeast-1';
         const USER_POOL_ID = 'ap-northeast-1_kXEnG6ST0'; 
         const CLIENT_ID = '1fsbv088bo29u6ob8gaavn4jll'; 
@@ -3439,7 +3441,7 @@ function extractProfileFromLogs(data) {
                 const comment = item.comment || '';
                 const snippet = truncateForX(comment, 70);
 
-                const url = buildLogDeepLink(logId);
+                const url = buildShareCardUrl(logId);
 
                 const text =
 `『#宇宙でつながる』に投稿🌌
@@ -3466,6 +3468,21 @@ ${url}`;
             u.searchParams.set('mode', 'global');
             u.searchParams.set('openLog', logId);
             return u.toString();
+        }
+
+
+        // Xカード用の共有URL（サーバ側でOGP/Twitterカードのmetaを返すHTMLを配信）
+        // 例: https://xxxx.lambda-url.ap-northeast-1.on.aws/share?logId=...
+        function buildShareCardUrl(logId) {
+            try {
+                const shareUrl = new URL('share', SHARE_URL); // API_URL末尾が/でもOK
+                shareUrl.searchParams.set('logId', logId);
+                return shareUrl.toString();
+            } catch (e) {
+                console.error(e);
+                // 失敗した場合は従来のDeep Linkにフォールバック
+                return buildLogDeepLink(logId);
+            }
         }
 
         async function handleDeepLink() {
