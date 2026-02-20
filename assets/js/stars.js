@@ -1660,9 +1660,9 @@ function injectLifelogBridgeStyles() {
     style.textContent = `
 #lifelog-capture-btn {
     position: fixed;
-    right: 16px;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
-    z-index: 29500;
+    left: 14px;
+    top: 124px;
+    z-index: 29940;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -1675,6 +1675,7 @@ function injectLifelogBridgeStyles() {
     font-size: 0.86rem;
     line-height: 1;
     cursor: pointer;
+    pointer-events: auto;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -1821,15 +1822,14 @@ function injectLifelogBridgeStyles() {
 }
 @media (min-width: 901px) {
     #lifelog-capture-btn {
-        bottom: 20px;
+        max-width: 172px;
     }
 }
 @media (max-width: 900px) {
     #lifelog-capture-btn {
-        right: 12px;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
         padding: 10px 12px;
         font-size: 0.78rem;
+        max-width: 146px;
     }
     #lifelog-bridge-overlay {
         padding: 8px;
@@ -3518,6 +3518,7 @@ function onPointerUp(event) {
     if (event.target.closest('.ui-layer') || 
         event.target.closest('#mobile-controls') || 
         event.target.closest('#star-reticle') ||
+        event.target.closest('#lifelog-capture-btn') ||
         event.target.closest('.menu-container') ||
         event.target.closest('#lifelog-bridge-overlay') ||
         event.target.closest('#lifelog-bridge-complete-overlay')) {
@@ -4149,18 +4150,16 @@ function initLifelogBridgeUi() {
         <span>ライフログ記録</span>
     `;
     btn.addEventListener('pointerdown', (e) => { e.stopPropagation(); }, { passive: true });
+    btn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
+    btn.addEventListener('pointerup', (e) => { e.stopPropagation(); }, { passive: true });
     btn.addEventListener('click', (e) => {
         e.stopPropagation();
         handleLifelogCaptureClick();
     });
-
-    const layer = document.querySelector('.ui-layer');
-    if (layer) {
-        layer.appendChild(btn);
-    } else {
-        document.body.appendChild(btn);
-    }
+    document.body.appendChild(btn);
     lifelogBridgeUi.button = btn;
+    updateLifelogCaptureButtonPosition();
+    window.addEventListener('resize', updateLifelogCaptureButtonPosition);
 }
 
 async function handleLifelogCaptureClick() {
@@ -5523,6 +5522,35 @@ function updateMeteorButtonPosition() {
         actions.style.left = `${left}px`;
         actions.style.top = `${top + size + 64}px`;
     }
+
+    // ライフログ記録ボタンは流星記録ボタンの直下に追従させる
+    try { updateLifelogCaptureButtonPosition(); } catch (e) {}
+}
+
+function updateLifelogCaptureButtonPosition() {
+    const btn = lifelogBridgeUi.button || document.getElementById('lifelog-capture-btn');
+    if (!btn) return;
+
+    const fallbackLeft = 14;
+    const fallbackTop = 124;
+    let left = fallbackLeft;
+    let top = fallbackTop;
+
+    const meteorBtn = document.getElementById('meteor-icon-btn');
+    if (meteorBtn) {
+        const rect = meteorBtn.getBoundingClientRect();
+        const style = window.getComputedStyle(meteorBtn);
+        const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+        if (visible) {
+            left = Math.round(rect.left);
+            top = Math.round(rect.bottom + 10);
+        }
+    }
+
+    btn.style.left = `${left}px`;
+    btn.style.top = `${top}px`;
+    btn.style.right = 'auto';
+    btn.style.bottom = 'auto';
 }
 
 
@@ -6252,6 +6280,7 @@ function handleMeteorPointerUp(event) {
     if (event.target.closest('.ui-layer') ||
         event.target.closest('#mobile-controls') ||
         event.target.closest('#star-reticle') ||
+        event.target.closest('#lifelog-capture-btn') ||
         event.target.closest('.menu-container') ||
         event.target.closest('#lifelog-bridge-overlay') ||
         event.target.closest('#lifelog-bridge-complete-overlay')) {
