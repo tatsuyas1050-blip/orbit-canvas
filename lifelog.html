@@ -3425,7 +3425,20 @@ function extractProfileFromLogs(data) {
         }
     
 
-        // ===== X共有（公開ログのみ） + Deep Link（フィード自動展開） =====
+        
+// Xカード用の共有URL（/share）を生成
+function buildShareUrl(logId, userId) {
+    const u = new URL(SHARE_URL);
+    // Function URL: https://xxxxx.lambda-url...on.aws/
+    // Target: https://.../share?logId=...&userId=...
+    const basePath = (u.pathname || "/").endsWith("/") ? u.pathname.slice(0, -1) : (u.pathname || "");
+    u.pathname = basePath + "/share";
+    u.searchParams.set("logId", logId);
+    u.searchParams.set("userId", userId);
+    return u.toString();
+}
+
+// ===== X共有（公開ログのみ） + Deep Link（フィード自動展開） =====
         function shareLogToX(logId) {
             try {
                 // 自分のログから該当アイテムを取得
@@ -3440,7 +3453,7 @@ function extractProfileFromLogs(data) {
                 const comment = item.comment || '';
                 const snippet = truncateForX(comment, 70);
 
-                const url = buildLogDeepLink(logId);
+                const url = buildShareUrl(logId, item.userId);
 
                 const text =
 `『#宇宙でつながる』に投稿🌌
