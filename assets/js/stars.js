@@ -161,6 +161,18 @@ let meteorEndGlow = null;     // 2点目のピン（互換のため変数名は�
 let meteorPinTextureLoader = null; // THREE.TextureLoader (lazy)
 let meteorSavedTracks = [];   // { createdAt, lat, lon, dateIso, startAltAz, endAltAz, brightness }
 
+const LIFELOG_EMBED_URL = '/lifelog?embed=1&from=stars';
+let lifelogBridgeUi = {
+    button: null,
+    overlay: null,
+    iframe: null,
+    loading: null,
+    completion: null,
+    messageHandler: null,
+    pendingDraft: null,
+    draftDelivered: false,
+};
+
 const state = {
     lat: 35.6895, 
     lon: 139.6917,
@@ -233,6 +245,7 @@ mode: 'idle', // 'idle' | 'confirm' | 'selectStart' | 'selectEnd' | 'review'
 function init() {
     createStarNameDisplay();
     injectCustomStyles();
+    injectLifelogBridgeStyles();
 
     const container = document.getElementById('canvas-container');
 
@@ -242,6 +255,7 @@ function init() {
 
     // 流星記録UI（scene生成後に初期化）
     initMeteorUi();
+    initLifelogBridgeUi();
  
 
     // ---- Comets layer (added) ----
@@ -257,7 +271,7 @@ function init() {
     const dist = 1.0;
     camera.position.set(0, -Math.sin(initialAlt) * dist, -Math.cos(initialAlt) * dist);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
@@ -1635,6 +1649,200 @@ body.meteor-recording-active #mobile-controls * {
     text-shadow: 0 0 12px rgba(212, 175, 55, 0.28);
 }
 
+`;
+    document.head.appendChild(style);
+}
+
+function injectLifelogBridgeStyles() {
+    if (document.getElementById('lifelog-bridge-style')) return;
+    const style = document.createElement('style');
+    style.id = 'lifelog-bridge-style';
+    style.textContent = `
+#lifelog-capture-btn {
+    position: fixed;
+    right: 16px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
+    z-index: 29500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(212, 175, 55, 0.7);
+    border-radius: 999px;
+    padding: 10px 14px;
+    background: rgba(5, 12, 22, 0.82);
+    color: #fff;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 0.86rem;
+    line-height: 1;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+#lifelog-capture-btn:hover {
+    border-color: rgba(212, 175, 55, 0.95);
+    background: rgba(12, 20, 34, 0.92);
+}
+#lifelog-capture-btn:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+#lifelog-capture-btn .lifelog-capture-icon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+#lifelog-bridge-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 35000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(2, 7, 14, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+#lifelog-bridge-overlay .lifelog-bridge-window {
+    width: min(980px, 100%);
+    height: min(92vh, 820px);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 14px;
+    overflow: hidden;
+    background: #050b16;
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+}
+#lifelog-bridge-overlay .lifelog-bridge-header {
+    height: 52px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(4, 9, 18, 0.9);
+}
+#lifelog-bridge-overlay .lifelog-bridge-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 0.95rem;
+    color: #f7f7f7;
+}
+#lifelog-bridge-overlay .lifelog-bridge-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+}
+#lifelog-bridge-overlay .lifelog-bridge-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+#lifelog-bridge-overlay .lifelog-bridge-frame-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+#lifelog-bridge-overlay .lifelog-bridge-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #050b16;
+}
+#lifelog-bridge-overlay .lifelog-bridge-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(4, 9, 18, 0.92);
+    color: rgba(255, 255, 255, 0.82);
+    font-family: 'Shippori Mincho', serif;
+    font-size: 0.92rem;
+}
+#lifelog-bridge-complete-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 35100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(2, 7, 14, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+#lifelog-bridge-complete-overlay .lifelog-bridge-complete-card {
+    width: min(420px, 100%);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    border-radius: 14px;
+    background: linear-gradient(165deg, rgba(7, 13, 24, 0.98), rgba(4, 8, 15, 0.96));
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.46);
+    padding: 20px 18px;
+    color: #fff;
+}
+#lifelog-bridge-complete-overlay .title {
+    margin: 0 0 8px;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 1.05rem;
+    color: #fff;
+}
+#lifelog-bridge-complete-overlay .desc {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.82);
+}
+#lifelog-bridge-complete-overlay .actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+}
+#lifelog-bridge-complete-overlay button {
+    flex: 1;
+    height: 40px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    cursor: pointer;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 0.84rem;
+}
+#lifelog-bridge-complete-overlay button.primary {
+    border-color: rgba(212, 175, 55, 0.7);
+    background: rgba(212, 175, 55, 0.16);
+}
+@media (min-width: 901px) {
+    #lifelog-capture-btn {
+        bottom: 20px;
+    }
+}
+@media (max-width: 900px) {
+    #lifelog-capture-btn {
+        right: 12px;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
+        padding: 10px 12px;
+        font-size: 0.78rem;
+    }
+    #lifelog-bridge-overlay {
+        padding: 8px;
+    }
+    #lifelog-bridge-overlay .lifelog-bridge-window {
+        width: 100%;
+        height: 100%;
+        border-radius: 10px;
+    }
+    #lifelog-bridge-overlay .lifelog-bridge-header {
+        height: 50px;
+    }
+}
 `;
     document.head.appendChild(style);
 }
@@ -3310,7 +3518,9 @@ function onPointerUp(event) {
     if (event.target.closest('.ui-layer') || 
         event.target.closest('#mobile-controls') || 
         event.target.closest('#star-reticle') ||
-        event.target.closest('.menu-container')) {
+        event.target.closest('.menu-container') ||
+        event.target.closest('#lifelog-bridge-overlay') ||
+        event.target.closest('#lifelog-bridge-complete-overlay')) {
         return; 
     }
 
@@ -3924,6 +4134,300 @@ async function runCometFetch(timeObj) {
         }
     } finally {
         cometFetchInProgress = false;
+    }
+}
+
+function initLifelogBridgeUi() {
+    if (lifelogBridgeUi.button) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'lifelog-capture-btn';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '星空ライフログへ記録');
+    btn.innerHTML = `
+        <img class="lifelog-capture-icon" src="assets/img/lifelog_mark.png" alt="">
+        <span>ライフログ記録</span>
+    `;
+    btn.addEventListener('pointerdown', (e) => { e.stopPropagation(); }, { passive: true });
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleLifelogCaptureClick();
+    });
+
+    const layer = document.querySelector('.ui-layer');
+    if (layer) {
+        layer.appendChild(btn);
+    } else {
+        document.body.appendChild(btn);
+    }
+    lifelogBridgeUi.button = btn;
+}
+
+async function handleLifelogCaptureClick() {
+    if (lifelogBridgeUi.overlay) return;
+    if (!renderer || !renderer.domElement) {
+        alert('星図の描画準備中です。少し待ってからもう一度お試しください。');
+        return;
+    }
+
+    const btn = lifelogBridgeUi.button;
+    if (btn) btn.disabled = true;
+
+    try {
+        const draft = buildLifelogObservationDraft();
+        openLifelogBridgeOverlay(draft);
+    } catch (e) {
+        console.error('Failed to prepare lifelog draft:', e);
+        alert('スクリーンショットの作成に失敗しました。もう一度お試しください。');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function formatLatLonForObservation(lat, lon) {
+    const ns = lat >= 0 ? 'N' : 'S';
+    const ew = lon >= 0 ? 'E' : 'W';
+    return `${ns} ${Math.abs(lat).toFixed(2)}° / ${ew} ${Math.abs(lon).toFixed(2)}°`;
+}
+
+function buildLifelogObservationDraft() {
+    const observedAt = state.date ? new Date(state.date.getTime()) : new Date();
+    const latLonText = formatLatLonForObservation(state.lat, state.lon);
+
+    return {
+        source: 'stars',
+        imageDataUrl: captureObservationScreenshotWithStamp(observedAt, latLonText),
+        observedAtIso: observedAt.toISOString(),
+        lat: Number(state.lat.toFixed(6)),
+        lon: Number(state.lon.toFixed(6)),
+        locationText: latLonText,
+        target: '星空観察',
+        comment: `観測日時: ${formatJa(observedAt)}\n観測地点: ${latLonText}`,
+    };
+}
+
+function captureObservationScreenshotWithStamp(observedAt, latLonText) {
+    renderer.render(scene, camera);
+    const src = renderer.domElement;
+    const srcW = src.width || src.clientWidth;
+    const srcH = src.height || src.clientHeight;
+    if (!srcW || !srcH) {
+        throw new Error('Screenshot source size unavailable');
+    }
+
+    const maxEdge = 1600;
+    const scale = Math.min(1, maxEdge / Math.max(srcW, srcH));
+    const outW = Math.max(2, Math.round(srcW * scale));
+    const outH = Math.max(2, Math.round(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Failed to create 2d context');
+    ctx.drawImage(src, 0, 0, outW, outH);
+
+    const lines = [
+        `日時: ${formatJa(observedAt)} (日本時間)`,
+        `緯度/経度: ${latLonText}`,
+    ];
+    const fontSize = Math.max(15, Math.round(outW * 0.018));
+    const lineGap = Math.max(5, Math.round(fontSize * 0.35));
+    const padX = Math.max(12, Math.round(outW * 0.016));
+    const padY = Math.max(10, Math.round(outH * 0.015));
+    const offset = Math.max(12, Math.round(outW * 0.02));
+
+    ctx.font = `600 ${fontSize}px "Shippori Mincho", serif`;
+    ctx.textBaseline = 'top';
+
+    let maxLineWidth = 0;
+    lines.forEach((line) => {
+        const width = ctx.measureText(line).width;
+        if (width > maxLineWidth) maxLineWidth = width;
+    });
+
+    const boxW = Math.ceil(maxLineWidth + padX * 2);
+    const boxH = Math.ceil(lines.length * fontSize + (lines.length - 1) * lineGap + padY * 2);
+    const boxX = offset;
+    const boxY = outH - boxH - offset;
+
+    ctx.fillStyle = 'rgba(4, 10, 20, 0.74)';
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.88)';
+    ctx.lineWidth = Math.max(1, Math.round(outW * 0.0016));
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    ctx.fillStyle = '#f7f7f7';
+    lines.forEach((line, idx) => {
+        const y = boxY + padY + idx * (fontSize + lineGap);
+        ctx.fillText(line, boxX + padX, y);
+    });
+
+    return canvas.toDataURL('image/jpeg', 0.88);
+}
+
+function openLifelogBridgeOverlay(draft) {
+    closeLifelogBridgeOverlay(false);
+    removeLifelogBridgeCompleteDialog();
+
+    lifelogBridgeUi.pendingDraft = draft;
+    lifelogBridgeUi.draftDelivered = false;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'lifelog-bridge-overlay';
+    const embedUrl = `${LIFELOG_EMBED_URL}${LIFELOG_EMBED_URL.includes('?') ? '&' : '?'}ts=${Date.now()}`;
+    overlay.innerHTML = `
+        <div class="lifelog-bridge-window">
+            <div class="lifelog-bridge-header">
+                <div class="lifelog-bridge-title">星空ライフログへ記録</div>
+                <button type="button" class="lifelog-bridge-close" aria-label="閉じる">×</button>
+            </div>
+            <div class="lifelog-bridge-frame-wrap">
+                <iframe class="lifelog-bridge-frame" title="星空ライフログ" src="${embedUrl}"></iframe>
+                <div class="lifelog-bridge-loading">ライフログを読み込み中...</div>
+            </div>
+        </div>
+    `;
+
+    const closeBtn = overlay.querySelector('.lifelog-bridge-close');
+    const iframe = overlay.querySelector('.lifelog-bridge-frame');
+    const loading = overlay.querySelector('.lifelog-bridge-loading');
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeLifelogBridgeOverlay(false);
+    });
+    if (closeBtn) {
+        closeBtn.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive: true });
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeLifelogBridgeOverlay(false);
+        });
+    }
+    if (iframe) {
+        iframe.addEventListener('load', () => {
+            if (loading) loading.textContent = '連携を準備中...';
+            window.setTimeout(() => hideLifelogBridgeLoading(), 1800);
+            window.setTimeout(() => sendLifelogDraftToIframe(true), 120);
+        });
+    }
+
+    document.body.appendChild(overlay);
+    document.body.classList.add('lifelog-bridge-open');
+
+    lifelogBridgeUi.overlay = overlay;
+    lifelogBridgeUi.iframe = iframe;
+    lifelogBridgeUi.loading = loading;
+
+    lifelogBridgeUi.messageHandler = handleLifelogBridgeMessage;
+    window.addEventListener('message', lifelogBridgeUi.messageHandler);
+
+    window.setTimeout(() => sendLifelogDraftToIframe(true), 320);
+}
+
+function getLifelogBridgeTargetOrigin() {
+    return window.location.origin === 'null' ? '*' : window.location.origin;
+}
+
+function sendLifelogDraftToIframe(force) {
+    const iframeWin = lifelogBridgeUi.iframe && lifelogBridgeUi.iframe.contentWindow;
+    if (!iframeWin || !lifelogBridgeUi.pendingDraft) return;
+    if (!force && lifelogBridgeUi.draftDelivered) return;
+
+    iframeWin.postMessage({
+        type: 'starry:lifelog-observation-draft',
+        payload: lifelogBridgeUi.pendingDraft,
+    }, getLifelogBridgeTargetOrigin());
+    lifelogBridgeUi.draftDelivered = true;
+}
+
+function hideLifelogBridgeLoading() {
+    if (!lifelogBridgeUi.loading) return;
+    lifelogBridgeUi.loading.style.display = 'none';
+}
+
+function handleLifelogBridgeMessage(event) {
+    const iframeWin = lifelogBridgeUi.iframe && lifelogBridgeUi.iframe.contentWindow;
+    if (!iframeWin || event.source !== iframeWin) return;
+
+    const sameOrigin = (
+        event.origin === window.location.origin ||
+        (window.location.origin === 'null' && event.origin === 'null')
+    );
+    if (!sameOrigin) return;
+
+    const data = event.data || {};
+    if (data.type === 'starry:lifelog-embed-ready') {
+        hideLifelogBridgeLoading();
+        sendLifelogDraftToIframe(true);
+        return;
+    }
+    if (data.type === 'starry:lifelog-log-saved') {
+        closeLifelogBridgeOverlay(false);
+        showLifelogBridgeCompleteDialog();
+        return;
+    }
+    if (data.type === 'starry:lifelog-close') {
+        closeLifelogBridgeOverlay(false);
+    }
+}
+
+function closeLifelogBridgeOverlay(keepDraft) {
+    if (lifelogBridgeUi.messageHandler) {
+        window.removeEventListener('message', lifelogBridgeUi.messageHandler);
+        lifelogBridgeUi.messageHandler = null;
+    }
+    if (lifelogBridgeUi.overlay) {
+        lifelogBridgeUi.overlay.remove();
+        lifelogBridgeUi.overlay = null;
+    }
+
+    lifelogBridgeUi.iframe = null;
+    lifelogBridgeUi.loading = null;
+    lifelogBridgeUi.draftDelivered = false;
+    if (!keepDraft) lifelogBridgeUi.pendingDraft = null;
+    document.body.classList.remove('lifelog-bridge-open');
+}
+
+function showLifelogBridgeCompleteDialog() {
+    removeLifelogBridgeCompleteDialog();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'lifelog-bridge-complete-overlay';
+    overlay.innerHTML = `
+        <div class="lifelog-bridge-complete-card">
+            <h3 class="title">記録は星空ライフログへ保存しました</h3>
+            <p class="desc">このまま星図に戻るか、星空ライフログへ移動するかを選択できます。</p>
+            <div class="actions">
+                <button type="button" data-action="stay">星図に戻る</button>
+                <button type="button" class="primary" data-action="go-lifelog">星空ライフログへ</button>
+            </div>
+        </div>
+    `;
+
+    overlay.addEventListener('click', (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        const action = target.getAttribute('data-action');
+        if (!action) return;
+
+        if (action === 'stay') {
+            removeLifelogBridgeCompleteDialog();
+            return;
+        }
+        if (action === 'go-lifelog') {
+            window.location.href = '/lifelog';
+        }
+    });
+
+    document.body.appendChild(overlay);
+    lifelogBridgeUi.completion = overlay;
+}
+
+function removeLifelogBridgeCompleteDialog() {
+    if (lifelogBridgeUi.completion) {
+        lifelogBridgeUi.completion.remove();
+        lifelogBridgeUi.completion = null;
     }
 }
 
@@ -5748,7 +6252,9 @@ function handleMeteorPointerUp(event) {
     if (event.target.closest('.ui-layer') ||
         event.target.closest('#mobile-controls') ||
         event.target.closest('#star-reticle') ||
-        event.target.closest('.menu-container')) {
+        event.target.closest('.menu-container') ||
+        event.target.closest('#lifelog-bridge-overlay') ||
+        event.target.closest('#lifelog-bridge-complete-overlay')) {
         return true;
     }
 

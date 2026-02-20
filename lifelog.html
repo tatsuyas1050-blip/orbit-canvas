@@ -1469,6 +1469,44 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
   }
 }
 
+/* iframe埋め込み（stars連携）時はナビを隠してログ作成に集中させる */
+body.embed-mode .menu-container,
+body.embed-mode .common-header,
+body.embed-mode .mobile-bottom-nav,
+body.embed-mode #fab-log,
+body.embed-mode #fab-plan,
+body.embed-mode .header-back-btn.auth-back-pos {
+    display: none !important;
+}
+
+body.embed-mode .dashboard-container {
+    max-width: 980px;
+    grid-template-columns: 1fr;
+    padding-top: 12px;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+body.embed-mode .left-column,
+body.embed-mode .page-heading,
+body.embed-mode #logs-list {
+    display: none !important;
+}
+
+body.embed-mode .right-column {
+    padding-right: 0;
+    overflow: visible;
+}
+
+body.embed-mode #auth-overlay {
+    background: rgba(2,5,10,0.82) !important;
+}
+
+body.embed-mode #modal-overlay .modal-box {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
 </style>
 </head>
 <body>
@@ -1823,6 +1861,116 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
         let publicDataCache = []; // グローバル変数として定義
         let publicProfilesCache = {}; // 公開フィード用: userId -> 最新プロフィール
 
+        const pageParams = new URLSearchParams(window.location.search);
+        const EMBED_MODE = pageParams.get('embed') === '1';
+        let pendingStarsDraft = null;
+        let pendingStarsDraftConsumed = false;
+
+        if (EMBED_MODE) {
+            document.body.classList.add('embed-mode');
+        }
+
+        function isSameOriginMessage(event) {
+            return (
+                event.origin === window.location.origin ||
+                (window.location.origin === 'null' && event.origin === 'null')
+            );
+        }
+
+        function getEmbedTargetOrigin() {
+            return window.location.origin === 'null' ? '*' : window.location.origin;
+        }
+
+        function notifyParentEmbedReady() {
+            if (!EMBED_MODE || window.parent === window) return;
+            window.parent.postMessage({ type: 'starry:lifelog-embed-ready' }, getEmbedTargetOrigin());
+        }
+
+        function notifyParentLogSaved(payload) {
+            if (!EMBED_MODE || window.parent === window) return;
+            window.parent.postMessage({
+                type: 'starry:lifelog-log-saved',
+                payload: payload || null
+            }, getEmbedTargetOrigin());
+        }
+
+        function toDateInputValueFromIso(isoText) {
+            if (!isoText) return null;
+            const d = new Date(isoText);
+            if (Number.isNaN(d.getTime())) return null;
+            const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+            return local.toISOString().slice(0, 10);
+        }
+
+        function setSelectedImageFromDataUrl(dataUrl) {
+            if (!dataUrl || typeof dataUrl !== 'string') return;
+            selectedImageBase64 = dataUrl;
+            document.getElementById('upload-box').style.display = 'none';
+            document.getElementById('preview-area').style.display = 'block';
+            document.getElementById('preview-img-tag').src = dataUrl;
+        }
+
+        function applyStarsDraftToLogForm(draft) {
+            if (!draft || typeof draft !== 'object') return;
+            editingLog = null;
+            convertingPlanId = null;
+
+            openModal('log');
+
+            const dateValue = toDateInputValueFromIso(draft.observedAtIso);
+            if (dateValue) {
+                document.getElementById('input-date').value = dateValue;
+            }
+
+            document.getElementById('input-target').value = draft.target || '星空観察';
+            document.getElementById('input-comment').value = draft.comment || '';
+            document.getElementById('input-location').value = draft.locationText || '';
+
+            const toolInput = document.getElementById('input-tool');
+            if (toolInput) {
+                toolInput.value = '肉眼';
+                updateToolButtons(['肉眼']);
+            }
+            updateRating(3);
+            setPublicState(true);
+
+            if (draft.imageDataUrl) {
+                setSelectedImageFromDataUrl(draft.imageDataUrl);
+            } else {
+                clearImage();
+            }
+
+            syncFormCounters();
+        }
+
+        function consumeStarsDraftIfReady() {
+            if (!EMBED_MODE || !pendingStarsDraft || pendingStarsDraftConsumed) return;
+            if (!currentSession) return;
+            const authOverlay = document.getElementById('auth-overlay');
+            if (authOverlay && authOverlay.style.display !== 'none') return;
+
+            pendingStarsDraftConsumed = true;
+            applyStarsDraftToLogForm(pendingStarsDraft);
+        }
+
+        function handleEmbedBridgeMessage(event) {
+            if (!EMBED_MODE) return;
+            if (!isSameOriginMessage(event)) return;
+            if (window.parent === window || event.source !== window.parent) return;
+
+            const data = event.data || {};
+            if (data.type !== 'starry:lifelog-observation-draft') return;
+            if (pendingStarsDraftConsumed) return;
+
+            pendingStarsDraft = data.payload || null;
+            consumeStarsDraftIfReady();
+        }
+
+        if (EMBED_MODE) {
+            window.addEventListener('message', handleEmbedBridgeMessage);
+            window.setTimeout(notifyParentEmbedReady, 0);
+        }
+
 
         window.addEventListener('resize', () => {
             // 幅が変わったときだけレイアウト更新（スクロールによるアドレスバー伸縮対策）
@@ -1898,8 +2046,10 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
             const defaultName = (cognitoDisplayName && cognitoDisplayName.length > 0) ? cognitoDisplayName : "表示名設定無し";
             document.getElementById('display-name').textContent = defaultName;
             myProfile.name = defaultName;
+            consumeStarsDraftIfReady();
             
             fetchMyDataAndInit(true).then(() => {
+                consumeStarsDraftIfReady();
                 try { handleDeepLink(); } catch(e) { /* no-op */ }
             });
             updateViewLayout(); 
@@ -2621,11 +2771,20 @@ if (item.isPublic === false) privateMark = '<span class="private-mark">🔒 非�
                 validateTitleLengthOrThrow(data.target);
                 if (type === 'log') validateLocationLengthOrThrow(data.location);
 
-                await saveItem(data, targetId);
+                const savedResult = await saveItem(data, targetId);
                 if (convertingPlanId) {
                     await deleteItem(convertingPlanId, null, true);
                 }
                 closeModal();
+
+                if (EMBED_MODE && type === 'log') {
+                    notifyParentLogSaved({
+                        logId: targetId || (savedResult && (savedResult.logId || savedResult.id)) || null,
+                        date: data.date || '',
+                        target: data.target || ''
+                    });
+                }
+
                 fetchMyDataAndInit(false);
             } catch (e) {
                 alert(e.message);
