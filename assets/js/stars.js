@@ -4219,7 +4219,7 @@ function captureObservationScreenshotWithStamp(observedAt) {
     ctx.drawImage(src, 0, 0, outW, outH);
 
     const lines = [`日時: ${formatJa(observedAt)} (日本時間)`];
-    const fontSize = Math.max(24, Math.round(outW * 0.03));
+    const fontSize = Math.max(34, Math.round(outW * 0.04));
     const lineGap = Math.max(5, Math.round(fontSize * 0.35));
     const padX = Math.max(12, Math.round(outW * 0.016));
     const padY = Math.max(10, Math.round(outH * 0.015));
@@ -5524,14 +5524,15 @@ function updateLifelogCaptureButtonPosition() {
     let left = fallbackLeft;
     let top = fallbackTop;
 
-    const meteorBtn = document.getElementById('meteor-icon-btn');
-    if (meteorBtn) {
-        const rect = meteorBtn.getBoundingClientRect();
-        const style = window.getComputedStyle(meteorBtn);
+    const gyroBtn = document.getElementById('gyro-icon-btn');
+    if (gyroBtn) {
+        const rect = gyroBtn.getBoundingClientRect();
+        const style = window.getComputedStyle(gyroBtn);
         const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
         if (visible) {
+            const btnH = Math.max(36, Math.round(btn.getBoundingClientRect().height || 42));
             left = Math.round(rect.left);
-            top = Math.round(rect.bottom + 10);
+            top = Math.max(8, Math.round(rect.top - btnH - 10));
         }
     }
 
