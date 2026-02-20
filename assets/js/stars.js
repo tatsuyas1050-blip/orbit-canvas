@@ -4191,7 +4191,7 @@ function buildLifelogObservationDraft() {
         imageDataUrl: captureObservationScreenshotWithStamp(observedAt),
         observedAtIso: observedAt.toISOString(),
         locationText: '',
-        target: '星空観察',
+        target: '',
         comment: '',
     };
 }
