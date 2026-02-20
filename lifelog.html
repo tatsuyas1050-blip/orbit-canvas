@@ -1824,8 +1824,7 @@ function scrollToCardWithHeaderOffset(el, behavior = 'auto') {
 </script>
     <script>
         const API_URL = "https://ef7yxsmrds7qxjopbqyg5x6omm0uaomt.lambda-url.ap-northeast-1.on.aws/";
-        const SHARE_URL = "https://tuv6g7memvpsgkhja4ezwfz2om0qbzpi.lambda-url.ap-northeast-1.on.aws/";
-const COGNITO_REGION = 'ap-northeast-1';
+        const COGNITO_REGION = 'ap-northeast-1';
         const USER_POOL_ID = 'ap-northeast-1_kXEnG6ST0'; 
         const CLIENT_ID = '1fsbv088bo29u6ob8gaavn4jll'; 
 
@@ -3425,20 +3424,7 @@ function extractProfileFromLogs(data) {
         }
     
 
-        
-// Xカード用の共有URL（/share）を生成
-function buildShareUrl(logId, userId) {
-    const u = new URL(SHARE_URL);
-    // Function URL: https://xxxxx.lambda-url...on.aws/
-    // Target: https://.../share?logId=...&userId=...
-    const basePath = (u.pathname || "/").endsWith("/") ? u.pathname.slice(0, -1) : (u.pathname || "");
-    u.pathname = basePath + "/share";
-    u.searchParams.set("logId", logId);
-    u.searchParams.set("userId", userId);
-    return u.toString();
-}
-
-// ===== X共有（公開ログのみ） + Deep Link（フィード自動展開） =====
+        // ===== X共有（公開ログのみ） + Deep Link（フィード自動展開） =====
         function shareLogToX(logId) {
             try {
                 // 自分のログから該当アイテムを取得
@@ -3453,7 +3439,7 @@ function buildShareUrl(logId, userId) {
                 const comment = item.comment || '';
                 const snippet = truncateForX(comment, 70);
 
-                const url = buildShareUrl(logId, item.userId);
+                const url = buildLogDeepLink(logId);
 
                 const text =
 `『#宇宙でつながる』に投稿🌌
