@@ -4219,24 +4219,37 @@ function captureObservationScreenshotWithStamp(observedAt) {
     ctx.drawImage(src, 0, 0, outW, outH);
 
     const lines = [`日時: ${formatJa(observedAt)} (日本時間)`];
-    const fontSize = Math.max(34, Math.round(outW * 0.04));
-    const lineGap = Math.max(5, Math.round(fontSize * 0.35));
+    let fontSize = Math.max(34, Math.round(outW * 0.04));
+    const minFontSize = 18;
     const padX = Math.max(12, Math.round(outW * 0.016));
     const padY = Math.max(10, Math.round(outH * 0.015));
+    const sideMargin = Math.max(12, Math.round(outW * 0.025));
+    const maxTextWidth = Math.max(120, outW - sideMargin * 2 - padX * 2);
     const offset = Math.max(12, Math.round(outW * 0.02));
 
-    ctx.font = `600 ${fontSize}px "Shippori Mincho", serif`;
     ctx.textBaseline = 'top';
 
-    let maxLineWidth = 0;
-    lines.forEach((line) => {
-        const width = ctx.measureText(line).width;
-        if (width > maxLineWidth) maxLineWidth = width;
-    });
+    const measureMaxLineWidth = () => {
+        let w = 0;
+        lines.forEach((line) => {
+            const current = ctx.measureText(line).width;
+            if (current > w) w = current;
+        });
+        return w;
+    };
 
-    const boxW = Math.ceil(maxLineWidth + padX * 2);
+    let maxLineWidth = 0;
+    while (fontSize >= minFontSize) {
+        ctx.font = `600 ${fontSize}px "Shippori Mincho", serif`;
+        maxLineWidth = measureMaxLineWidth();
+        if (maxLineWidth <= maxTextWidth) break;
+        fontSize -= 1;
+    }
+
+    const lineGap = Math.max(5, Math.round(fontSize * 0.35));
+    const boxW = Math.min(Math.ceil(maxLineWidth + padX * 2), outW - sideMargin * 2);
     const boxH = Math.ceil(lines.length * fontSize + (lines.length - 1) * lineGap + padY * 2);
-    const boxX = offset;
+    const boxX = Math.round((outW - boxW) / 2);
     const boxY = outH - boxH - offset;
 
     ctx.fillStyle = 'rgba(4, 10, 20, 0.74)';
@@ -4246,9 +4259,10 @@ function captureObservationScreenshotWithStamp(observedAt) {
     ctx.strokeRect(boxX, boxY, boxW, boxH);
 
     ctx.fillStyle = '#f7f7f7';
+    ctx.textAlign = 'center';
     lines.forEach((line, idx) => {
         const y = boxY + padY + idx * (fontSize + lineGap);
-        ctx.fillText(line, boxX + padX, y);
+        ctx.fillText(line, boxX + boxW / 2, y);
     });
 
     return canvas.toDataURL('image/jpeg', 0.88);
