@@ -4183,29 +4183,20 @@ async function handleLifelogCaptureClick() {
     }
 }
 
-function formatLatLonForObservation(lat, lon) {
-    const ns = lat >= 0 ? 'N' : 'S';
-    const ew = lon >= 0 ? 'E' : 'W';
-    return `${ns} ${Math.abs(lat).toFixed(2)}° / ${ew} ${Math.abs(lon).toFixed(2)}°`;
-}
-
 function buildLifelogObservationDraft() {
     const observedAt = state.date ? new Date(state.date.getTime()) : new Date();
-    const latLonText = formatLatLonForObservation(state.lat, state.lon);
 
     return {
         source: 'stars',
-        imageDataUrl: captureObservationScreenshotWithStamp(observedAt, latLonText),
+        imageDataUrl: captureObservationScreenshotWithStamp(observedAt),
         observedAtIso: observedAt.toISOString(),
-        lat: Number(state.lat.toFixed(6)),
-        lon: Number(state.lon.toFixed(6)),
-        locationText: latLonText,
+        locationText: '',
         target: '星空観察',
-        comment: `観測日時: ${formatJa(observedAt)}\n観測地点: ${latLonText}`,
+        comment: '',
     };
 }
 
-function captureObservationScreenshotWithStamp(observedAt, latLonText) {
+function captureObservationScreenshotWithStamp(observedAt) {
     renderer.render(scene, camera);
     const src = renderer.domElement;
     const srcW = src.width || src.clientWidth;
@@ -4227,11 +4218,8 @@ function captureObservationScreenshotWithStamp(observedAt, latLonText) {
     if (!ctx) throw new Error('Failed to create 2d context');
     ctx.drawImage(src, 0, 0, outW, outH);
 
-    const lines = [
-        `日時: ${formatJa(observedAt)} (日本時間)`,
-        `緯度/経度: ${latLonText}`,
-    ];
-    const fontSize = Math.max(15, Math.round(outW * 0.018));
+    const lines = [`日時: ${formatJa(observedAt)} (日本時間)`];
+    const fontSize = Math.max(24, Math.round(outW * 0.03));
     const lineGap = Math.max(5, Math.round(fontSize * 0.35));
     const padX = Math.max(12, Math.round(outW * 0.016));
     const padY = Math.max(10, Math.round(outH * 0.015));
