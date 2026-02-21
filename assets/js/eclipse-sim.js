@@ -20,14 +20,53 @@
         shadowLenEr: 90
     });
     const VIEW_CTRL = Object.freeze({
-        dragYawPerPx: 0.0062,
-        dragPitchPerPx: 0.0042,
-        pitchMin: -0.86,
-        pitchMax: 0.86
+        yawTurnPerCanvas: Math.PI * 1.15,
+        pitchTurnPerCanvas: Math.PI * 0.55,
+        pitchMin: -0.62,
+        pitchMax: 0.62,
+        followLerp: 0.35
+    });
+    const ORBIT_REF = Object.freeze({
+        // 地球公転軸（黄道面法線）を簡易モデルとして 23.44° 傾ける
+        tiltRad: 23.44 * Math.PI / 180
     });
 
     function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
     function lerp(a, b, t) { return a + (b - a) * t; }
+    function wrapAngle(rad) {
+        const twoPi = Math.PI * 2;
+        let x = (rad + Math.PI) % twoPi;
+        if (x < 0) x += twoPi;
+        return x - Math.PI;
+    }
+    function lerpAngle(a, b, t) {
+        const d = wrapAngle(b - a);
+        return wrapAngle(a + d * t);
+    }
+    function dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+    function cross(a, b) {
+        return {
+            x: a.y * b.z - a.z * b.y,
+            y: a.z * b.x - a.x * b.z,
+            z: a.x * b.y - a.y * b.x
+        };
+    }
+    function normalize(v) {
+        const len = Math.hypot(v.x, v.y, v.z) || 1;
+        return { x: v.x / len, y: v.y / len, z: v.z / len };
+    }
+    function rotateAroundAxis(v, axis, angle) {
+        const k = normalize(axis);
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        const kv = dot(k, v);
+        const kxv = cross(k, v);
+        return {
+            x: v.x * c + kxv.x * s + k.x * kv * (1 - c),
+            y: v.y * c + kxv.y * s + k.y * kv * (1 - c),
+            z: v.z * c + kxv.z * s + k.z * kv * (1 - c)
+        };
+    }
 
     function lcg(seed) {
         let x = seed >>> 0;
@@ -110,6 +149,13 @@
         const moonRer = CFG.moonRkm / CFG.earthRkm;
         const startMs = new Date(CFG.startTimeJst).getTime();
         const fmtJst = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const sunAxis = Object.freeze({ x: 1, y: 0, z: 0 });
+        const orbitAxis = Object.freeze(normalize({
+            x: 0,
+            y: Math.cos(ORBIT_REF.tiltRad),
+            z: Math.sin(ORBIT_REF.tiltRad)
+        }));
+        const orbitPerpAxis = Object.freeze(normalize(cross(orbitAxis, sunAxis)));
 
         const sim = {
             m: CFG.initialMin,
@@ -118,7 +164,20 @@
             last: 0,
             starsFace: makeStars(140, 901),
             stars3d: makeStars(90, 2203),
-            view: { yaw: -0.92, pitch: 0.34, dist: 30, scale: 320, cx: 0, cy: 0, drag: false, pid: null, x: 0, y: 0 }
+            view: {
+                yaw: -0.92,
+                pitch: 0.34,
+                targetYaw: -0.92,
+                targetPitch: 0.34,
+                dist: 30,
+                scale: 320,
+                cx: 0,
+                cy: 0,
+                drag: false,
+                pid: null,
+                x: 0,
+                y: 0
+            }
         };
 
         slider.min = '0';
@@ -128,10 +187,14 @@
 
         function moonPos(minute) {
             const p = clamp(minute / CFG.durationMin, 0, 1);
+            // 回転軸（orbitAxis）に対して見たときに縦へ流れないよう、
+            // 月の移動方向は orbitAxis に直交する基底で定義する。
+            const sweep = lerp(CFG.pathY0, CFG.pathY1, p);
+            const axisOffset = CFG.pathZBase; // 軸方向オフセットは固定値
             return {
                 x: CFG.moonDistanceEr + 0.35 * Math.sin(p * Math.PI * 2),
-                y: lerp(CFG.pathY0, CFG.pathY1, p),
-                z: CFG.pathZBase + CFG.pathZAmp * Math.sin((p - 0.15) * Math.PI * 2)
+                y: orbitPerpAxis.y * sweep + orbitAxis.y * axisOffset,
+                z: orbitPerpAxis.z * sweep + orbitAxis.z * axisOffset
             };
         }
 
@@ -169,11 +232,17 @@
 
         function disp(v) { return { x: v.x * CFG.scaleX, y: v.y * CFG.scaleYZ, z: v.z * CFG.scaleYZ }; }
         function rot(v) {
-            const cy = Math.cos(sim.view.yaw), sy = Math.sin(sim.view.yaw);
-            const x1 = v.x * cy - v.z * sy;
-            const z1 = v.x * sy + v.z * cy;
-            const cx = Math.cos(sim.view.pitch), sx = Math.sin(sim.view.pitch);
-            return { x: x1, y: v.y * cx - z1 * sx, z: v.y * sx + z1 * cx };
+            // 1) 公転軸基準で水平回転 2) その姿勢に直交する軸で上下回転
+            const yawed = rotateAroundAxis(v, orbitAxis, sim.view.yaw);
+            const forward = rotateAroundAxis(sunAxis, orbitAxis, sim.view.yaw);
+            let tiltAxis = cross(orbitAxis, forward);
+            const tl = Math.hypot(tiltAxis.x, tiltAxis.y, tiltAxis.z);
+            if (tl < 1e-6) {
+                tiltAxis = { x: 0, y: 0, z: 1 };
+            } else {
+                tiltAxis = { x: tiltAxis.x / tl, y: tiltAxis.y / tl, z: tiltAxis.z / tl };
+            }
+            return rotateAroundAxis(yawed, tiltAxis, sim.view.pitch);
         }
         function proj(v) {
             const z = v.z + sim.view.dist;
@@ -204,8 +273,12 @@
             moon.addColorStop(0, '#fffef7'); moon.addColorStop(0.55, '#d6d5cc'); moon.addColorStop(1, '#91939d');
             ctx.fillStyle = moon; circle(ctx, cx, cy, r); ctx.fill();
 
-            const sx = cx - (st.p.y / moonRer) * r;
-            const sy = cy - (st.p.z / moonRer) * r;
+            // 月面ビューは「上=天頂側」を固定するため、
+            // orbitAxis を画面の上方向、orbitPerpAxis を左右方向として投影する。
+            const offRight = st.p.y * orbitPerpAxis.y + st.p.z * orbitPerpAxis.z;
+            const offUp = st.p.y * orbitAxis.y + st.p.z * orbitAxis.z;
+            const sx = cx - (offRight / moonRer) * r;
+            const sy = cy - (offUp / moonRer) * r;
             const pR = r * (st.sh.penumbra / moonRer);
             const uR = r * (st.sh.umbra / moonRer);
             ctx.save(); circle(ctx, cx, cy, r); ctx.clip();
@@ -507,8 +580,16 @@
             if (!sim.view.drag || (sim.view.pid !== null && sim.view.pid !== e.pointerId)) return;
             const dx = e.clientX - sim.view.x, dy = e.clientY - sim.view.y;
             sim.view.x = e.clientX; sim.view.y = e.clientY;
-            sim.view.yaw += dx * VIEW_CTRL.dragYawPerPx;
-            sim.view.pitch = clamp(sim.view.pitch + dy * VIEW_CTRL.dragPitchPerPx, VIEW_CTRL.pitchMin, VIEW_CTRL.pitchMax);
+            const rect = viewCanvas.getBoundingClientRect();
+            const w = Math.max(220, rect.width);
+            const h = Math.max(180, rect.height);
+            const yawDelta = (dx / w) * VIEW_CTRL.yawTurnPerCanvas;
+            const pitchDelta = (dy / h) * VIEW_CTRL.pitchTurnPerCanvas;
+
+            sim.view.targetYaw = wrapAngle(sim.view.targetYaw + yawDelta);
+            sim.view.targetPitch = clamp(sim.view.targetPitch + pitchDelta, VIEW_CTRL.pitchMin, VIEW_CTRL.pitchMax);
+            sim.view.yaw = lerpAngle(sim.view.yaw, sim.view.targetYaw, 0.72);
+            sim.view.pitch = lerp(sim.view.pitch, sim.view.targetPitch, 0.72);
             if (sim.auto) { sim.auto = false; syncBtn(); }
             if (liveActive()) render();
         });
@@ -527,7 +608,11 @@
             if (ts - sim.last >= CFG.frameMs) {
                 if (liveActive()) {
                     if (sim.play) { sim.m = (sim.m + 1) % (CFG.durationMin + 1); slider.value = String(sim.m); }
-                    if (sim.auto && !sim.view.drag) sim.view.yaw += 0.0045;
+                    if (sim.auto && !sim.view.drag) {
+                        sim.view.targetYaw = wrapAngle(sim.view.targetYaw + 0.0045);
+                    }
+                    sim.view.yaw = lerpAngle(sim.view.yaw, sim.view.targetYaw, VIEW_CTRL.followLerp);
+                    sim.view.pitch = lerp(sim.view.pitch, sim.view.targetPitch, VIEW_CTRL.followLerp);
                     render();
                 }
                 sim.last = ts;
