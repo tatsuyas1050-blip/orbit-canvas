@@ -404,6 +404,153 @@
                 overflow-y: auto;
             }
         }
+        .eclipse-panel {
+            margin-top: 1.2rem;
+            border-color: rgba(120,180,255,0.28);
+            background: linear-gradient(180deg, rgba(18, 30, 46, 0.78), rgba(9, 15, 24, 0.88));
+        }
+        .eclipse-panel .live-panel-desc {
+            margin-bottom: 1rem;
+        }
+        .eclipse-controls {
+            display: grid;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .eclipse-time-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.92rem;
+            color: #dfe9ff;
+        }
+        .eclipse-time-main {
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .eclipse-time-offset {
+            opacity: 0.8;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.82rem;
+        }
+        .eclipse-slider-wrap input[type="range"] {
+            width: 100%;
+            accent-color: #82b7ff;
+        }
+        .eclipse-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+        .eclipse-btn {
+            border: 1px solid rgba(120,180,255,0.45);
+            background: rgba(22,43,70,0.55);
+            color: #e9f4ff;
+            border-radius: 999px;
+            padding: 0.38rem 0.88rem;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .eclipse-btn:hover {
+            background: rgba(34,65,103,0.72);
+            border-color: rgba(160,208,255,0.7);
+        }
+        .eclipse-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .eclipse-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            padding: 0.75rem;
+        }
+        .eclipse-card h4 {
+            margin: 0 0 0.55rem;
+            font-size: 0.88rem;
+            color: rgba(216,236,255,0.92);
+            letter-spacing: 0.04em;
+        }
+        #eclipse-face-canvas,
+        #eclipse-3d-canvas {
+            width: 100%;
+            display: block;
+            border-radius: 8px;
+            border: 1px solid rgba(150,185,225,0.25);
+            background: radial-gradient(circle at 30% 20%, #0f1b2b 0%, #070c14 70%);
+        }
+        #eclipse-face-canvas {
+            aspect-ratio: 1 / 1;
+        }
+        #eclipse-3d-canvas {
+            aspect-ratio: 16 / 10;
+            touch-action: none;
+            cursor: grab;
+        }
+        #eclipse-3d-canvas.is-dragging {
+            cursor: grabbing;
+        }
+        .eclipse-canvas-note {
+            margin-top: 0.45rem;
+            font-size: 0.78rem;
+            line-height: 1.5;
+            color: rgba(216,236,255,0.7);
+        }
+        .eclipse-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.55rem;
+            margin-bottom: 0.95rem;
+        }
+        .eclipse-metric {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 0.55rem 0.65rem;
+        }
+        .eclipse-metric-label {
+            display: block;
+            font-size: 0.72rem;
+            letter-spacing: 0.06em;
+            color: rgba(216,236,255,0.62);
+            margin-bottom: 0.22rem;
+        }
+        .eclipse-metric-value {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #f3f8ff;
+            word-break: break-word;
+        }
+        .eclipse-events {
+            background: rgba(255,255,255,0.02);
+            border: 1px dashed rgba(130,183,255,0.35);
+            border-radius: 8px;
+            padding: 0.7rem 0.8rem;
+        }
+        .eclipse-events h4 {
+            margin: 0 0 0.45rem;
+            font-size: 0.82rem;
+            color: rgba(216,236,255,0.9);
+            letter-spacing: 0.06em;
+        }
+        .eclipse-events ul {
+            margin: 0;
+            padding-left: 1.05rem;
+            font-size: 0.84rem;
+            line-height: 1.65;
+            color: #dce7fa;
+        }
+        @media (max-width: 768px) {
+            .eclipse-card { padding: 0.62rem; }
+            .eclipse-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .eclipse-time-row { font-size: 0.85rem; }
+            #eclipse-3d-canvas { aspect-ratio: 4 / 3; }
+        }
 /* --- 3. Gallery Styles (Card Layout) --- */
         .gallery-grid {
             display: grid;
@@ -903,6 +1050,76 @@
                     <li>通信環境により映像が乱れる場合があります。</li>
                 </ul>
             </div>
+            <div id="eclipse-sim-panel" class="panel-bg live-panel eclipse-panel">
+                <h3 class="live-panel-title">2026/03/03 皆既月食シミュレーション</h3>
+                <p class="live-panel-desc">
+                    スライダーで時刻を動かしながら、月面ビューと地球・月・地球の影の3D位置関係を確認できます。<br>
+                    ※視認性のため3D図の距離スケール（太陽-地球-月方向）は圧縮したモデルです。
+                </p>
+
+                <div class="eclipse-controls">
+                    <div class="eclipse-time-row">
+                        <span id="eclipse-time-label" class="eclipse-time-main">-</span>
+                        <span id="eclipse-minute-label" class="eclipse-time-offset">+000 min</span>
+                    </div>
+                    <div class="eclipse-slider-wrap">
+                        <input id="eclipse-time-slider" type="range" min="0" max="360" step="1" value="180" aria-label="月食シミュレーション時刻">
+                    </div>
+                    <div class="eclipse-actions">
+                        <button id="eclipse-play-toggle" type="button" class="eclipse-btn" aria-pressed="false">再生</button>
+                        <button id="eclipse-autorotate-toggle" type="button" class="eclipse-btn" aria-pressed="true">自動回転: ON</button>
+                    </div>
+                </div>
+
+                <div class="eclipse-grid">
+                    <div class="eclipse-card">
+                        <h4>月面ビュー</h4>
+                        <canvas id="eclipse-face-canvas"></canvas>
+                        <div class="eclipse-canvas-note">地球の影が月へ重なる見え方を再現しています。</div>
+                    </div>
+                    <div class="eclipse-card">
+                        <h4>3D位置関係ビュー</h4>
+                        <canvas id="eclipse-3d-canvas"></canvas>
+                        <div class="eclipse-canvas-note">ドラッグで回転 / ボタンで自動回転を切替。</div>
+                    </div>
+                </div>
+
+                <div class="eclipse-metrics">
+                    <div class="eclipse-metric">
+                        <span class="eclipse-metric-label">食の段階</span>
+                        <span id="eclipse-stage" class="eclipse-metric-value">-</span>
+                    </div>
+                    <div class="eclipse-metric">
+                        <span class="eclipse-metric-label">本影被覆率</span>
+                        <span id="eclipse-umbra-coverage" class="eclipse-metric-value">-</span>
+                    </div>
+                    <div class="eclipse-metric">
+                        <span class="eclipse-metric-label">半影被覆率</span>
+                        <span id="eclipse-penumbra-coverage" class="eclipse-metric-value">-</span>
+                    </div>
+                    <div class="eclipse-metric">
+                        <span class="eclipse-metric-label">影中心からの距離</span>
+                        <span id="eclipse-axis-distance" class="eclipse-metric-value">-</span>
+                    </div>
+                    <div class="eclipse-metric">
+                        <span class="eclipse-metric-label">地球-月距離（モデル）</span>
+                        <span id="eclipse-moon-distance" class="eclipse-metric-value">-</span>
+                    </div>
+                    <div class="eclipse-metric">
+                        <span class="eclipse-metric-label">相対移動速度（モデル）</span>
+                        <span id="eclipse-rel-speed" class="eclipse-metric-value">-</span>
+                    </div>
+                    <div class="eclipse-metric">
+                        <span class="eclipse-metric-label">カメラ角</span>
+                        <span id="eclipse-camera-angle" class="eclipse-metric-value">-</span>
+                    </div>
+                </div>
+
+                <div class="eclipse-events">
+                    <h4>接触タイミング（モデル）</h4>
+                    <ul id="eclipse-event-list"></ul>
+                </div>
+            </div>
         </div>
 
         <div id="tab-gallery" class="section-content">
@@ -982,6 +1199,7 @@
     </div>
 
     <script src="assets/js/script.js"></script>
+    <script src="assets/js/eclipse-sim.js"></script>
     <script>
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const POST_URL = "https://3vtporkgipspcqyo3frdeesdu40gkmqw.lambda-url.ap-northeast-1.on.aws/";
@@ -1113,6 +1331,9 @@
             // タブを開いた瞬間に最新化（配信開始直後に気づきやすい）
             fetchLiveStatusOnce();
             syncLiveCommentUI(true);
+            if (typeof initLunarEclipseSim === 'function') {
+                initLunarEclipseSim();
+            }
         }
 
 

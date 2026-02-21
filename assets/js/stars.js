@@ -4477,7 +4477,7 @@ async function postMeteorRecord(rec) {
 }
 
 
-async function fetchRecentMeteorRecords(windowSec = 3600) {
+async function fetchRecentMeteorRecords(windowSec = 86400) {
   const res = await fetch(`${METEOR_API_BASE}/records?window=${encodeURIComponent(windowSec)}`, {
     method: "GET",
   });
@@ -5188,7 +5188,7 @@ function startRemoteMeteorPolling() {
   // まず1回即時取得
   (async () => {
     try {
-      const data = await fetchRecentMeteorRecords(3600);
+      const data = await fetchRecentMeteorRecords(86400);
       renderRecentMeteorRecords(data.items || []);
     } catch (e) {
       console.warn("Initial meteor fetch failed:", e);
@@ -5197,7 +5197,7 @@ function startRemoteMeteorPolling() {
 
   remoteMeteorPollTimer = setInterval(async () => {
     try {
-      const data = await fetchRecentMeteorRecords(3600);
+      const data = await fetchRecentMeteorRecords(86400);
       renderRecentMeteorRecords(data.items || []);
     } catch (e) {
       console.warn("Meteor refresh failed:", e);
