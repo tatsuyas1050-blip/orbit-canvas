@@ -5562,9 +5562,9 @@ function openMeteorConfirm() {
     const now = Date.now();
     const t = state.date?.getTime?.() ?? now;
     const diffMs = now - t;
-    const withinPast12h = (diffMs >= 0 && diffMs <= 12 * 60 * 60 * 1000);
+    const withinPast12h = (diffMs >= 0 && diffMs <= 24 * 60 * 60 * 1000);
     if (!withinPast12h) {
-        alert('流星の記録は「現在〜過去12時間以内」の表示時刻のときだけ可能です。');
+        alert('流星の記録は「現在〜過去24時間以内」の表示時刻のときだけ可能です。');
         return;
     }
 
@@ -5740,9 +5740,9 @@ function confirmMeteorSave() {
     const now = Date.now();
     const t = chosen.getTime();
     const diffMs = now - t;
-    const withinPast12h = (diffMs >= 0 && diffMs <= 12 * 60 * 60 * 1000);
+    const withinPast12h = (diffMs >= 0 && diffMs <= 24 * 60 * 60 * 1000);
     if (!withinPast12h) {
-        alert('保存できるのは「現在〜過去12時間以内」の時刻のみです。');
+        alert('保存できるのは「現在〜過去24時間以内」の時刻のみです。');
         return;
     }
 
