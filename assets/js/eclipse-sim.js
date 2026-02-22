@@ -2,23 +2,23 @@
     'use strict';
 
     const CFG = Object.freeze({
-        startTimeJst: '2026-03-03T18:00:00+09:00',
-        durationMin: 360,
-        initialMin: 180,
-        frameMs: 120,
+        startTimeJst: '2026-03-03T17:00:00+09:00',
+        durationMin: 390,
+        initialMin: 214, // 初期位置を「食の最大(20:34)」に変更
         earthRkm: 6371,
         moonRkm: 1737.4,
         moonDistanceEr: 60.3,
         umbraLengthEr: 216,
         penumbraSlope: 0.0045,
-        pathY0: 1.9,
-        pathY1: -1.9,
-        pathZBase: 0.18,
+        pathY0: 1.361, // 月の移動軌道を時間に合わせて調整
+        pathY1: -1.821, // 月の移動軌道を時間に合わせて調整
+        pathZBase: 0.3765, 
         pathZAmp: 0.08,
         scaleX: 0.18,
         scaleYZ: 1.8,
         shadowLenEr: 90
     });
+    
     const VIEW_CTRL = Object.freeze({
         yawTurnPerCanvas: Math.PI * 1.15,
         pitchTurnPerCanvas: Math.PI * 0.55,
@@ -27,12 +27,95 @@
         followLerp: 0.35
     });
     const ORBIT_REF = Object.freeze({
-        // 地球公転軸（黄道面法線）を簡易モデルとして 23.44° 傾ける
         tiltRad: 23.44 * Math.PI / 180
     });
+    const OFFICIAL_EVENT_MIN = Object.freeze({
+        // JST 2026-03-03 を基準にした公式値（CFG.startTimeJst からの分オフセット）
+        P1: 43,   // 半影食開始 17:43
+        U1: 110,  // 部分食開始 18:50
+        U2: 184,  // 皆既食開始 20:04
+        MAX: 214, // 食最大     20:34
+        U3: 243,  // 皆既食終了 21:03
+        U4: 318,  // 部分食終了 22:18
+        P4: 385   // 半影食終了 23:25
+    });
+    const MODEL_EVENT_MIN = Object.freeze({
+        // 現行幾何モデルでの接触時刻（内部計算用）
+        P1: -16,
+        U1: 55,
+        U2: 138,
+        MAX: 167,
+        U3: 197,
+        U4: 280,
+        P4: 351
+    });
+    const TIME_WARP_ANCHORS = Object.freeze({
+        // 表示時刻(17:00基準) -> 幾何計算時刻の対応
+        // 17:00 は半影外にしつつ、各イベント時刻を一致させる
+        display: [0, OFFICIAL_EVENT_MIN.P1, OFFICIAL_EVENT_MIN.U1, OFFICIAL_EVENT_MIN.U2, OFFICIAL_EVENT_MIN.MAX, OFFICIAL_EVENT_MIN.U3, OFFICIAL_EVENT_MIN.U4, OFFICIAL_EVENT_MIN.P4, CFG.durationMin],
+        model: [-62, MODEL_EVENT_MIN.P1, MODEL_EVENT_MIN.U1, MODEL_EVENT_MIN.U2, MODEL_EVENT_MIN.MAX, MODEL_EVENT_MIN.U3, MODEL_EVENT_MIN.U4, MODEL_EVENT_MIN.P4, 356]
+    });
+
+    // ====== 月食専用の星データ(CSV)の読み込み ======
+    let realStarsData = null;
+    fetch('assets/catalogs/eclipse_stars.csv')
+        .then(res => res.text())
+        .then(csvText => {
+            const lines = csvText.trim().split('\n');
+            const parsedStars = [];
+            
+            // 1行目はヘッダー「ra,dec,vmag」なので、i=1 からループを開始します
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(',');
+                if (parts.length >= 3) {
+                    const ra = parseFloat(parts[0]);
+                    const dec = parseFloat(parts[1]);
+                    const vmag = parseFloat(parts[2]);
+                    
+                    // 数値として正しい行だけを配列に追加
+                    if (!isNaN(ra) && !isNaN(dec) && !isNaN(vmag)) {
+                        parsedStars.push({
+                            ra_deg: ra,
+                            dec_deg: dec,
+                            vmag: vmag
+                        });
+                    }
+                }
+            }
+            realStarsData = parsedStars;
+            console.log(`月食背景用の星データを ${realStarsData.length} 個読み込みました。`);
+        })
+        .catch(err => console.warn('CSV catalog load error:', err));
 
     function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
     function lerp(a, b, t) { return a + (b - a) * t; }
+    function smoothstep(edge0, edge1, x) {
+        const span = edge1 - edge0;
+        if (Math.abs(span) < 1e-9) return x >= edge1 ? 1 : 0;
+        const t = clamp((x - edge0) / span, 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+    function hexToRgb(hex) {
+        const normalized = String(hex).replace(/^#/, '');
+        if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return { r: 255, g: 255, b: 255 };
+        return {
+            r: parseInt(normalized.slice(0, 2), 16),
+            g: parseInt(normalized.slice(2, 4), 16),
+            b: parseInt(normalized.slice(4, 6), 16)
+        };
+    }
+    function mixRgbHex(aHex, bHex, t) {
+        const a = hexToRgb(aHex);
+        const b = hexToRgb(bHex);
+        const k = clamp(t, 0, 1);
+        return {
+            r: Math.round(lerp(a.r, b.r, k)),
+            g: Math.round(lerp(a.g, b.g, k)),
+            b: Math.round(lerp(a.b, b.b, k))
+        };
+    }
+    function rgbCss(c) { return 'rgb(' + c.r + ',' + c.g + ',' + c.b + ')'; }
+    function rgbaCss(c, a) { return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + clamp(a, 0, 1).toFixed(3) + ')'; }
     function wrapAngle(rad) {
         const twoPi = Math.PI * 2;
         let x = (rad + Math.PI) % twoPi;
@@ -120,11 +203,29 @@
     function liveActive() {
         return (typeof window.isLiveTabActive === 'function') ? window.isLiveTabActive() : true;
     }
+    function mapDisplayToModelMinute(displayMinute) {
+        const m = clamp(displayMinute, 0, CFG.durationMin);
+        const ds = TIME_WARP_ANCHORS.display;
+        const ms = TIME_WARP_ANCHORS.model;
+        for (let i = 0; i < ds.length - 1; i++) {
+            const d0 = ds[i];
+            const d1 = ds[i + 1];
+            if (m <= d1) {
+                const span = d1 - d0;
+                if (span <= 0) return ms[i];
+                const t = (m - d0) / span;
+                return lerp(ms[i], ms[i + 1], t);
+            }
+        }
+        return ms[ms.length - 1];
+    }
 
     window.initLunarEclipseSim = function initLunarEclipseSim() {
         const panel = document.getElementById('eclipse-sim-panel');
         if (!panel || panel.dataset.ready === '1') return;
         panel.dataset.ready = '1';
+        const moonImg = new Image();
+        moonImg.src = "assets/img/moon_img.png"; // パスはご自身の環境に合わせてください
 
         const slider = document.getElementById('eclipse-time-slider');
         const playBtn = document.getElementById('eclipse-play-toggle');
@@ -186,7 +287,7 @@
         slider.value = String(sim.m);
 
         function moonPos(minute) {
-            const p = clamp(minute / CFG.durationMin, 0, 1);
+            const p = minute / CFG.durationMin;
             // 回転軸（orbitAxis）に対して見たときに縦へ流れないよう、
             // 月の移動方向は orbitAxis に直交する基底で定義する。
             const sweep = lerp(CFG.pathY0, CFG.pathY1, p);
@@ -205,26 +306,34 @@
         function speed(minute) {
             const m0 = clamp(minute - 0.5, 0, CFG.durationMin);
             const m1 = clamp(minute + 0.5, 0, CFG.durationMin);
-            const a = moonPos(m0);
-            const b = moonPos(m1);
+            const a = moonPos(mapDisplayToModelMinute(m0));
+            const b = moonPos(mapDisplayToModelMinute(m1));
             return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) * CFG.earthRkm / 60;
+        }
+        function stageByOfficialTime(minute) {
+            const m = clamp(minute, 0, CFG.durationMin);
+            if (m < OFFICIAL_EVENT_MIN.P1) return '半影外';
+            if (m < OFFICIAL_EVENT_MIN.U1) return '半影月食';
+            if (m < OFFICIAL_EVENT_MIN.U2) return '部分月食';
+            if (m < OFFICIAL_EVENT_MIN.U3) return '皆既月食';
+            if (m < OFFICIAL_EVENT_MIN.U4) return '部分月食';
+            if (m <= OFFICIAL_EVENT_MIN.P4) return '半影月食';
+            return '半影外';
         }
 
         function state(minute) {
             const m = clamp(minute, 0, CFG.durationMin);
-            const p = moonPos(m);
+            const modelM = mapDisplayToModelMinute(m);
+            const p = moonPos(modelM);
             const sh = shadowAt(p.x);
             const d = Math.hypot(p.y, p.z);
             const inP = d < sh.penumbra + moonRer;
             const inU = d < sh.umbra + moonRer;
             const total = d < Math.max(0, sh.umbra - moonRer);
-            let stage = '半影外';
-            if (total) stage = '皆既月食';
-            else if (inU) stage = '部分月食';
-            else if (inP) stage = '半影月食';
+            const stage = stageByOfficialTime(m);
             const moonArea = Math.PI * moonRer * moonRer;
             return {
-                m, p, sh, d, inP, inU, total, stage,
+                m, modelM, p, sh, d, inP, inU, total, stage,
                 umC: clamp(overlapArea(moonRer, sh.umbra, d) / moonArea, 0, 1),
                 peC: clamp(overlapArea(moonRer, sh.penumbra, d) / moonArea, 0, 1)
             };
@@ -255,46 +364,138 @@
             return Number(v).toLocaleString('ja-JP', { minimumFractionDigits: d, maximumFractionDigits: d });
         }
 
-        function renderFace(st) {
+       function renderFace(st) {
             const { w, h } = sizeCanvas(faceCanvas);
             const ctx = faceCanvas.getContext('2d');
             if (!ctx || w < 3 || h < 3) return;
 
+            // ① 宇宙の背景色
             const bg = ctx.createLinearGradient(0, 0, 0, h);
             bg.addColorStop(0, '#0b1320'); bg.addColorStop(1, '#03060b');
             ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
-            sim.starsFace.forEach((s) => {
-                ctx.fillStyle = 'rgba(220,235,255,' + (s.a * 0.7).toFixed(3) + ')';
-                ctx.fillRect(s.x * w, s.y * h, s.s, s.s);
-            });
 
             const cx = w * 0.5, cy = h * 0.5, r = Math.min(w, h) * 0.28;
-            const moon = ctx.createRadialGradient(cx - r * 0.2, cy - r * 0.24, r * 0.16, cx, cy, r);
-            moon.addColorStop(0, '#fffef7'); moon.addColorStop(0.55, '#d6d5cc'); moon.addColorStop(1, '#91939d');
-            ctx.fillStyle = moon; circle(ctx, cx, cy, r); ctx.fill();
 
-            // 月面ビューは「上=天頂側」を固定するため、
-            // orbitAxis を画面の上方向、orbitPerpAxis を左右方向として投影する。
+            // ====== 天頂を上にするための回転角度（パララクティック角） ======
+            const lat = 32.83 * Math.PI / 180;
+            const dec = 6.5 * Math.PI / 180;
+            const H = (st.m - 390) * 0.25 * Math.PI / 180;
+            const num = Math.sin(H);
+            const den = Math.tan(lat) * Math.cos(dec) - Math.sin(dec) * Math.cos(H);
+            const zenithAngle = Math.atan2(num, den);
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(zenithAngle);
+
+            // ====== 影の座標計算 ======
             const offRight = st.p.y * orbitPerpAxis.y + st.p.z * orbitPerpAxis.z;
             const offUp = st.p.y * orbitAxis.y + st.p.z * orbitAxis.z;
-            const sx = cx - (offRight / moonRer) * r;
-            const sy = cy - (offUp / moonRer) * r;
-            const pR = r * (st.sh.penumbra / moonRer);
-            const uR = r * (st.sh.umbra / moonRer);
-            ctx.save(); circle(ctx, cx, cy, r); ctx.clip();
-            ctx.fillStyle = 'rgba(24,28,44,0.38)'; circle(ctx, sx, sy, pR); ctx.fill();
-            const ug = ctx.createRadialGradient(sx + uR * 0.24, sy - uR * 0.22, uR * 0.08, sx, sy, uR);
-            ug.addColorStop(0, 'rgba(66,12,16,0.24)'); ug.addColorStop(0.56, 'rgba(22,8,16,0.74)'); ug.addColorStop(1, 'rgba(0,0,0,0.9)');
-            ctx.fillStyle = ug; circle(ctx, sx, sy, uR); ctx.fill();
-            if (st.umC > 0.55) {
-                const a = clamp((st.umC - 0.55) / 0.45, 0, 1) * 0.55;
-                const rg = ctx.createRadialGradient(cx, cy, r * 0.22, cx, cy, r);
-                rg.addColorStop(0, 'rgba(170,56,26,' + (0.28 + a * 0.25).toFixed(3) + ')');
-                rg.addColorStop(1, 'rgba(80,14,11,' + (0.44 + a * 0.3).toFixed(3) + ')');
-                ctx.fillStyle = rg; circle(ctx, cx, cy, r); ctx.fill();
+            const sx = - (offRight / moonRer) * r;
+            const sy = - (offUp / moonRer) * r; 
+
+            // ====== ② 星空の描画（実際の星表データを使用） ======
+            const moonApparentRadiusDeg = 0.258; // 月の視半径（約15.5分角）
+            const scaleDegToPx = r / moonApparentRadiusDeg;
+            
+            // 食の最大(20:34 = 開始から214分)からの経過時間で、地球の影の正確な赤経・赤緯を計算
+            // （太陽の動きに合わせて影も1日で約1度東へ、約0.38度南へ動くのを反映）
+            const tOffset = st.m - OFFICIAL_EVENT_MIN.MAX;
+            const currentShadowRa = 164.095 + tOffset * 0.000694;
+            const currentShadowDec = 6.538 - tOffset * 0.000264;
+
+            if (realStarsData && realStarsData.length > 0) {
+                realStarsData.forEach(s => {
+                    // 影の中心からのオフセット（度）
+                    const dx = (s.ra_deg - currentShadowRa) * Math.cos(currentShadowDec * Math.PI / 180);
+                    const dy = s.dec_deg - currentShadowDec;
+                    
+                    // 影のCanvas座標(sx, sy)を基準に星の位置を決定
+                    // CanvasのX軸は右が正（西）、Y軸は下が正（南）
+                    const px = sx - dx * scaleDegToPx;
+                    const py = sy - dy * scaleDegToPx;
+                    
+                    // 画面内に収まる星のみ描画
+                    if (px >= -w && px <= w*2 && py >= -h && py <= h*2) {
+                        const mag = s.vmag || 6;
+                        // 等級から星のサイズと透明度を計算（1等星が大きく明るく、暗い星ほど小さく）
+                        const alpha = clamp(1.0 - (mag + 1.0) / 8.5, 0.15, 1.0);
+                        const size = clamp(2.8 - mag * 0.3, 0.5, 3.5);
+                        
+                        ctx.fillStyle = `rgba(230, 240, 255, ${alpha.toFixed(3)})`;
+                        ctx.beginPath();
+                        ctx.arc(px, py, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+            } else {
+                // 読み込み前や失敗時は従来のランダム星空をフォールバックとして描画
+                const areaSize = Math.max(w, h) * 2;
+                sim.starsFace.forEach((s) => {
+                    ctx.fillStyle = 'rgba(220,235,255,' + (s.a * 0.7).toFixed(3) + ')';
+                    let px = (s.x * areaSize + sx) % areaSize;
+                    let py = (s.y * areaSize + sy) % areaSize;
+                    if (px < 0) px += areaSize;
+                    if (py < 0) py += areaSize;
+                    ctx.fillRect(px - areaSize / 2, py - areaSize / 2, s.s, s.s);
+                });
             }
-            ctx.restore();
-            ctx.strokeStyle = 'rgba(255,240,210,0.62)'; ctx.lineWidth = Math.max(1.1, r * 0.02); circle(ctx, cx, cy, r); ctx.stroke();
+
+            // ====== ③ 月の画像と影の描画 ======
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.clip(); 
+            
+            if (moonImg.complete && moonImg.naturalWidth > 0) {
+                ctx.drawImage(moonImg, -r, -r, r * 2, r * 2);
+            } else {
+                const moonGrad = ctx.createRadialGradient(-r * 0.2, -r * 0.24, r * 0.16, 0, 0, r);
+                moonGrad.addColorStop(0, '#fffef7'); moonGrad.addColorStop(0.55, '#d6d5cc'); moonGrad.addColorStop(1, '#91939d');
+                ctx.fillStyle = moonGrad; ctx.fill();
+            }
+
+            ctx.globalCompositeOperation = 'multiply';
+
+            // 半影
+            const pR = r * (st.sh.penumbra / moonRer);
+            const peEase = smoothstep(0.02, 0.98, st.peC);
+            const pOuter = pR * 1.06;
+            const pg = ctx.createRadialGradient(sx, sy, pR * 0.22, sx, sy, pOuter);
+            pg.addColorStop(0, 'rgba(22,26,42,' + (0.16 + peEase * 0.28).toFixed(3) + ')');
+            pg.addColorStop(0.62, 'rgba(16,20,34,' + (0.10 + peEase * 0.20).toFixed(3) + ')');
+            pg.addColorStop(1, 'rgba(10,14,26,0.0)');
+            ctx.fillStyle = pg;
+            ctx.beginPath(); ctx.arc(sx, sy, pOuter, 0, Math.PI * 2); ctx.fill();
+
+            // 本影
+            const uR = r * (st.sh.umbra / moonRer);
+            const umEase = smoothstep(0.01, 0.98, st.umC);
+            const uOuter = uR * 1.08;
+            const ug = ctx.createRadialGradient(sx + uR * 0.16, sy - uR * 0.14, Math.max(0.001, uR * 0.04), sx, sy, uOuter);
+            ug.addColorStop(0, 'rgba(84,24,20,' + (0.12 + umEase * 0.18).toFixed(3) + ')');
+            ug.addColorStop(0.48, 'rgba(24,11,19,' + (0.52 + umEase * 0.26).toFixed(3) + ')');
+            ug.addColorStop(0.86, 'rgba(6,8,16,' + (0.72 + umEase * 0.20).toFixed(3) + ')');
+            ug.addColorStop(1, 'rgba(2,4,10,0.0)');
+            ctx.fillStyle = ug;
+            ctx.beginPath(); ctx.arc(sx, sy, uOuter, 0, Math.PI * 2); ctx.fill();
+
+            ctx.globalCompositeOperation = 'source-over';
+
+            // 皆既中の赤銅色表現
+            const totalityTone = smoothstep(0.18, 0.95, st.umC);
+            const a = totalityTone * 0.58;
+            const rg = ctx.createRadialGradient(0, 0, r * 0.22, 0, 0, r);
+            rg.addColorStop(0, 'rgba(170,56,26,' + (0.05 + a * 0.45).toFixed(3) + ')');
+            rg.addColorStop(1, 'rgba(80,14,11,' + (0.08 + a * 0.66).toFixed(3) + ')');
+            ctx.fillStyle = rg;
+            ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+
+            ctx.restore(); // 回転とクリッピングを解除
+
+            // ====== ⑤ 枠線とステータステキスト ======
+            ctx.strokeStyle = 'rgba(255,240,210,0.62)'; ctx.lineWidth = Math.max(1.1, r * 0.02);
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+
             ctx.fillStyle = 'rgba(240,248,255,0.92)'; ctx.font = Math.max(12, Math.floor(w * 0.032)) + 'px sans-serif'; ctx.textAlign = 'center';
             ctx.fillText(st.stage, cx, h - Math.max(14, h * 0.05));
         }
@@ -486,7 +687,7 @@
             ctx.strokeStyle = 'rgba(125,198,255,0.52)'; ctx.lineWidth = Math.max(1.1, w * 0.0024); ctx.beginPath();
             let started = false;
             for (let i = 0; i <= 64; i++) {
-                const q = proj(rot(disp(moonPos((i / 64) * CFG.durationMin))));
+                const q = proj(rot(disp(moonPos(mapDisplayToModelMinute((i / 64) * CFG.durationMin)))));
                 if (!q) continue;
                 if (!started) { ctx.moveTo(q.x, q.y); started = true; } else ctx.lineTo(q.x, q.y);
             }
@@ -507,9 +708,17 @@
                 } };
             }
 
-            const moonColors = (st.umC > 0.64)
-                ? ['#deab86', '#8f4a36', '#2f1713', 'rgba(255,166,132,0.55)']
-                : ['#f0f0f0', '#9ea4ad', '#3e434b', 'rgba(242,245,255,0.45)'];
+            const moonTone = smoothstep(0.18, 0.95, st.umC);
+            const moonCore = mixRgbHex('#f0f0f0', '#deab86', moonTone);
+            const moonMid = mixRgbHex('#9ea4ad', '#8f4a36', moonTone);
+            const moonRim = mixRgbHex('#3e434b', '#2f1713', moonTone);
+            const moonEdge = mixRgbHex('#f2f5ff', '#ffa684', moonTone);
+            const moonColors = [
+                rgbCss(moonCore),
+                rgbCss(moonMid),
+                rgbCss(moonRim),
+                rgbaCss(moonEdge, lerp(0.45, 0.58, moonTone))
+            ];
             const items = [
                 sphere({ x: 0, y: 0, z: 0 }, 1, ['#8bc0ff', '#3568a3', '#102848', 'rgba(165,208,255,0.65)'], 'Earth'),
                 sphere(st.p, moonRer, moonColors, 'Moon')
@@ -540,26 +749,13 @@
         }
 
         function buildEvents() {
-            const marks = { P1: null, U1: null, U2: null, MAX: 0, U3: null, U4: null, P4: null };
-            let prev = state(0), minD = prev.d;
-            marks.P1 = prev.inP ? 0 : null; marks.U1 = prev.inU ? 0 : null; marks.U2 = prev.total ? 0 : null;
-            for (let m = 1; m <= CFG.durationMin; m++) {
-                const cur = state(m);
-                if (cur.d < minD) { minD = cur.d; marks.MAX = m; }
-                if (marks.P1 === null && !prev.inP && cur.inP) marks.P1 = m;
-                if (marks.U1 === null && !prev.inU && cur.inU) marks.U1 = m;
-                if (marks.U2 === null && !prev.total && cur.total) marks.U2 = m;
-                if (marks.U3 === null && prev.total && !cur.total) marks.U3 = m;
-                if (marks.U4 === null && prev.inU && !cur.inU) marks.U4 = m;
-                if (marks.P4 === null && prev.inP && !cur.inP) marks.P4 = m;
-                prev = cur;
-            }
             const rows = [
-                ['P1', '半影食開始', marks.P1], ['U1', '部分食開始', marks.U1], ['U2', '皆既食開始', marks.U2],
-                ['MAX', '食最大', marks.MAX], ['U3', '皆既食終了', marks.U3], ['U4', '部分食終了', marks.U4], ['P4', '半影食終了', marks.P4]
+                ['P1', '半影食開始', OFFICIAL_EVENT_MIN.P1], ['U1', '部分食開始', OFFICIAL_EVENT_MIN.U1], ['U2', '皆既食開始', OFFICIAL_EVENT_MIN.U2],
+                ['MAX', '食最大', OFFICIAL_EVENT_MIN.MAX], ['U3', '皆既食終了', OFFICIAL_EVENT_MIN.U3], ['U4', '部分食終了', OFFICIAL_EVENT_MIN.U4],
+                ['P4', '半影食終了', OFFICIAL_EVENT_MIN.P4]
             ];
             eventList.innerHTML = rows.map((r) => {
-                const t = (r[2] === null) ? '---' : fmtJst.format(new Date(startMs + r[2] * 60000));
+                const t = fmtJst.format(new Date(startMs + r[2] * 60000));
                 return '<li><b>' + r[0] + '</b> ' + r[1] + ': ' + t + '</li>';
             }).join('');
         }
