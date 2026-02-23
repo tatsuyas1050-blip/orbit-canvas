@@ -562,25 +562,44 @@
             // 本影
             const uR = r * (st.sh.umbra / moonRer);
             const umEase = smoothstep(0.01, 0.98, st.umC);
-            const uOuter = uR * 1.08;
-            const ug = ctx.createRadialGradient(sx + uR * 0.16, sy - uR * 0.14, Math.max(0.001, uR * 0.04), sx, sy, uOuter);
-            ug.addColorStop(0, 'rgba(84,24,20,' + (0.12 + umEase * 0.18).toFixed(3) + ')');
-            ug.addColorStop(0.48, 'rgba(24,11,19,' + (0.52 + umEase * 0.26).toFixed(3) + ')');
-            ug.addColorStop(0.86, 'rgba(6,8,16,' + (0.72 + umEase * 0.20).toFixed(3) + ')');
+            const uOuter = uR * 1.05;
+            const ug = ctx.createRadialGradient(sx, sy, Math.max(0.001, uR * 0.02), sx, sy, uOuter);
+            ug.addColorStop(0, 'rgba(12,8,14,' + (0.84 + umEase * 0.12).toFixed(3) + ')');
+            ug.addColorStop(0.48, 'rgba(16,8,14,' + (0.74 + umEase * 0.16).toFixed(3) + ')');
+            ug.addColorStop(0.86, 'rgba(6,7,12,' + (0.78 + umEase * 0.10).toFixed(3) + ')');
             ug.addColorStop(1, 'rgba(2,4,10,0.0)');
             ctx.fillStyle = ug;
             ctx.beginPath(); ctx.arc(sx, sy, uOuter, 0, Math.PI * 2); ctx.fill();
+            const coreR = Math.max(0.001, uR * 0.42);
+            const uCore = ctx.createRadialGradient(sx, sy, 0, sx, sy, coreR);
+            uCore.addColorStop(0, 'rgba(8,6,12,' + (0.34 + umEase * 0.18).toFixed(3) + ')');
+            uCore.addColorStop(1, 'rgba(8,6,12,0.0)');
+            ctx.fillStyle = uCore;
+            ctx.beginPath(); ctx.arc(sx, sy, coreR, 0, Math.PI * 2); ctx.fill();
 
             ctx.globalCompositeOperation = 'source-over';
 
-            // 皆既中の赤銅色表現
-            const totalityTone = smoothstep(0.18, 0.95, st.umC);
-            const a = totalityTone * 0.58;
-            const rg = ctx.createRadialGradient(0, 0, r * 0.22, 0, 0, r);
-            rg.addColorStop(0, 'rgba(170,56,26,' + (0.05 + a * 0.45).toFixed(3) + ')');
-            rg.addColorStop(1, 'rgba(80,14,11,' + (0.08 + a * 0.66).toFixed(3) + ')');
-            ctx.fillStyle = rg;
-            ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+            // 皆既中の赤銅色表現（本影領域を主対象にする）
+            const totalityTone = smoothstep(0.16, 0.98, st.umC);
+            if (uR > 1.2 && totalityTone > 0.001) {
+                const redScope = Math.max(r * 0.2, uOuter * 1.08);
+                const rg = ctx.createRadialGradient(
+                    sx - uR * 0.1, sy - uR * 0.08, Math.max(0.001, uR * 0.08),
+                    sx, sy, redScope
+                );
+                rg.addColorStop(0, 'rgba(176,70,38,' + (0.08 + totalityTone * 0.24).toFixed(3) + ')');
+                rg.addColorStop(0.55, 'rgba(112,32,22,' + (0.10 + totalityTone * 0.30).toFixed(3) + ')');
+                rg.addColorStop(1, 'rgba(70,16,14,0.0)');
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(sx, sy, redScope, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.fillStyle = rg;
+                ctx.beginPath();
+                ctx.arc(sx, sy, redScope, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
 
             ctx.restore(); // 回転とクリッピングを解除
 
