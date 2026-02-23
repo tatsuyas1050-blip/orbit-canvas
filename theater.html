@@ -477,7 +477,8 @@
             letter-spacing: 0.04em;
         }
         #eclipse-face-canvas,
-        #eclipse-3d-canvas {
+        #eclipse-3d-canvas,
+        #eclipse-moon-centric-canvas {
             width: 100%;
             display: block;
             border-radius: 8px;
@@ -492,7 +493,13 @@
             touch-action: none;
             cursor: grab;
         }
-        #eclipse-3d-canvas.is-dragging {
+        #eclipse-moon-centric-canvas {
+            aspect-ratio: 16 / 10;
+            touch-action: none;
+            cursor: grab;
+        }
+        #eclipse-3d-canvas.is-dragging,
+        #eclipse-moon-centric-canvas.is-dragging {
             cursor: grabbing;
         }
         .eclipse-canvas-note {
@@ -549,7 +556,8 @@
             .eclipse-card { padding: 0.62rem; }
             .eclipse-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .eclipse-time-row { font-size: 0.85rem; }
-            #eclipse-3d-canvas { aspect-ratio: 4 / 3; }
+            #eclipse-3d-canvas,
+            #eclipse-moon-centric-canvas { aspect-ratio: 4 / 3; }
         }
 /* --- 3. Gallery Styles (Card Layout) --- */
         .gallery-grid {
@@ -1081,6 +1089,11 @@
                         <h4>3D位置関係ビュー</h4>
                         <canvas id="eclipse-3d-canvas"></canvas>
                         <div class="eclipse-canvas-note">ドラッグで回転 / ボタンで自動回転を切替。</div>
+                    </div>
+                    <div class="eclipse-card">
+                        <h4>月中心グローブビュー</h4>
+                        <canvas id="eclipse-moon-centric-canvas"></canvas>
+                        <div class="eclipse-canvas-note">Google Earthのように月を回転し、地球の影が通過する位置を確認できます。</div>
                     </div>
                 </div>
 

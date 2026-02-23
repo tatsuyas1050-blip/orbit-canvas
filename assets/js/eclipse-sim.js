@@ -16,7 +16,8 @@
         pathZAmp: 0.08,
         scaleX: 0.18,
         scaleYZ: 1.8,
-        shadowLenEr: 90
+        shadowLenEr: 90,
+        frameMs: 120
     });
     
     const VIEW_CTRL = Object.freeze({
@@ -25,6 +26,14 @@
         pitchMin: -0.62,
         pitchMax: 0.62,
         followLerp: 0.35
+    });
+    const MOON_VIEW = Object.freeze({
+        camDist: 3.45,          // 月半径を1としたときのカメラ距離（衛星軌道風）
+        focalScale: 1.28,       // 透視投影の強さ
+        skyEarthDist: 22,       // Earthを描画する疑似天球距離
+        skySunDist: 28,         // Sunを描画する疑似天球距離
+        earthAngDeg: 0.95,      // 月から見た地球の見かけ半径（概算）
+        sunAngDeg: 0.266        // 月から見た太陽の見かけ半径（概算）
     });
     const ORBIT_REF = Object.freeze({
         tiltRad: 23.44 * Math.PI / 180
@@ -227,11 +236,36 @@
         const moonImg = new Image();
         moonImg.src = "assets/img/moon_img.png"; // パスはご自身の環境に合わせてください
 
+        // ====== Moon globe view: NASA の月面テクスチャ ======
+        // ブラウザでは Windows の絶対パス (例: C:\\... ) は参照できないため、
+        // theater.html からアクセスできる相対パスに配置してください。
+        // 期待パス: assets/img/moon_color.jpg
+        const moonColorImg = new Image();
+        moonColorImg.src = "assets/img/moon_color.jpg";
+        let moonTex = { ready: false, w: 0, h: 0, data: null };
+        moonColorImg.addEventListener('load', () => {
+            try {
+                const off = document.createElement('canvas');
+                off.width = moonColorImg.naturalWidth || 0;
+                off.height = moonColorImg.naturalHeight || 0;
+                if (off.width < 2 || off.height < 2) return;
+                const octx = off.getContext('2d', { willReadFrequently: true });
+                if (!octx) return;
+                octx.drawImage(moonColorImg, 0, 0);
+                const img = octx.getImageData(0, 0, off.width, off.height);
+                moonTex = { ready: true, w: off.width, h: off.height, data: img.data };
+                if (liveActive()) render();
+            } catch (err) {
+                console.warn('moon_color.jpg load error:', err);
+            }
+        });
+
         const slider = document.getElementById('eclipse-time-slider');
         const playBtn = document.getElementById('eclipse-play-toggle');
         const rotateBtn = document.getElementById('eclipse-autorotate-toggle');
         const faceCanvas = document.getElementById('eclipse-face-canvas');
         const viewCanvas = document.getElementById('eclipse-3d-canvas');
+        const moonCentricCanvas = document.getElementById('eclipse-moon-centric-canvas');
         const eventList = document.getElementById('eclipse-event-list');
         if (!slider || !playBtn || !rotateBtn || !faceCanvas || !viewCanvas || !eventList) return;
 
@@ -258,6 +292,46 @@
         }));
         const orbitPerpAxis = Object.freeze(normalize(cross(orbitAxis, sunAxis)));
 
+        function moonLocalFromWorld(v) {
+            return {
+                x: dot(v, orbitPerpAxis),
+                y: dot(v, orbitAxis),
+                z: dot(v, sunAxis)
+            };
+        }
+        function moonLocalToWorld(v) {
+            return {
+                x: orbitPerpAxis.x * v.x + orbitAxis.x * v.y + sunAxis.x * v.z,
+                y: orbitPerpAxis.y * v.x + orbitAxis.y * v.y + sunAxis.y * v.z,
+                z: orbitPerpAxis.z * v.x + orbitAxis.z * v.y + sunAxis.z * v.z
+            };
+        }
+        function rotateMoonLocal(v, yaw, pitch) {
+            const cy = Math.cos(yaw), sy = Math.sin(yaw);
+            const cp = Math.cos(pitch), sp = Math.sin(pitch);
+            const x1 = v.x * cy - v.z * sy;
+            const z1 = v.x * sy + v.z * cy;
+            return {
+                x: x1,
+                y: v.y * cp - z1 * sp,
+                z: v.y * sp + z1 * cp
+            };
+        }
+        function spherePoint(latRad, lonRad) {
+            const c = Math.cos(latRad);
+            return {
+                x: c * Math.sin(lonRad),
+                y: Math.sin(latRad),
+                z: c * Math.cos(lonRad)
+            };
+        }
+        function shadowDirFromMoon(p) {
+            const v = { x: 0, y: -p.y, z: -p.z };
+            const len = Math.hypot(v.x, v.y, v.z);
+            if (len < 1e-6) return { x: 0, y: 1, z: 0 };
+            return { x: v.x / len, y: v.y / len, z: v.z / len };
+        }
+
         const sim = {
             m: CFG.initialMin,
             play: false,
@@ -274,6 +348,17 @@
                 scale: 320,
                 cx: 0,
                 cy: 0,
+                drag: false,
+                pid: null,
+                x: 0,
+                y: 0
+            },
+            moonView: {
+                yaw: -1.0,
+                pitch: 0.18,
+                targetYaw: -1.0,
+                targetPitch: 0.18,
+                dist: MOON_VIEW.camDist,
                 drag: false,
                 pid: null,
                 x: 0,
@@ -338,6 +423,13 @@
                 peC: clamp(overlapArea(moonRer, sh.penumbra, d) / moonArea, 0, 1)
             };
         }
+
+        const initState = state(sim.m);
+        const initShadowLocal = moonLocalFromWorld(shadowDirFromMoon(initState.p));
+        sim.moonView.yaw = wrapAngle(Math.atan2(initShadowLocal.x, initShadowLocal.z));
+        sim.moonView.pitch = clamp(-Math.atan2(initShadowLocal.y, Math.hypot(initShadowLocal.x, initShadowLocal.z)), VIEW_CTRL.pitchMin, VIEW_CTRL.pitchMax);
+        sim.moonView.targetYaw = sim.moonView.yaw;
+        sim.moonView.targetPitch = sim.moonView.pitch;
 
         function disp(v) { return { x: v.x * CFG.scaleX, y: v.y * CFG.scaleYZ, z: v.z * CFG.scaleYZ }; }
         function rot(v) {
@@ -726,6 +818,348 @@
             items.forEach((it) => it.draw());
         }
 
+        function renderMoonCentric(st) {
+            if (!moonCentricCanvas) return;
+            const { w, h } = sizeCanvas(moonCentricCanvas);
+            const ctx = moonCentricCanvas.getContext('2d');
+            if (!ctx || w < 3 || h < 3) return;
+
+            const cx = w * 0.5;
+            const cy = h * 0.54;
+            const focal = Math.min(w, h) * MOON_VIEW.focalScale;
+            const degToRad = Math.PI / 180;
+
+            const bg = ctx.createLinearGradient(0, 0, 0, h);
+            bg.addColorStop(0, '#070d18');
+            bg.addColorStop(1, '#02050a');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, w, h);
+            sim.stars3d.forEach((s) => {
+                ctx.fillStyle = 'rgba(190,215,255,' + (s.a * 0.55).toFixed(3) + ')';
+                ctx.fillRect(s.x * w, s.y * h, s.s, s.s);
+            });
+
+            const camDist = Math.max(2.2, sim.moonView.dist || MOON_VIEW.camDist);
+            const camPos = rotateMoonLocal({ x: 0, y: 0, z: camDist }, sim.moonView.yaw, sim.moonView.pitch);
+            const camToMoon = normalize({ x: -camPos.x, y: -camPos.y, z: -camPos.z });
+            const moonToCam = normalize(camPos);
+            let worldUp = { x: 0, y: 1, z: 0 };
+            let camRight = cross(worldUp, camToMoon);
+            if (Math.hypot(camRight.x, camRight.y, camRight.z) < 1e-6) {
+                worldUp = { x: 0, y: 0, z: 1 };
+                camRight = cross(worldUp, camToMoon);
+            }
+            camRight = normalize(camRight);
+            const camUp = normalize(cross(camToMoon, camRight));
+
+            function toCamVec(v) {
+                return { x: dot(v, camRight), y: dot(v, camUp), z: dot(v, camToMoon) };
+            }
+            function projectPoint(p) {
+                const rel = { x: p.x - camPos.x, y: p.y - camPos.y, z: p.z - camPos.z };
+                const c = toCamVec(rel);
+                if (c.z <= 0.04) return null;
+                return { x: cx + (c.x * focal) / c.z, y: cy - (c.y * focal) / c.z, z: c.z };
+            }
+            function projectRadius(center, radius) {
+                const cp = projectPoint(center);
+                if (!cp) return null;
+                // Use apparent angular radius (exact for perspective), not small-angle r/z.
+                const rel = { x: center.x - camPos.x, y: center.y - camPos.y, z: center.z - camPos.z };
+                const dist = Math.hypot(rel.x, rel.y, rel.z);
+                if (dist <= radius + 1e-6) return null;
+                const denom = Math.sqrt(Math.max(1e-9, dist * dist - radius * radius));
+                return (focal * radius) / denom;
+            }
+            function projectSurface(v) {
+                const p = projectPoint(v);
+                if (!p) return null;
+                return { x: p.x, y: p.y, visible: dot(v, moonToCam) > 0 };
+            }
+            function drawGeoCurve(pointAt, segments, color, width) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.beginPath();
+                let drawing = false;
+                for (let i = 0; i <= segments; i++) {
+                    const p = projectSurface(pointAt(i / segments));
+                    if (p && p.visible) {
+                        if (!drawing) {
+                            ctx.moveTo(p.x, p.y);
+                            drawing = true;
+                        } else {
+                            ctx.lineTo(p.x, p.y);
+                        }
+                    } else {
+                        drawing = false;
+                    }
+                }
+                ctx.stroke();
+            }
+            function drawSkyBody(center, radius3d, palette, label) {
+                const cp = projectPoint(center);
+                const rp = projectRadius(center, radius3d);
+                if (!cp || !rp || rp < 0.8) return;
+
+                const glow = ctx.createRadialGradient(cp.x, cp.y, rp * 0.8, cp.x, cp.y, rp * 4.4);
+                glow.addColorStop(0, palette.glowInner);
+                glow.addColorStop(1, palette.glowOuter);
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(cp.x, cp.y, rp * 4.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                const g = ctx.createRadialGradient(cp.x - rp * 0.2, cp.y - rp * 0.22, rp * 0.15, cp.x, cp.y, rp);
+                g.addColorStop(0, palette.core);
+                g.addColorStop(0.62, palette.mid);
+                g.addColorStop(1, palette.edge);
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(cp.x, cp.y, rp, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = palette.ring;
+                ctx.lineWidth = Math.max(0.8, rp * 0.11);
+                ctx.stroke();
+
+                ctx.fillStyle = palette.label;
+                ctx.font = Math.max(10, Math.floor(w * 0.019)) + 'px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(label, cp.x + Math.max(4, rp * 0.9), cp.y - Math.max(4, rp * 0.75));
+            }
+
+            const earthLocal = moonLocalFromWorld(normalize({ x: -st.p.x, y: -st.p.y, z: -st.p.z }));
+            const sunLocal = moonLocalFromWorld(normalize({ x: -1, y: 0, z: 0 }));
+            const earthCenter = {
+                x: earthLocal.x * MOON_VIEW.skyEarthDist,
+                y: earthLocal.y * MOON_VIEW.skyEarthDist,
+                z: earthLocal.z * MOON_VIEW.skyEarthDist
+            };
+            const sunCenter = {
+                x: sunLocal.x * MOON_VIEW.skySunDist,
+                y: sunLocal.y * MOON_VIEW.skySunDist,
+                z: sunLocal.z * MOON_VIEW.skySunDist
+            };
+            const earthRadius3d = MOON_VIEW.skyEarthDist * Math.tan(MOON_VIEW.earthAngDeg * degToRad);
+            const sunRadius3d = MOON_VIEW.skySunDist * Math.tan(MOON_VIEW.sunAngDeg * degToRad);
+
+            drawSkyBody(sunCenter, sunRadius3d, {
+                core: 'rgba(255,245,210,0.98)',
+                mid: 'rgba(255,214,132,0.95)',
+                edge: 'rgba(255,168,78,0.9)',
+                ring: 'rgba(255,228,178,0.92)',
+                glowInner: 'rgba(255,205,112,0.24)',
+                glowOuter: 'rgba(255,180,90,0.0)',
+                label: 'rgba(255,236,190,0.92)'
+            }, 'Sun');
+            drawSkyBody(earthCenter, earthRadius3d, {
+                core: 'rgba(205,236,255,0.98)',
+                mid: 'rgba(120,186,240,0.96)',
+                edge: 'rgba(46,92,148,0.94)',
+                ring: 'rgba(198,232,255,0.9)',
+                glowInner: 'rgba(98,164,240,0.18)',
+                glowOuter: 'rgba(98,164,240,0.0)',
+                label: 'rgba(214,236,255,0.92)'
+            }, 'Earth');
+
+            const moonCenter = { x: 0, y: 0, z: 0 };
+            const moonProj = projectPoint(moonCenter);
+            const moonR = projectRadius(moonCenter, 1);
+            if (!moonProj || !moonR || moonR < 2) return;
+
+            const halo = ctx.createRadialGradient(moonProj.x, moonProj.y, moonR * 0.52, moonProj.x, moonProj.y, moonR * 1.7);
+            halo.addColorStop(0, 'rgba(130,180,255,0.14)');
+            halo.addColorStop(1, 'rgba(10,20,35,0)');
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(moonProj.x, moonProj.y, moonR * 1.7, 0, Math.PI * 2);
+            ctx.fill();
+
+            const moonTone = smoothstep(0.18, 0.95, st.umC);
+            const litAlbedo = mixRgbHex('#d9dfe8', '#be8a74', moonTone);
+            const darkAlbedo = mixRgbHex('#6e7682', '#402219', moonTone);
+            const copperAlbedo = mixRgbHex('#af5130', '#6a1b12', moonTone);
+            const edgeStroke = rgbaCss(mixRgbHex('#dbe6fa', '#f8be9e', moonTone), lerp(0.45, 0.65, moonTone));
+            const gridColor = rgbaCss(mixRgbHex('#95aecf', '#d4aa96', moonTone), lerp(0.08, 0.17, moonTone));
+            const shadowEdgeEr = Math.max(0.003, moonRer * 0.018);
+            const umbraDepthScale = Math.max(0.05, moonRer * 0.45);
+            const penumbraSpanFloor = Math.max(0.02, moonRer * 0.22);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(moonProj.x, moonProj.y, moonR, 0, Math.PI * 2);
+            ctx.clip();
+
+            ctx.fillStyle = rgbCss(darkAlbedo);
+            ctx.beginPath();
+            ctx.arc(moonProj.x, moonProj.y, moonR, 0, Math.PI * 2);
+            ctx.fill();
+
+            const latStep = 15 * degToRad;
+            const lonStep = 15 * degToRad;
+            const gridWidth = Math.max(0.5, moonR * 0.0048);
+            // テクスチャが未ロードのときだけ簡易グリッドを描画（デバッグ用）
+            if (!moonTex.ready) {
+                for (let lat = -75 * degToRad; lat <= 75 * degToRad + 1e-6; lat += latStep) {
+                    drawGeoCurve((t) => spherePoint(lat, -Math.PI + t * Math.PI * 2), 120, gridColor, gridWidth);
+                }
+                for (let lon = -165 * degToRad; lon <= 165 * degToRad + 1e-6; lon += lonStep) {
+                    drawGeoCurve((t) => spherePoint(-Math.PI * 0.5 + t * Math.PI, lon), 96, gridColor, gridWidth);
+                }
+            }
+
+            const px0 = Math.max(0, Math.floor(moonProj.x - moonR - 1));
+            const py0 = Math.max(0, Math.floor(moonProj.y - moonR - 1));
+            const px1 = Math.min(w, Math.ceil(moonProj.x + moonR + 1));
+            const py1 = Math.min(h, Math.ceil(moonProj.y + moonR + 1));
+            const iw = Math.max(1, px1 - px0);
+            const ih = Math.max(1, py1 - py0);
+            const image = ctx.getImageData(px0, py0, iw, ih);
+            const data = image.data;
+            const d = camDist;
+
+            // テクスチャサンプル（等距円筒図法/equirectangular）
+            function sampleMoonTex(vLocal) {
+                // vLocal: 月中心からの単位ベクトル（月ローカル座標）
+                if (!moonTex.ready || !moonTex.data) return null;
+                // Shift 180 deg so the Earth-facing hemisphere aligns with the map center.
+                const lon = Math.atan2(vLocal.x, vLocal.z) + Math.PI;
+                const lat = Math.asin(clamp(vLocal.y, -1, 1));  // [-pi/2, pi/2]
+                let u = lon / (Math.PI * 2) + 0.5;             // [0,1)
+                let v = 0.5 - lat / Math.PI;                   // [0,1]
+                // wrap u
+                u = u - Math.floor(u);
+                v = clamp(v, 0, 1);
+                const x = Math.min(moonTex.w - 1, Math.max(0, Math.floor(u * (moonTex.w - 1))));
+                const y = Math.min(moonTex.h - 1, Math.max(0, Math.floor(v * (moonTex.h - 1))));
+                const o = (y * moonTex.w + x) * 4;
+                const td = moonTex.data;
+                return { r: td[o], g: td[o + 1], b: td[o + 2] };
+            }
+
+            for (let iy = 0; iy < ih; iy++) {
+                const sy = py0 + iy + 0.5;
+                for (let ix = 0; ix < iw; ix++) {
+                    const sx = px0 + ix + 0.5;
+                    const dx = (sx - cx) / focal;
+                    const dy = (cy - sy) / focal;
+                    const invLen = 1 / Math.hypot(dx, dy, 1);
+                    const dir = { x: dx * invLen, y: dy * invLen, z: invLen };
+
+                    const dotDC = dir.z * d;
+                    const disc = dotDC * dotDC - (d * d - 1);
+                    if (disc <= 0) continue;
+                    const t = dotDC - Math.sqrt(disc);
+                    if (t <= 0) continue;
+
+                    const pz = dir.z * t;
+                    const nx = dir.x * t;
+                    const ny = dir.y * t;
+                    const nz = pz - d;
+
+                    // camera-space normal -> moon-local normal (unit)
+                    const vLocal = normalize({
+                        x: camRight.x * nx + camUp.x * ny + camToMoon.x * nz,
+                        y: camRight.y * nx + camUp.y * ny + camToMoon.y * nz,
+                        z: camRight.z * nx + camUp.z * ny + camToMoon.z * nz
+                    });
+                    const nWorld = moonLocalToWorld(vLocal);
+                    const lambert = Math.max(0, -nWorld.x);
+
+                    // Project this surface point back to world coordinates and test it against
+                    // the umbra/penumbra radius at that x-position.
+                    const pointWorld = {
+                        x: st.p.x + nWorld.x * moonRer,
+                        y: st.p.y + nWorld.y * moonRer,
+                        z: st.p.z + nWorld.z * moonRer
+                    };
+                    const pointShadow = shadowAt(pointWorld.x);
+                    const axisDistEr = Math.hypot(pointWorld.y, pointWorld.z);
+                    const umbraEdge0 = Math.max(0, pointShadow.umbra - shadowEdgeEr);
+                    const umbraEdge1 = pointShadow.umbra + shadowEdgeEr;
+                    const penEdge0 = Math.max(umbraEdge1 + 1e-6, pointShadow.penumbra - shadowEdgeEr);
+                    const penEdge1 = pointShadow.penumbra + shadowEdgeEr;
+
+                    // Earth-facing hemisphere gate:
+                    // backside (far side) should not receive Earth's shadow.
+                    const earthFacing = smoothstep(-0.03, 0.04, dot(vLocal, earthLocal));
+                    const umbraRaw = 1 - smoothstep(umbraEdge0, umbraEdge1, axisDistEr);
+                    const outsidePen = smoothstep(penEdge0, penEdge1, axisDistEr);
+                    const penOnlyRaw = clamp(1 - outsidePen - umbraRaw, 0, 1);
+                    const umbra = umbraRaw * earthFacing;
+                    const penOnly = penOnlyRaw * earthFacing;
+                    const span = Math.max(penumbraSpanFloor, pointShadow.penumbra - pointShadow.umbra);
+                    const transRaw = clamp((axisDistEr - pointShadow.umbra) / span, 0, 1);
+                    const transShadow = smoothstep(0, 1, transRaw);
+                    const trans = lerp(1, transShadow, earthFacing);
+                    const umbraDepth = clamp((pointShadow.umbra - axisDistEr) / umbraDepthScale, 0, 1) * earthFacing;
+
+                    // ベース色: テクスチャが使えるならそれを優先。未ロード時は既存の疑似アルベド。
+                    const tex = sampleMoonTex(vLocal);
+                    let baseR = tex ? tex.r : lerp(darkAlbedo.r, litAlbedo.r, 0.65);
+                    let baseG = tex ? tex.g : lerp(darkAlbedo.g, litAlbedo.g, 0.65);
+                    let baseB = tex ? tex.b : lerp(darkAlbedo.b, litAlbedo.b, 0.65);
+
+                    // 皆既に入るほど赤銅色へ（半影では弱めに）
+                    const copper = clamp(umbra * (0.30 + 0.62 * umbraDepth) + penOnly * 0.10, 0, 1);
+
+                    // ライティング:
+                    // - 日向面は Lambert (少しガンマ)
+                    // - 夜側は完全黒にせず微弱アンビエント
+                    // - 地球影の進入で trans により減光
+                    const ambient = lerp(0.05, 0.012, umbra);
+                    const direct = Math.pow(lambert, 0.9) * trans;
+                    let light = ambient + (1 - ambient) * direct;
+                    // Refracted red lift in umbra: keep it subtle so umbra stays darker than penumbra.
+                    light += (0.01 + 0.045 * umbraDepth) * umbra;
+                    // Extra attenuation to maintain contrast between penumbra and umbra.
+                    light *= (1 - 0.28 * umbra);
+                    light = clamp(light, 0.01, 1.08);
+
+                    // 赤銅色のティント（テクスチャの上に重ねる）
+                    const copperTint = (0.54 + 0.10 * umbra) * copper;
+                    const deepUmbra = umbra * (0.35 + 0.65 * umbraDepth);
+                    let outR = lerp(baseR, copperAlbedo.r, copperTint) * light;
+                    let outG = lerp(baseG, copperAlbedo.g, copperTint) * light;
+                    let outB = lerp(baseB, copperAlbedo.b, copperTint) * light;
+                    // Refracted sunlight in deep umbra: keep overall dark, but shift toward red.
+                    outR += 18 * deepUmbra;
+                    outG += 5 * deepUmbra;
+                    outB += 2.5 * deepUmbra;
+                    outB *= (1 - 0.18 * deepUmbra);
+
+                    const o = (iy * iw + ix) * 4;
+                    data[o] = Math.round(clamp(outR, 0, 255));
+                    data[o + 1] = Math.round(clamp(outG, 0, 255));
+                    data[o + 2] = Math.round(clamp(outB, 0, 255));
+                    data[o + 3] = 255;
+                }
+            }
+            ctx.putImageData(image, px0, py0);
+
+            const limb = ctx.createRadialGradient(moonProj.x, moonProj.y, moonR * 0.76, moonProj.x, moonProj.y, moonR * 1.02);
+            limb.addColorStop(0, 'rgba(0,0,0,0)');
+            limb.addColorStop(1, 'rgba(0,0,0,0.34)');
+            ctx.fillStyle = limb;
+            ctx.beginPath();
+            ctx.arc(moonProj.x, moonProj.y, moonR * 1.02, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.strokeStyle = edgeStroke;
+            ctx.lineWidth = Math.max(1.1, moonR * 0.02);
+            ctx.beginPath();
+            ctx.arc(moonProj.x, moonProj.y, moonR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            const earthSunSep = Math.acos(clamp(dot(earthLocal, sunLocal), -1, 1)) * 180 / Math.PI;
+            const altitudeKm = (camDist - 1) * CFG.moonRkm;
+            ctx.fillStyle = 'rgba(208,224,245,0.86)';
+            ctx.font = Math.max(10, Math.floor(w * 0.018)) + 'px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Satellite Alt ' + fmtNum(altitudeKm, 0) + ' km', 10, 18);
+            ctx.fillText('Earth-Sun Sep ' + fmtNum(earthSunSep, 2) + '°', 10, 34);
+        }
+
         function syncBtn() {
             playBtn.textContent = sim.play ? '停止' : '再生';
             playBtn.setAttribute('aria-pressed', sim.play ? 'true' : 'false');
@@ -743,9 +1177,16 @@
             if (dom.axis) dom.axis.textContent = fmtNum(st.d * CFG.earthRkm, 0) + ' km';
             if (dom.dist) dom.dist.textContent = fmtNum(st.p.x * CFG.earthRkm, 0) + ' km';
             if (dom.speed) dom.speed.textContent = fmtNum(speed(st.m), 2) + ' km/s';
-            if (dom.cam) dom.cam.textContent = 'Yaw ' + (sim.view.yaw * 180 / Math.PI).toFixed(1) + '° / Pitch ' + (sim.view.pitch * 180 / Math.PI).toFixed(1) + '°';
+            if (dom.cam) {
+                const modelCam = '3D Yaw ' + (sim.view.yaw * 180 / Math.PI).toFixed(1) + '° / Pitch ' + (sim.view.pitch * 180 / Math.PI).toFixed(1) + '°';
+                const moonCam = moonCentricCanvas
+                    ? (' / MoonSat Yaw ' + (sim.moonView.yaw * 180 / Math.PI).toFixed(1) + '° / Pitch ' + (sim.moonView.pitch * 180 / Math.PI).toFixed(1) + '° / Dist ' + (sim.moonView.dist || MOON_VIEW.camDist).toFixed(2) + 'R')
+                    : '';
+                dom.cam.textContent = modelCam + moonCam;
+            }
             renderFace(st);
             render3D(st);
+            renderMoonCentric(st);
         }
 
         function buildEvents() {
@@ -797,6 +1238,45 @@
         viewCanvas.addEventListener('pointercancel', stopDrag);
         viewCanvas.addEventListener('pointerleave', function () { if (sim.view.drag) stopDrag(); });
 
+        if (moonCentricCanvas) {
+            moonCentricCanvas.addEventListener('pointerdown', function (e) {
+                sim.moonView.drag = true;
+                sim.moonView.pid = e.pointerId;
+                sim.moonView.x = e.clientX;
+                sim.moonView.y = e.clientY;
+                moonCentricCanvas.classList.add('is-dragging');
+                try { moonCentricCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+            });
+            moonCentricCanvas.addEventListener('pointermove', function (e) {
+                if (!sim.moonView.drag || (sim.moonView.pid !== null && sim.moonView.pid !== e.pointerId)) return;
+                const dx = e.clientX - sim.moonView.x;
+                const dy = e.clientY - sim.moonView.y;
+                sim.moonView.x = e.clientX;
+                sim.moonView.y = e.clientY;
+                const rect = moonCentricCanvas.getBoundingClientRect();
+                const w = Math.max(220, rect.width);
+                const h = Math.max(180, rect.height);
+                const yawDelta = (dx / w) * VIEW_CTRL.yawTurnPerCanvas;
+                const pitchDelta = (dy / h) * VIEW_CTRL.pitchTurnPerCanvas;
+
+                sim.moonView.targetYaw = wrapAngle(sim.moonView.targetYaw + yawDelta);
+                sim.moonView.targetPitch = clamp(sim.moonView.targetPitch + pitchDelta, VIEW_CTRL.pitchMin, VIEW_CTRL.pitchMax);
+                sim.moonView.yaw = lerpAngle(sim.moonView.yaw, sim.moonView.targetYaw, 0.72);
+                sim.moonView.pitch = lerp(sim.moonView.pitch, sim.moonView.targetPitch, 0.72);
+                if (sim.auto) { sim.auto = false; syncBtn(); }
+                if (liveActive()) render();
+            });
+            function stopMoonDrag(e) {
+                sim.moonView.drag = false;
+                sim.moonView.pid = null;
+                moonCentricCanvas.classList.remove('is-dragging');
+                if (e && e.pointerId !== undefined) { try { moonCentricCanvas.releasePointerCapture(e.pointerId); } catch (err) {} }
+            }
+            moonCentricCanvas.addEventListener('pointerup', stopMoonDrag);
+            moonCentricCanvas.addEventListener('pointercancel', stopMoonDrag);
+            moonCentricCanvas.addEventListener('pointerleave', function () { if (sim.moonView.drag) stopMoonDrag(); });
+        }
+
         window.addEventListener('resize', function () { if (liveActive()) render(); });
 
         function tick(ts) {
@@ -807,8 +1287,20 @@
                     if (sim.auto && !sim.view.drag) {
                         sim.view.targetYaw = wrapAngle(sim.view.targetYaw + 0.0045);
                     }
+                    if (sim.auto && moonCentricCanvas && !sim.moonView.drag) {
+                        sim.moonView.targetYaw = wrapAngle(sim.moonView.targetYaw + 0.0032);
+                        sim.moonView.targetPitch = clamp(
+                            0.16 + Math.sin(sim.moonView.targetYaw * 0.58) * 0.22,
+                            VIEW_CTRL.pitchMin,
+                            VIEW_CTRL.pitchMax
+                        );
+                    }
                     sim.view.yaw = lerpAngle(sim.view.yaw, sim.view.targetYaw, VIEW_CTRL.followLerp);
                     sim.view.pitch = lerp(sim.view.pitch, sim.view.targetPitch, VIEW_CTRL.followLerp);
+                    if (moonCentricCanvas) {
+                        sim.moonView.yaw = lerpAngle(sim.moonView.yaw, sim.moonView.targetYaw, VIEW_CTRL.followLerp);
+                        sim.moonView.pitch = lerp(sim.moonView.pitch, sim.moonView.targetPitch, VIEW_CTRL.followLerp);
+                    }
                     render();
                 }
                 sim.last = ts;
