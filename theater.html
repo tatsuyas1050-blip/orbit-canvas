@@ -444,6 +444,16 @@
             flex-wrap: wrap;
             gap: 0.6rem;
         }
+        .eclipse-center-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.24rem;
+            padding: 0.18rem;
+            border-radius: 999px;
+            border: 1px solid rgba(160,208,255,0.38);
+            background: rgba(8,20,36,0.66);
+            backdrop-filter: blur(4px);
+        }
         .eclipse-btn {
             border: 1px solid rgba(120,180,255,0.45);
             background: rgba(22,43,70,0.55);
@@ -457,6 +467,68 @@
         .eclipse-btn:hover {
             background: rgba(34,65,103,0.72);
             border-color: rgba(160,208,255,0.7);
+        }
+        .eclipse-btn.is-active {
+            background: rgba(72,126,196,0.74);
+            border-color: rgba(176,222,255,0.9);
+        }
+        .eclipse-switch-btn {
+            border-color: transparent;
+            background: transparent;
+            padding: 0.26rem 0.72rem;
+            font-size: 0.76rem;
+        }
+        .eclipse-switch-btn:hover {
+            background: rgba(76,122,183,0.28);
+            border-color: transparent;
+        }
+        .eclipse-switch-btn.is-active {
+            background: rgba(92,148,216,0.78);
+            border-color: rgba(206,232,255,0.95);
+        }
+        .eclipse-orbit-window {
+            position: relative;
+        }
+        .eclipse-orbit-toolbar {
+            position: absolute;
+            top: 0.5rem;
+            left: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .eclipse-orbit-toolbar > * {
+            pointer-events: auto;
+        }
+        .eclipse-zoom-controls {
+            display: inline-flex;
+            gap: 0.3rem;
+            padding: 0.18rem;
+            border-radius: 999px;
+            border: 1px solid rgba(160,208,255,0.38);
+            background: rgba(8,20,36,0.66);
+            backdrop-filter: blur(4px);
+        }
+        .eclipse-zoom-btn {
+            width: 2rem;
+            height: 2rem;
+            padding: 0;
+            border-radius: 999px;
+            font-size: 1rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-color: transparent;
+            background: rgba(26,52,86,0.52);
+        }
+        .eclipse-zoom-btn:hover {
+            background: rgba(54,96,152,0.74);
+            border-color: rgba(188,224,255,0.88);
         }
         .eclipse-grid {
             display: grid;
@@ -477,8 +549,7 @@
             letter-spacing: 0.04em;
         }
         #eclipse-face-canvas,
-        #eclipse-3d-canvas,
-        #eclipse-moon-centric-canvas {
+        #eclipse-orbit-canvas {
             width: 100%;
             display: block;
             border-radius: 8px;
@@ -488,18 +559,12 @@
         #eclipse-face-canvas {
             aspect-ratio: 1 / 1;
         }
-        #eclipse-3d-canvas {
+        #eclipse-orbit-canvas {
             aspect-ratio: 16 / 10;
             touch-action: none;
             cursor: grab;
         }
-        #eclipse-moon-centric-canvas {
-            aspect-ratio: 16 / 10;
-            touch-action: none;
-            cursor: grab;
-        }
-        #eclipse-3d-canvas.is-dragging,
-        #eclipse-moon-centric-canvas.is-dragging {
+        #eclipse-orbit-canvas.is-dragging {
             cursor: grabbing;
         }
         .eclipse-canvas-note {
@@ -556,8 +621,20 @@
             .eclipse-card { padding: 0.62rem; }
             .eclipse-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .eclipse-time-row { font-size: 0.85rem; }
-            #eclipse-3d-canvas,
-            #eclipse-moon-centric-canvas { aspect-ratio: 4 / 3; }
+            .eclipse-orbit-toolbar {
+                top: 0.4rem;
+                left: 0.4rem;
+                right: 0.4rem;
+            }
+            .eclipse-switch-btn {
+                padding: 0.22rem 0.58rem;
+                font-size: 0.72rem;
+            }
+            .eclipse-zoom-btn {
+                width: 1.82rem;
+                height: 1.82rem;
+            }
+            #eclipse-orbit-canvas { aspect-ratio: 4 / 3; }
         }
 /* --- 3. Gallery Styles (Card Layout) --- */
         .gallery-grid {
@@ -1061,7 +1138,7 @@
             <div id="eclipse-sim-panel" class="panel-bg live-panel eclipse-panel">
                 <h3 class="live-panel-title">2026/03/03 皆既月食シミュレーション</h3>
                 <p class="live-panel-desc">
-                    スライダーで時刻を動かしながら、月面ビューと地球・月・地球の影の3D位置関係を確認できます。<br>
+                    スライダーで時刻を動かしながら、月面ビューと統合3Dグローブビューで位置関係を確認できます。<br>
                     ※視認性のため3D図の距離スケール（太陽-地球-月方向）は圧縮したモデルです。
                 </p>
 
@@ -1086,14 +1163,21 @@
                         <div class="eclipse-canvas-note">地球の影が月へ重なる見え方を再現しています。</div>
                     </div>
                     <div class="eclipse-card">
-                        <h4>3D位置関係ビュー</h4>
-                        <canvas id="eclipse-3d-canvas"></canvas>
-                        <div class="eclipse-canvas-note">ドラッグで回転 / ボタンで自動回転を切替。</div>
-                    </div>
-                    <div class="eclipse-card">
-                        <h4>月中心グローブビュー</h4>
-                        <canvas id="eclipse-moon-centric-canvas"></canvas>
-                        <div class="eclipse-canvas-note">Google Earthのように月を回転し、地球の影が通過する位置を確認できます。</div>
+                        <h4>統合3Dグローブビュー</h4>
+                        <div class="eclipse-orbit-window">
+                            <canvas id="eclipse-orbit-canvas"></canvas>
+                            <div class="eclipse-orbit-toolbar">
+                                <div class="eclipse-center-switch" role="group" aria-label="Center body">
+                                    <button id="eclipse-center-earth" type="button" class="eclipse-btn eclipse-switch-btn" aria-pressed="false">Earth</button>
+                                    <button id="eclipse-center-moon" type="button" class="eclipse-btn eclipse-switch-btn is-active" aria-pressed="true">Moon</button>
+                                </div>
+                                <div class="eclipse-zoom-controls" role="group" aria-label="Zoom controls">
+                                    <button id="eclipse-zoom-out" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="Zoom out">−</button>
+                                    <button id="eclipse-zoom-in" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="Zoom in">＋</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="eclipse-canvas-note">ウィンドウ内スイッチで地球中心/月中心を切替。ドラッグで回転、ホイールまたは +/- でズーム。</div>
                     </div>
                 </div>
 

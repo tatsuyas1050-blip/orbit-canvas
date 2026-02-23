@@ -35,8 +35,9 @@
         earthAngDeg: 0.95,      // 月から見た地球の見かけ半径（概算）
         sunAngDeg: 0.266        // 月から見た太陽の見かけ半径（概算）
     });
-    const ORBIT_REF = Object.freeze({
-        tiltRad: 23.44 * Math.PI / 180
+    const AXIS_REF = Object.freeze({
+        earthTiltRad: 23.44 * Math.PI / 180,   // 地球の自転軸傾斜（黄道面基準）
+        moonOrbitInclRad: 5.145 * Math.PI / 180 // 月軌道面の傾斜（黄道面基準）
     });
     const OFFICIAL_EVENT_MIN = Object.freeze({
         // JST 2026-03-03 を基準にした公式値（CFG.startTimeJst からの分オフセット）
@@ -147,6 +148,10 @@
         const len = Math.hypot(v.x, v.y, v.z) || 1;
         return { x: v.x / len, y: v.y / len, z: v.z / len };
     }
+    function add(a,b){return {x:a.x+b.x,y:a.y+b.y,z:a.z+b.z};}
+    function sub(a,b){return {x:a.x-b.x,y:a.y-b.y,z:a.z-b.z};}
+    function scale(v,s){return {x:v.x*s,y:v.y*s,z:v.z*s};}
+
     function rotateAroundAxis(v, axis, angle) {
         const k = normalize(axis);
         const c = Math.cos(angle);
@@ -259,15 +264,44 @@
                 console.warn('moon_color.jpg load error:', err);
             }
         });
+        const earthColorImg = new Image();
+        earthColorImg.src = "assets/img/earth_color.jpg";
+        let earthTex = { ready: false, w: 0, h: 0, data: null };
+        earthColorImg.addEventListener('load', () => {
+            try {
+                const off = document.createElement('canvas');
+                off.width = earthColorImg.naturalWidth || 0;
+                off.height = earthColorImg.naturalHeight || 0;
+                if (off.width >= 2 && off.height >= 2) {
+                    const octx = off.getContext('2d', { willReadFrequently: true });
+                    if (octx) {
+                        octx.drawImage(earthColorImg, 0, 0);
+                        const img = octx.getImageData(0, 0, off.width, off.height);
+                        earthTex = { ready: true, w: off.width, h: off.height, data: img.data };
+                    }
+                }
+            } catch (err) {
+                console.warn('earth_color.jpg pixel buffer error:', err);
+            }
+            if (liveActive()) render();
+        });
+        earthColorImg.addEventListener('error', (err) => {
+            console.warn('earth_color.jpg load error:', err);
+        });
 
         const slider = document.getElementById('eclipse-time-slider');
         const playBtn = document.getElementById('eclipse-play-toggle');
         const rotateBtn = document.getElementById('eclipse-autorotate-toggle');
+        const centerEarthBtn = document.getElementById('eclipse-center-earth');
+        const centerMoonBtn = document.getElementById('eclipse-center-moon');
+        const zoomInBtn = document.getElementById('eclipse-zoom-in');
+        const zoomOutBtn = document.getElementById('eclipse-zoom-out');
         const faceCanvas = document.getElementById('eclipse-face-canvas');
-        const viewCanvas = document.getElementById('eclipse-3d-canvas');
-        const moonCentricCanvas = document.getElementById('eclipse-moon-centric-canvas');
+        const orbitCanvas = document.getElementById('eclipse-orbit-canvas') || document.getElementById('eclipse-3d-canvas');
+        const viewCanvas = orbitCanvas;
+        const moonCentricCanvas = orbitCanvas;
         const eventList = document.getElementById('eclipse-event-list');
-        if (!slider || !playBtn || !rotateBtn || !faceCanvas || !viewCanvas || !eventList) return;
+        if (!slider || !playBtn || !rotateBtn || !faceCanvas || !orbitCanvas || !eventList) return;
 
         const dom = {
             time: document.getElementById('eclipse-time-label'),
@@ -282,15 +316,31 @@
         };
 
         const moonRer = CFG.moonRkm / CFG.earthRkm;
+        const ZOOM_CFG = Object.freeze({
+            earthMin: 2.2,
+            earthMax: 12,
+            earthStep: 0.28,
+            moonMin: 2.2,
+            moonMax: 7.2,
+            moonStep: 0.22
+        });
+        const EARTH_ROT = Object.freeze({
+            solarDayMin: 1440
+        });
         const startMs = new Date(CFG.startTimeJst).getTime();
         const fmtJst = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const startUtc = new Date(startMs);
+        const startUtcHours = startUtc.getUTCHours()
+            + startUtc.getUTCMinutes() / 60
+            + startUtc.getUTCSeconds() / 3600;
+        const startSubsolarLonDeg = (12 - startUtcHours) * 15;
+        const earthSpinPhaseTurns = (startSubsolarLonDeg - 180) / 360;
         const sunAxis = Object.freeze({ x: 1, y: 0, z: 0 });
-        const orbitAxis = Object.freeze(normalize({
-            x: 0,
-            y: Math.cos(ORBIT_REF.tiltRad),
-            z: Math.sin(ORBIT_REF.tiltRad)
-        }));
+        const eclipticNorth = Object.freeze({ x: 0, y: 1, z: 0 });
+        const earthSpinAxis = Object.freeze(normalize(rotateAroundAxis(eclipticNorth, sunAxis, AXIS_REF.earthTiltRad)));
+        const orbitAxis = Object.freeze(normalize(rotateAroundAxis(eclipticNorth, sunAxis, AXIS_REF.moonOrbitInclRad)));
         const orbitPerpAxis = Object.freeze(normalize(cross(orbitAxis, sunAxis)));
+        const viewForwardRef = Object.freeze({ x: 0, y: 0, z: 1 });
 
         function moonLocalFromWorld(v) {
             return {
@@ -336,6 +386,8 @@
             m: CFG.initialMin,
             play: false,
             auto: true,
+            center: 'moon',
+            dragMode: null,
             last: 0,
             starsFace: makeStars(140, 901),
             stars3d: makeStars(90, 2203),
@@ -344,7 +396,7 @@
                 pitch: 0.34,
                 targetYaw: -0.92,
                 targetPitch: 0.34,
-                dist: 30,
+                dist: 4.6,
                 scale: 320,
                 cx: 0,
                 cy: 0,
@@ -371,17 +423,75 @@
         slider.step = '1';
         slider.value = String(sim.m);
 
+        function syncCenterToggle() {
+            if (!centerEarthBtn || !centerMoonBtn) return;
+            const earthMode = sim.center === 'earth';
+            centerEarthBtn.classList.toggle('is-active', earthMode);
+            centerEarthBtn.setAttribute('aria-pressed', earthMode ? 'true' : 'false');
+            centerMoonBtn.classList.toggle('is-active', !earthMode);
+            centerMoonBtn.setAttribute('aria-pressed', earthMode ? 'false' : 'true');
+        }
+        function viewStateByMode(mode) {
+            return mode === 'earth' ? sim.view : sim.moonView;
+        }
+        function zoomInfoByMode(mode) {
+            if (mode === 'earth') {
+                return { min: ZOOM_CFG.earthMin, max: ZOOM_CFG.earthMax, step: ZOOM_CFG.earthStep, unit: 'R' };
+            }
+            return { min: ZOOM_CFG.moonMin, max: ZOOM_CFG.moonMax, step: ZOOM_CFG.moonStep, unit: 'R' };
+        }
+        function ensureViewDistance(mode) {
+            const active = viewStateByMode(mode);
+            const z = zoomInfoByMode(mode);
+            const fallback = mode === 'earth' ? 4.6 : MOON_VIEW.camDist;
+            const d = clamp(Number(active.dist) || fallback, z.min, z.max);
+            active.dist = d;
+            return d;
+        }
+        function zoomBy(notches) {
+            if (!Number.isFinite(notches) || notches === 0) return;
+            const mode = sim.center === 'earth' ? 'earth' : 'moon';
+            const active = viewStateByMode(mode);
+            const z = zoomInfoByMode(mode);
+            const base = ensureViewDistance(mode);
+            active.dist = clamp(base + z.step * notches, z.min, z.max);
+            if (sim.auto) { sim.auto = false; syncBtn(); }
+            if (liveActive()) render();
+        }
+        function setCenterMode(mode) {
+            if (mode !== 'earth' && mode !== 'moon') return;
+            if (sim.center === mode) return;
+            if (sim.dragMode) stopDrag();
+            ensureViewDistance(mode);
+            sim.center = mode;
+            syncCenterToggle();
+            if (liveActive()) render();
+        }
+
         function moonPos(minute) {
             const p = minute / CFG.durationMin;
-            // 回転軸（orbitAxis）に対して見たときに縦へ流れないよう、
-            // 月の移動方向は orbitAxis に直交する基底で定義する。
+
+            // Moon position is defined in the *world* (ecliptic) frame.
+            // - sunAxis: direction toward the Sun (x axis in this sim)
+            // - orbitPerpAxis: in-plane axis orthogonal to sunAxis
+            // - orbitAxis: orbit-plane normal (tilt/inclination)
+            //
+            // IMPORTANT: build the vector with full basis components (do NOT pick only .y/.z),
+            // otherwise the direction becomes inconsistent when the camera rotates.
             const sweep = lerp(CFG.pathY0, CFG.pathY1, p);
-            const axisOffset = CFG.pathZBase; // 軸方向オフセットは固定値
-            return {
-                x: CFG.moonDistanceEr + 0.35 * Math.sin(p * Math.PI * 2),
-                y: orbitPerpAxis.y * sweep + orbitAxis.y * axisOffset,
-                z: orbitPerpAxis.z * sweep + orbitAxis.z * axisOffset
-            };
+            const axisOffset = CFG.pathZBase;
+
+            // Along the Sun-axis (x): keep the original distance + small wobble.
+            const xAlongSun = CFG.moonDistanceEr + 0.35 * Math.sin(p * Math.PI * 2);
+
+            const v = add(
+                scale(sunAxis, xAlongSun),
+                add(
+                    scale(orbitPerpAxis, sweep),
+                    scale(orbitAxis, axisOffset)
+                )
+            );
+            return v;
         }
 
         function shadowAt(xEr) {
@@ -454,6 +564,51 @@
 
         function fmtNum(v, d) {
             return Number(v).toLocaleString('ja-JP', { minimumFractionDigits: d, maximumFractionDigits: d });
+        }
+        function earthSpinTurns(displayMinute) {
+            const m = Number.isFinite(displayMinute) ? displayMinute : 0;
+            return earthSpinPhaseTurns + m / EARTH_ROT.solarDayMin;
+        }
+        function drawTexturedDisc(ctx, img, x, y, r, spinTurns) {
+            if (!img || !img.complete || img.naturalWidth < 2 || img.naturalHeight < 2) return false;
+            const imgW = img.naturalWidth;
+            const imgH = img.naturalHeight;
+            const hemiW = Math.max(2, Math.min(imgW, Math.round(imgH)));
+            let turns = Number.isFinite(spinTurns) ? spinTurns : 0;
+            turns = turns - Math.floor(turns);
+            const centerPx = turns * imgW;
+            let sx = Math.floor(centerPx - hemiW * 0.5);
+            while (sx < 0) sx += imgW;
+            while (sx >= imgW) sx -= imgW;
+
+            ctx.save();
+            circle(ctx, x, y, r);
+            ctx.clip();
+            if (sx + hemiW <= imgW) {
+                ctx.drawImage(img, sx, 0, hemiW, imgH, x - r, y - r, r * 2, r * 2);
+            } else {
+                const partA = imgW - sx;
+                const partB = hemiW - partA;
+                const dstA = (partA / hemiW) * (r * 2);
+                ctx.drawImage(img, sx, 0, partA, imgH, x - r, y - r, dstA, r * 2);
+                ctx.drawImage(img, 0, 0, partB, imgH, x - r + dstA, y - r, r * 2 - dstA, r * 2);
+            }
+            ctx.restore();
+            return true;
+        }
+        function sampleEquirectTex(tex, nx, ny, nz, spinTurns) {
+            if (!tex || !tex.ready || !tex.data) return null;
+            const lon = Math.atan2(nx, nz);
+            const lat = Math.asin(clamp(ny, -1, 1));
+            let u = (Number.isFinite(spinTurns) ? spinTurns : 0) + lon / (Math.PI * 2) + 0.5;
+            let v = 0.5 - lat / Math.PI;
+            u = u - Math.floor(u);
+            v = clamp(v, 0, 1);
+            const x = Math.min(tex.w - 1, Math.max(0, Math.floor(u * (tex.w - 1))));
+            const y = Math.min(tex.h - 1, Math.max(0, Math.floor(v * (tex.h - 1))));
+            const o = (y * tex.w + x) * 4;
+            const td = tex.data;
+            return { r: td[o], g: td[o + 1], b: td[o + 2] };
         }
 
        function renderFace(st) {
@@ -615,6 +770,7 @@
             const { w, h } = sizeCanvas(viewCanvas);
             const ctx = viewCanvas.getContext('2d');
             if (!ctx || w < 3 || h < 3) return;
+            ensureViewDistance('earth');
             sim.view.cx = w * 0.5; sim.view.cy = h * 0.54; sim.view.scale = Math.min(w, h) * 0.92;
 
             const bg = ctx.createLinearGradient(0, 0, 0, h);
@@ -818,6 +974,39 @@
                     ctx.fillText(label, c2.x, c2.y - rp - 8);
                 } };
             }
+            function texturedSphere(center, rEr, textureImg, fallbackColors, label, spinTurns) {
+                const c3 = rot(disp(center)), c2 = proj(c3);
+                if (!c2) return null;
+                const rp = rEr * CFG.scaleYZ * c2.s;
+                if (rp < 0.7) return null;
+                return { z: c3.z, draw: function () {
+                    const textured = drawTexturedDisc(ctx, textureImg, c2.x, c2.y, rp, spinTurns);
+                    if (!textured) {
+                        const g = ctx.createRadialGradient(c2.x - rp * 0.36, c2.y - rp * 0.18, rp * 0.14, c2.x, c2.y, rp);
+                        g.addColorStop(0, fallbackColors[0]); g.addColorStop(0.58, fallbackColors[1]); g.addColorStop(1, fallbackColors[2]);
+                        ctx.fillStyle = g; circle(ctx, c2.x, c2.y, rp); ctx.fill();
+                    }
+                    ctx.save();
+                    circle(ctx, c2.x, c2.y, rp);
+                    ctx.clip();
+                    const shade = ctx.createLinearGradient(c2.x - rp * 1.05, c2.y - rp * 1.05, c2.x + rp * 1.05, c2.y + rp * 1.05);
+                    shade.addColorStop(0, 'rgba(255,255,255,0.22)');
+                    shade.addColorStop(0.52, 'rgba(0,0,0,0.0)');
+                    shade.addColorStop(1, 'rgba(0,0,0,0.52)');
+                    ctx.fillStyle = shade;
+                    circle(ctx, c2.x, c2.y, rp);
+                    ctx.fill();
+                    ctx.restore();
+                    ctx.strokeStyle = fallbackColors[3];
+                    ctx.lineWidth = Math.max(1.1, rp * 0.055);
+                    circle(ctx, c2.x, c2.y, rp);
+                    ctx.stroke();
+                    ctx.fillStyle = 'rgba(236,242,255,0.9)';
+                    ctx.font = Math.max(11, Math.floor(w * 0.018)) + 'px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(label, c2.x, c2.y - rp - 8);
+                } };
+            }
 
             const moonTone = smoothstep(0.18, 0.95, st.umC);
             const moonCore = mixRgbHex('#f0f0f0', '#deab86', moonTone);
@@ -830,12 +1019,294 @@
                 rgbCss(moonRim),
                 rgbaCss(moonEdge, lerp(0.45, 0.58, moonTone))
             ];
+            const earthFallbackColors = ['#8bc0ff', '#3568a3', '#102848', 'rgba(165,208,255,0.65)'];
             const items = [
-                sphere({ x: 0, y: 0, z: 0 }, 1, ['#8bc0ff', '#3568a3', '#102848', 'rgba(165,208,255,0.65)'], 'Earth'),
+                texturedSphere({ x: 0, y: 0, z: 0 }, 1, earthColorImg, earthFallbackColors, 'Earth', earthSpinTurns(st.m)),
                 sphere(st.p, moonRer, moonColors, 'Moon')
             ].filter(Boolean).sort((a, b) => b.z - a.z);
             items.forEach((it) => it.draw());
         }
+
+        
+        function renderEarthCentric(st) {
+            const { w, h } = sizeCanvas(viewCanvas);
+            const ctx = viewCanvas.getContext('2d');
+            if (!ctx || w < 3 || h < 3) return;
+
+            // ============================================================
+            // Earth-centric view (re-built from scratch)
+            // ------------------------------------------------------------
+            //  - Geometry stays in one WORLD frame (Earth at origin).
+            //  - Camera orbits Earth with yaw/pitch.
+            //  - Right-handed camera basis (fixes mirrored/incorrect rotation).
+            //
+            // WORLD frame:
+            //   sunAxis       : +X points away from the Sun (shadow axis)
+            //   eclipticNorth : +Y
+            //   +Z completes RHS
+            //   earthSpinAxis : tilted axis in WORLD
+            // ============================================================
+
+            // ---- background ----
+            const bg = ctx.createLinearGradient(0, 0, 0, h);
+            bg.addColorStop(0, '#070d18');
+            bg.addColorStop(1, '#02050a');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, w, h);
+            sim.stars3d.forEach((s) => {
+                ctx.fillStyle = 'rgba(190,215,255,' + (s.a * 0.55).toFixed(3) + ')';
+                ctx.fillRect(s.x * w, s.y * h, s.s, s.s);
+            });
+
+            // ---- camera (orbit around Earth) ----
+            const cx = w * 0.5;
+            const cy = h * 0.54;
+            const focal = Math.min(w, h) * MOON_VIEW.focalScale;
+
+            const camDist = ensureViewDistance('earth'); // in Earth radii
+            const upWorld = earthSpinAxis;
+
+            // Start from anti-sun direction so the shadow cone is visible.
+            const baseDir = normalize(add(scale(sunAxis, -1), scale(eclipticNorth, 0.22)));
+
+            // Yaw about Earth's spin axis.
+            const dirYaw = rotateAroundAxis(baseDir, upWorld, sim.view.yaw);
+
+            // Pitch about camera-right axis (computed from the yawed direction).
+            let pitchAxis = cross(dirYaw, upWorld);
+            if (Math.hypot(pitchAxis.x, pitchAxis.y, pitchAxis.z) < 1e-6) {
+                pitchAxis = cross(dirYaw, { x: 0, y: 0, z: 1 });
+            }
+            pitchAxis = normalize(pitchAxis);
+
+            const camDir = rotateAroundAxis(dirYaw, pitchAxis, sim.view.pitch);
+            const camPos = scale(camDir, camDist);
+
+            // Camera basis (RIGHT-HANDED)
+            const camForward = normalize(scale(camPos, -1));
+            let camRight = cross(camForward, upWorld); // forward × up
+            if (Math.hypot(camRight.x, camRight.y, camRight.z) < 1e-6) {
+                camRight = cross(camForward, { x: 0, y: 0, z: 1 });
+            }
+            camRight = normalize(camRight);
+            const camUp = normalize(cross(camRight, camForward)); // right × forward
+
+            function toCam(vWorld) {
+                return {
+                    x: dot(vWorld, camRight),
+                    y: dot(vWorld, camUp),
+                    z: dot(vWorld, camForward)
+                };
+            }
+            function projectPoint(pWorld) {
+                const rel = sub(pWorld, camPos);
+                const c = toCam(rel);
+                if (c.z <= 0.05) return null;
+                return {
+                    x: cx + (c.x * focal) / c.z,
+                    y: cy - (c.y * focal) / c.z,
+                    z: c.z
+                };
+            }
+            function projectRadius(centerWorld, radiusWorld) {
+                const rel = sub(centerWorld, camPos);
+                const dist = Math.hypot(rel.x, rel.y, rel.z);
+                if (dist <= radiusWorld + 1e-6) return null;
+                const denom = Math.sqrt(Math.max(1e-9, dist * dist - radiusWorld * radiusWorld));
+                return (focal * radiusWorld) / denom;
+            }
+
+            // ---- shadow cone/cylinder wireframe in WORLD ----
+            const axisU = orbitPerpAxis; // perpendicular in eclipse plane
+            const axisV = orbitAxis;     // eclipse plane normal
+
+            function drawRing(xEr, rEr, strokeStyle, alpha) {
+                const seg = 56;
+                let first = true;
+                ctx.beginPath();
+                for (let i = 0; i <= seg; i++) {
+                    const a = (i / seg) * Math.PI * 2;
+                    const p = add(
+                        scale(sunAxis, xEr),
+                        add(scale(axisU, Math.cos(a) * rEr), scale(axisV, Math.sin(a) * rEr))
+                    );
+                    const q = projectPoint(p);
+                    if (!q) continue;
+                    if (first) { ctx.moveTo(q.x, q.y); first = false; }
+                    else ctx.lineTo(q.x, q.y);
+                }
+                if (first) return false;
+                ctx.strokeStyle = strokeStyle;
+                ctx.globalAlpha = clamp(alpha, 0, 1);
+                ctx.lineWidth = Math.max(1.0, w * 0.0020);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                return true;
+            }
+
+            function drawConeGuides(x0, r0, x1, r1, strokeStyle, alpha) {
+                const guides = 6;
+                ctx.strokeStyle = strokeStyle;
+                ctx.globalAlpha = clamp(alpha, 0, 1);
+                ctx.lineWidth = Math.max(0.9, w * 0.0016);
+                for (let k = 0; k < guides; k++) {
+                    const a = (k / guides) * Math.PI * 2;
+                    const p0 = add(scale(sunAxis, x0), add(scale(axisU, Math.cos(a) * r0), scale(axisV, Math.sin(a) * r0)));
+                    const p1 = add(scale(sunAxis, x1), add(scale(axisU, Math.cos(a) * r1), scale(axisV, Math.sin(a) * r1)));
+                    const q0 = projectPoint(p0);
+                    const q1 = projectPoint(p1);
+                    if (!q0 || !q1) continue;
+                    ctx.beginPath();
+                    ctx.moveTo(q0.x, q0.y);
+                    ctx.lineTo(q1.x, q1.y);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            const xNear = 0.2;
+            const xFar = Math.max(10, CFG.shadowLenEr);
+            const penR0 = shadowAt(xNear).penumbra;
+            const penR1 = shadowAt(xFar).penumbra;
+            const umbR0 = shadowAt(xNear).umbra;
+            const umbR1 = shadowAt(xFar).umbra;
+
+            // Penumbra (outer)
+            drawRing(xNear, penR0, 'rgba(140,185,255,0.28)', 1);
+            drawRing(xFar, penR1, 'rgba(140,185,255,0.18)', 1);
+            drawConeGuides(xNear, penR0, xFar, penR1, 'rgba(140,185,255,0.14)', 1);
+
+            // Umbra (inner)
+            drawRing(xNear, umbR0, 'rgba(96,84,210,0.55)', 1);
+            drawRing(xFar, umbR1, 'rgba(96,84,210,0.38)', 1);
+            drawConeGuides(xNear, umbR0, xFar, umbR1, 'rgba(96,84,210,0.30)', 1);
+
+            // Sun direction line (Sun is at WORLD -X)
+            const sunFar = projectPoint({ x: -12, y: 0, z: 0 });
+            const earth2 = projectPoint({ x: 0, y: 0, z: 0 });
+            if (sunFar && earth2) {
+                ctx.strokeStyle = 'rgba(255,208,110,0.65)';
+                ctx.lineWidth = Math.max(1.0, w * 0.0022);
+                ctx.beginPath();
+                ctx.moveTo(sunFar.x, sunFar.y);
+                ctx.lineTo(earth2.x, earth2.y);
+                ctx.stroke();
+            }
+
+            // ---- orbit path (Moon trajectory) ----
+            ctx.strokeStyle = 'rgba(125,198,255,0.44)';
+            ctx.lineWidth = Math.max(1.0, w * 0.0022);
+            ctx.beginPath();
+            let started = false;
+            for (let i = 0; i <= 72; i++) {
+                const pos = moonPos(mapDisplayToModelMinute((i / 72) * CFG.durationMin));
+                const q = projectPoint(pos);
+                if (!q) continue;
+                if (!started) { ctx.moveTo(q.x, q.y); started = true; }
+                else ctx.lineTo(q.x, q.y);
+            }
+            if (started) ctx.stroke();
+
+            // ---- bodies (Earth & Moon) ----
+            const earthCenter = { x: 0, y: 0, z: 0 };
+            const moonCenter = st.p;     // WORLD
+            const moonRadius = moonRer;  // Earth radii
+
+            function drawBodyDisc(centerWorld, radiusWorld, img, spinTurns, fallback, label, tintAlpha) {
+                const cp = projectPoint(centerWorld);
+                const rp = projectRadius(centerWorld, radiusWorld);
+                if (!cp || !rp || rp < 1.1) return null;
+
+                // glow
+                const glow = ctx.createRadialGradient(cp.x, cp.y, rp * 0.7, cp.x, cp.y, rp * 3.0);
+                glow.addColorStop(0, 'rgba(112,178,246,0.14)');
+                glow.addColorStop(1, 'rgba(112,178,246,0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(cp.x, cp.y, rp * 3.0, 0, Math.PI * 2);
+                ctx.fill();
+
+                const textured = drawTexturedDisc(ctx, img, cp.x, cp.y, rp, spinTurns);
+                if (!textured) {
+                    const g = ctx.createRadialGradient(cp.x - rp * 0.22, cp.y - rp * 0.2, rp * 0.12, cp.x, cp.y, rp);
+                    g.addColorStop(0, fallback[0]);
+                    g.addColorStop(0.62, fallback[1]);
+                    g.addColorStop(1, fallback[2]);
+                    ctx.fillStyle = g;
+                    circle(ctx, cp.x, cp.y, rp);
+                    ctx.fill();
+                }
+
+                // limb shading + eclipse tint
+                ctx.save();
+                circle(ctx, cp.x, cp.y, rp);
+                ctx.clip();
+
+                const shade = ctx.createLinearGradient(cp.x - rp, cp.y - rp, cp.x + rp, cp.y + rp);
+                shade.addColorStop(0, 'rgba(255,255,255,0.18)');
+                shade.addColorStop(0.52, 'rgba(0,0,0,0)');
+                shade.addColorStop(1, 'rgba(0,0,0,0.45)');
+                ctx.fillStyle = shade;
+                circle(ctx, cp.x, cp.y, rp);
+                ctx.fill();
+
+                if (tintAlpha > 0.001) {
+                    ctx.fillStyle = 'rgba(166,62,42,' + tintAlpha.toFixed(3) + ')';
+                    circle(ctx, cp.x, cp.y, rp);
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                ctx.strokeStyle = fallback[3];
+                ctx.lineWidth = Math.max(1, rp * 0.04);
+                circle(ctx, cp.x, cp.y, rp);
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(226,238,255,0.92)';
+                ctx.font = Math.max(10, Math.floor(w * 0.018)) + 'px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(label, cp.x, cp.y - rp - 7);
+
+                return { z: cp.z };
+            }
+
+            const earthP = projectPoint(earthCenter);
+            const moonP = projectPoint(moonCenter);
+
+            const moonTone = smoothstep(0.18, 0.95, st.umC);
+            const moonTint = lerp(0.0, 0.24, moonTone);
+            const moonTexImg = (moonColorImg.complete && moonColorImg.naturalWidth > 0) ? moonColorImg : moonImg;
+
+            const drawOrder = [
+                { key: 'earth', z: earthP ? earthP.z : 0 },
+                { key: 'moon', z: moonP ? moonP.z : 0 }
+            ].sort((a, b) => b.z - a.z);
+
+            for (const it of drawOrder) {
+                if (it.key === 'earth') {
+                    drawBodyDisc(
+                        earthCenter,
+                        1.0,
+                        earthColorImg,
+                        earthSpinTurns(st.m),
+                        ['#cde7ff', '#6ea8df', '#244778', 'rgba(203,232,255,0.85)'],
+                        'Earth',
+                        0
+                    );
+                } else {
+                    drawBodyDisc(
+                        moonCenter,
+                        moonRadius,
+                        moonTexImg,
+                        0,
+                        ['#f0f0f0', '#9ea4ad', '#3e434b', 'rgba(242,245,255,0.58)'],
+                        'Moon',
+                        moonTint
+                    );
+                }
+            }
+        }
+
 
         function renderMoonCentric(st) {
             if (!moonCentricCanvas) return;
@@ -858,7 +1329,7 @@
                 ctx.fillRect(s.x * w, s.y * h, s.s, s.s);
             });
 
-            const camDist = Math.max(2.2, sim.moonView.dist || MOON_VIEW.camDist);
+            const camDist = ensureViewDistance('moon');
             const camPos = rotateMoonLocal({ x: 0, y: 0, z: camDist }, sim.moonView.yaw, sim.moonView.pitch);
             const camToMoon = normalize({ x: -camPos.x, y: -camPos.y, z: -camPos.z });
             const moonToCam = normalize(camPos);
@@ -915,7 +1386,7 @@
                 }
                 ctx.stroke();
             }
-            function drawSkyBody(center, radius3d, palette, label) {
+            function drawSkyBody(center, radius3d, palette, label, textureImg, spinTurns) {
                 const cp = projectPoint(center);
                 const rp = projectRadius(center, radius3d);
                 if (!cp || !rp || rp < 0.8) return;
@@ -928,14 +1399,30 @@
                 ctx.arc(cp.x, cp.y, rp * 4.4, 0, Math.PI * 2);
                 ctx.fill();
 
-                const g = ctx.createRadialGradient(cp.x - rp * 0.2, cp.y - rp * 0.22, rp * 0.15, cp.x, cp.y, rp);
-                g.addColorStop(0, palette.core);
-                g.addColorStop(0.62, palette.mid);
-                g.addColorStop(1, palette.edge);
-                ctx.fillStyle = g;
+                const textured = drawTexturedDisc(ctx, textureImg, cp.x, cp.y, rp, spinTurns);
+                if (!textured) {
+                    const g = ctx.createRadialGradient(cp.x - rp * 0.2, cp.y - rp * 0.22, rp * 0.15, cp.x, cp.y, rp);
+                    g.addColorStop(0, palette.core);
+                    g.addColorStop(0.62, palette.mid);
+                    g.addColorStop(1, palette.edge);
+                    ctx.fillStyle = g;
+                    ctx.beginPath();
+                    ctx.arc(cp.x, cp.y, rp, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cp.x, cp.y, rp, 0, Math.PI * 2);
+                ctx.clip();
+                const shade = ctx.createLinearGradient(cp.x - rp, cp.y - rp, cp.x + rp, cp.y + rp);
+                shade.addColorStop(0, 'rgba(255,255,255,0.18)');
+                shade.addColorStop(0.52, 'rgba(0,0,0,0)');
+                shade.addColorStop(1, 'rgba(0,0,0,0.42)');
+                ctx.fillStyle = shade;
                 ctx.beginPath();
                 ctx.arc(cp.x, cp.y, rp, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.restore();
                 ctx.strokeStyle = palette.ring;
                 ctx.lineWidth = Math.max(0.8, rp * 0.11);
                 ctx.stroke();
@@ -978,7 +1465,7 @@
                 glowInner: 'rgba(98,164,240,0.18)',
                 glowOuter: 'rgba(98,164,240,0.0)',
                 label: 'rgba(214,236,255,0.92)'
-            }, 'Earth');
+            }, 'Earth', earthColorImg, earthSpinTurns(st.m));
 
             const moonCenter = { x: 0, y: 0, z: 0 };
             const moonProj = projectPoint(moonCenter);
@@ -1184,6 +1671,7 @@
             playBtn.setAttribute('aria-pressed', sim.play ? 'true' : 'false');
             rotateBtn.textContent = sim.auto ? '自動回転: ON' : '自動回転: OFF';
             rotateBtn.setAttribute('aria-pressed', sim.auto ? 'true' : 'false');
+            syncCenterToggle();
         }
 
         function render() {
@@ -1197,15 +1685,22 @@
             if (dom.dist) dom.dist.textContent = fmtNum(st.p.x * CFG.earthRkm, 0) + ' km';
             if (dom.speed) dom.speed.textContent = fmtNum(speed(st.m), 2) + ' km/s';
             if (dom.cam) {
-                const modelCam = '3D Yaw ' + (sim.view.yaw * 180 / Math.PI).toFixed(1) + '° / Pitch ' + (sim.view.pitch * 180 / Math.PI).toFixed(1) + '°';
-                const moonCam = moonCentricCanvas
-                    ? (' / MoonSat Yaw ' + (sim.moonView.yaw * 180 / Math.PI).toFixed(1) + '° / Pitch ' + (sim.moonView.pitch * 180 / Math.PI).toFixed(1) + '° / Dist ' + (sim.moonView.dist || MOON_VIEW.camDist).toFixed(2) + 'R')
-                    : '';
-                dom.cam.textContent = modelCam + moonCam;
+                const active = sim.center === 'earth' ? sim.view : sim.moonView;
+                const modeLabel = sim.center === 'earth' ? 'Earth Center' : 'Moon Center';
+                const zoom = zoomInfoByMode(sim.center);
+                const d = ensureViewDistance(sim.center);
+                const distText = ' / Dist ' + d.toFixed(2) + zoom.unit;
+                dom.cam.textContent = modeLabel
+                    + ' / Yaw ' + (active.yaw * 180 / Math.PI).toFixed(1) + '°'
+                    + ' / Pitch ' + (active.pitch * 180 / Math.PI).toFixed(1) + '°'
+                    + distText;
             }
             renderFace(st);
-            render3D(st);
-            renderMoonCentric(st);
+            if (sim.center === 'earth') {
+                renderEarthCentric(st);
+            } else {
+                renderMoonCentric(st);
+            }
         }
 
         function buildEvents() {
@@ -1226,75 +1721,73 @@
         });
         playBtn.addEventListener('click', function () { sim.play = !sim.play; syncBtn(); });
         rotateBtn.addEventListener('click', function () { sim.auto = !sim.auto; syncBtn(); if (liveActive()) render(); });
+        if (centerEarthBtn) {
+            centerEarthBtn.addEventListener('click', function () { setCenterMode('earth'); });
+        }
+        if (centerMoonBtn) {
+            centerMoonBtn.addEventListener('click', function () { setCenterMode('moon'); });
+        }
+        if (zoomInBtn) {
+            zoomInBtn.addEventListener('click', function () { zoomBy(-1); });
+        }
+        if (zoomOutBtn) {
+            zoomOutBtn.addEventListener('click', function () { zoomBy(1); });
+        }
 
-        viewCanvas.addEventListener('pointerdown', function (e) {
-            sim.view.drag = true; sim.view.pid = e.pointerId; sim.view.x = e.clientX; sim.view.y = e.clientY;
-            viewCanvas.classList.add('is-dragging');
-            try { viewCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+        function stopDrag(e) {
+            if (!sim.dragMode) return;
+            const active = viewStateByMode(sim.dragMode);
+            active.drag = false;
+            active.pid = null;
+            sim.dragMode = null;
+            orbitCanvas.classList.remove('is-dragging');
+            if (e && e.pointerId !== undefined) {
+                try { orbitCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
+            }
+        }
+        orbitCanvas.addEventListener('pointerdown', function (e) {
+            const mode = sim.center === 'earth' ? 'earth' : 'moon';
+            const active = viewStateByMode(mode);
+            sim.dragMode = mode;
+            active.drag = true;
+            active.pid = e.pointerId;
+            active.x = e.clientX;
+            active.y = e.clientY;
+            orbitCanvas.classList.add('is-dragging');
+            try { orbitCanvas.setPointerCapture(e.pointerId); } catch (err) {}
         });
-        viewCanvas.addEventListener('pointermove', function (e) {
-            if (!sim.view.drag || (sim.view.pid !== null && sim.view.pid !== e.pointerId)) return;
-            const dx = e.clientX - sim.view.x, dy = e.clientY - sim.view.y;
-            sim.view.x = e.clientX; sim.view.y = e.clientY;
-            const rect = viewCanvas.getBoundingClientRect();
+        orbitCanvas.addEventListener('pointermove', function (e) {
+            if (!sim.dragMode) return;
+            const active = viewStateByMode(sim.dragMode);
+            if (!active.drag || (active.pid !== null && active.pid !== e.pointerId)) return;
+            const dx = e.clientX - active.x;
+            const dy = e.clientY - active.y;
+            active.x = e.clientX;
+            active.y = e.clientY;
+            const rect = orbitCanvas.getBoundingClientRect();
             const w = Math.max(220, rect.width);
             const h = Math.max(180, rect.height);
-            const yawDelta = (dx / w) * VIEW_CTRL.yawTurnPerCanvas;
-            const pitchDelta = (dy / h) * VIEW_CTRL.pitchTurnPerCanvas;
+            const yawDelta = (-(dx / w) * VIEW_CTRL.yawTurnPerCanvas);
+            const pitchDelta = (-(dy / h) * VIEW_CTRL.pitchTurnPerCanvas);
 
-            sim.view.targetYaw = wrapAngle(sim.view.targetYaw + yawDelta);
-            sim.view.targetPitch = clamp(sim.view.targetPitch + pitchDelta, VIEW_CTRL.pitchMin, VIEW_CTRL.pitchMax);
-            sim.view.yaw = lerpAngle(sim.view.yaw, sim.view.targetYaw, 0.72);
-            sim.view.pitch = lerp(sim.view.pitch, sim.view.targetPitch, 0.72);
+            active.targetYaw = wrapAngle(active.targetYaw + yawDelta);
+            active.targetPitch = clamp(active.targetPitch + pitchDelta, VIEW_CTRL.pitchMin, VIEW_CTRL.pitchMax);
+            active.yaw = lerpAngle(active.yaw, active.targetYaw, 0.72);
+            active.pitch = lerp(active.pitch, active.targetPitch, 0.72);
             if (sim.auto) { sim.auto = false; syncBtn(); }
             if (liveActive()) render();
         });
-        function stopDrag(e) {
-            sim.view.drag = false; sim.view.pid = null; viewCanvas.classList.remove('is-dragging');
-            if (e && e.pointerId !== undefined) { try { viewCanvas.releasePointerCapture(e.pointerId); } catch (err) {} }
-        }
-        viewCanvas.addEventListener('pointerup', stopDrag);
-        viewCanvas.addEventListener('pointercancel', stopDrag);
-        viewCanvas.addEventListener('pointerleave', function () { if (sim.view.drag) stopDrag(); });
-
-        if (moonCentricCanvas) {
-            moonCentricCanvas.addEventListener('pointerdown', function (e) {
-                sim.moonView.drag = true;
-                sim.moonView.pid = e.pointerId;
-                sim.moonView.x = e.clientX;
-                sim.moonView.y = e.clientY;
-                moonCentricCanvas.classList.add('is-dragging');
-                try { moonCentricCanvas.setPointerCapture(e.pointerId); } catch (err) {}
-            });
-            moonCentricCanvas.addEventListener('pointermove', function (e) {
-                if (!sim.moonView.drag || (sim.moonView.pid !== null && sim.moonView.pid !== e.pointerId)) return;
-                const dx = e.clientX - sim.moonView.x;
-                const dy = e.clientY - sim.moonView.y;
-                sim.moonView.x = e.clientX;
-                sim.moonView.y = e.clientY;
-                const rect = moonCentricCanvas.getBoundingClientRect();
-                const w = Math.max(220, rect.width);
-                const h = Math.max(180, rect.height);
-                const yawDelta = (dx / w) * VIEW_CTRL.yawTurnPerCanvas;
-                const pitchDelta = (dy / h) * VIEW_CTRL.pitchTurnPerCanvas;
-
-                sim.moonView.targetYaw = wrapAngle(sim.moonView.targetYaw + yawDelta);
-                sim.moonView.targetPitch = clamp(sim.moonView.targetPitch + pitchDelta, VIEW_CTRL.pitchMin, VIEW_CTRL.pitchMax);
-                sim.moonView.yaw = lerpAngle(sim.moonView.yaw, sim.moonView.targetYaw, 0.72);
-                sim.moonView.pitch = lerp(sim.moonView.pitch, sim.moonView.targetPitch, 0.72);
-                if (sim.auto) { sim.auto = false; syncBtn(); }
-                if (liveActive()) render();
-            });
-            function stopMoonDrag(e) {
-                sim.moonView.drag = false;
-                sim.moonView.pid = null;
-                moonCentricCanvas.classList.remove('is-dragging');
-                if (e && e.pointerId !== undefined) { try { moonCentricCanvas.releasePointerCapture(e.pointerId); } catch (err) {} }
-            }
-            moonCentricCanvas.addEventListener('pointerup', stopMoonDrag);
-            moonCentricCanvas.addEventListener('pointercancel', stopMoonDrag);
-            moonCentricCanvas.addEventListener('pointerleave', function () { if (sim.moonView.drag) stopMoonDrag(); });
-        }
+        orbitCanvas.addEventListener('pointerup', stopDrag);
+        orbitCanvas.addEventListener('pointercancel', stopDrag);
+        orbitCanvas.addEventListener('pointerleave', function () {
+            if (sim.dragMode) stopDrag();
+        });
+        orbitCanvas.addEventListener('wheel', function (e) {
+            e.preventDefault();
+            const raw = clamp(e.deltaY / 120, -4, 4);
+            if (Math.abs(raw) < 0.01) return;
+            zoomBy(raw);
+        }, { passive: false });
 
         window.addEventListener('resize', function () { if (liveActive()) render(); });
 
@@ -1303,20 +1796,21 @@
             if (ts - sim.last >= CFG.frameMs) {
                 if (liveActive()) {
                     if (sim.play) { sim.m = (sim.m + 1) % (CFG.durationMin + 1); slider.value = String(sim.m); }
-                    if (sim.auto && !sim.view.drag) {
-                        sim.view.targetYaw = wrapAngle(sim.view.targetYaw + 0.0045);
-                    }
-                    if (sim.auto && moonCentricCanvas && !sim.moonView.drag) {
-                        sim.moonView.targetYaw = wrapAngle(sim.moonView.targetYaw + 0.0032);
-                        sim.moonView.targetPitch = clamp(
-                            0.16 + Math.sin(sim.moonView.targetYaw * 0.58) * 0.22,
-                            VIEW_CTRL.pitchMin,
-                            VIEW_CTRL.pitchMax
-                        );
-                    }
-                    sim.view.yaw = lerpAngle(sim.view.yaw, sim.view.targetYaw, VIEW_CTRL.followLerp);
-                    sim.view.pitch = lerp(sim.view.pitch, sim.view.targetPitch, VIEW_CTRL.followLerp);
-                    if (moonCentricCanvas) {
+                    if (sim.center === 'earth') {
+                        if (sim.auto && !sim.view.drag) {
+                            sim.view.targetYaw = wrapAngle(sim.view.targetYaw + 0.0045);
+                        }
+                        sim.view.yaw = lerpAngle(sim.view.yaw, sim.view.targetYaw, VIEW_CTRL.followLerp);
+                        sim.view.pitch = lerp(sim.view.pitch, sim.view.targetPitch, VIEW_CTRL.followLerp);
+                    } else {
+                        if (sim.auto && !sim.moonView.drag) {
+                            sim.moonView.targetYaw = wrapAngle(sim.moonView.targetYaw + 0.0032);
+                            sim.moonView.targetPitch = clamp(
+                                0.16 + Math.sin(sim.moonView.targetYaw * 0.58) * 0.22,
+                                VIEW_CTRL.pitchMin,
+                                VIEW_CTRL.pitchMax
+                            );
+                        }
                         sim.moonView.yaw = lerpAngle(sim.moonView.yaw, sim.moonView.targetYaw, VIEW_CTRL.followLerp);
                         sim.moonView.pitch = lerp(sim.moonView.pitch, sim.moonView.targetPitch, VIEW_CTRL.followLerp);
                     }
