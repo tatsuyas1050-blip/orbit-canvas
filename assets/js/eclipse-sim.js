@@ -1115,6 +1115,70 @@
                 const denom = Math.sqrt(Math.max(1e-9, dist * dist - radiusWorld * radiusWorld));
                 return (focal * radiusWorld) / denom;
             }
+            function drawProjectedEarthTexture(centerWorld, radiusWorld, cp, rp, spinTurns) {
+                if (!earthTex.ready || !earthTex.data || !cp || !Number.isFinite(rp) || rp < 1.1) return false;
+
+                const centerCam = toCam(sub(centerWorld, camPos));
+                const centerCamLen2 = centerCam.x * centerCam.x + centerCam.y * centerCam.y + centerCam.z * centerCam.z;
+                const radius2 = radiusWorld * radiusWorld;
+                if (centerCamLen2 <= radius2 + 1e-6) return false;
+
+                const px0 = Math.max(0, Math.floor(cp.x - rp - 1));
+                const py0 = Math.max(0, Math.floor(cp.y - rp - 1));
+                const px1 = Math.min(w, Math.ceil(cp.x + rp + 1));
+                const py1 = Math.min(h, Math.ceil(cp.y + rp + 1));
+                const iw = Math.max(1, px1 - px0);
+                const ih = Math.max(1, py1 - py0);
+                const image = ctx.getImageData(px0, py0, iw, ih);
+                const data = image.data;
+
+                for (let iy = 0; iy < ih; iy++) {
+                    const sy = py0 + iy + 0.5;
+                    for (let ix = 0; ix < iw; ix++) {
+                        const sx = px0 + ix + 0.5;
+                        const dx = (sx - cx) / focal;
+                        const dy = (cy - sy) / focal;
+                        const invLen = 1 / Math.hypot(dx, dy, 1);
+                        const dirCam = { x: dx * invLen, y: dy * invLen, z: invLen };
+
+                        const rayToCenter = dirCam.x * centerCam.x + dirCam.y * centerCam.y + dirCam.z * centerCam.z;
+                        const disc = rayToCenter * rayToCenter - (centerCamLen2 - radius2);
+                        if (disc <= 0) continue;
+                        const t = rayToCenter - Math.sqrt(disc);
+                        if (t <= 0) continue;
+
+                        const hitCam = { x: dirCam.x * t, y: dirCam.y * t, z: dirCam.z * t };
+                        const nCam = normalize({
+                            x: hitCam.x - centerCam.x,
+                            y: hitCam.y - centerCam.y,
+                            z: hitCam.z - centerCam.z
+                        });
+                        const nWorld = normalize({
+                            x: camRight.x * nCam.x + camUp.x * nCam.y + camForward.x * nCam.z,
+                            y: camRight.y * nCam.x + camUp.y * nCam.y + camForward.y * nCam.z,
+                            z: camRight.z * nCam.x + camUp.z * nCam.y + camForward.z * nCam.z
+                        });
+
+                        // Texture lookup frame: un-tilt Earth axis back to ecliptic Y, then apply spin phase.
+                        const nTex = rotateAroundAxis(nWorld, sunAxis, -AXIS_REF.earthTiltRad);
+                        const tex = sampleEquirectTex(earthTex, nTex.x, nTex.y, nTex.z, spinTurns);
+                        if (!tex) continue;
+
+                        const lambert = Math.max(0, -nWorld.x);
+                        const ambient = 0.16;
+                        const light = ambient + (1 - ambient) * Math.pow(lambert, 0.9);
+
+                        const o = (iy * iw + ix) * 4;
+                        data[o] = Math.round(clamp(tex.r * light, 0, 255));
+                        data[o + 1] = Math.round(clamp(tex.g * light, 0, 255));
+                        data[o + 2] = Math.round(clamp(tex.b * light, 0, 255));
+                        data[o + 3] = 255;
+                    }
+                }
+
+                ctx.putImageData(image, px0, py0);
+                return true;
+            }
 
             // ---- shadow cone/cylinder wireframe in WORLD ----
             const axisU = orbitPerpAxis; // perpendicular in eclipse plane
@@ -1226,7 +1290,9 @@
                 ctx.arc(cp.x, cp.y, rp * 3.0, 0, Math.PI * 2);
                 ctx.fill();
 
-                const textured = drawTexturedDisc(ctx, img, cp.x, cp.y, rp, spinTurns);
+                const textured = (img === earthColorImg)
+                    ? drawProjectedEarthTexture(centerWorld, radiusWorld, cp, rp, spinTurns)
+                    : drawTexturedDisc(ctx, img, cp.x, cp.y, rp, spinTurns);
                 if (!textured) {
                     const g = ctx.createRadialGradient(cp.x - rp * 0.22, cp.y - rp * 0.2, rp * 0.12, cp.x, cp.y, rp);
                     g.addColorStop(0, fallback[0]);
