@@ -349,7 +349,8 @@
             + startUtc.getUTCMinutes() / 60
             + startUtc.getUTCSeconds() / 3600;
         const startSubsolarLonDeg = (12 - startUtcHours) * 15;
-        const earthSpinPhaseTurns = (startSubsolarLonDeg - 180) / 360;
+        // 修正: 3D空間の光源(-X軸)と画像の中心(経度0度)を合わせるため、オフセットを +0.25(90度) に変更
+        const earthSpinPhaseTurns = (startSubsolarLonDeg / 360) + 0.25;
         const sunAxis = Object.freeze({ x: 1, y: 0, z: 0 });
         const eclipticNorth = Object.freeze({ x: 0, y: 1, z: 0 });
         const earthSpinAxis = Object.freeze(normalize(rotateAroundAxis(eclipticNorth, sunAxis, AXIS_REF.earthTiltRad)));
@@ -584,9 +585,10 @@
         function fmtNum(v, d) {
             return Number(v).toLocaleString('ja-JP', { minimumFractionDigits: d, maximumFractionDigits: d });
         }
-        function earthSpinTurns(displayMinute) {
-            const m = Number.isFinite(displayMinute) ? displayMinute : 0;
-            return earthSpinPhaseTurns + m / EARTH_ROT.solarDayMin;
+        function earthSpinTurns(modelMinute) {
+            const m = Number.isFinite(modelMinute) ? modelMinute : 0;
+            // 修正: 地球を西から東へ正しく自転させるため、時間を「足す(+)」から「引く(-)」に変更
+            return earthSpinPhaseTurns - m / EARTH_ROT.solarDayMin;
         }
         function drawTexturedDisc(ctx, img, x, y, r, spinTurns) {
             if (!img || !img.complete || img.naturalWidth < 2 || img.naturalHeight < 2) return false;
@@ -1040,7 +1042,7 @@
             ];
             const earthFallbackColors = ['#8bc0ff', '#3568a3', '#102848', 'rgba(165,208,255,0.65)'];
             const items = [
-                texturedSphere({ x: 0, y: 0, z: 0 }, 1, earthColorImg, earthFallbackColors, 'Earth', earthSpinTurns(st.m)),
+                texturedSphere({ x: 0, y: 0, z: 0 }, 1, earthColorImg, earthFallbackColors, 'Earth', earthSpinTurns(st.modelM)),
                 sphere(st.p, moonRer, moonColors, 'Moon')
             ].filter(Boolean).sort((a, b) => b.z - a.z);
             items.forEach((it) => it.draw());
@@ -1654,7 +1656,7 @@
                         earthCenter,
                         1.0,
                         earthColorImg,
-                        earthSpinTurns(st.m),
+                        earthSpinTurns(st.modelM),
                         ['#cde7ff', '#6ea8df', '#244778', 'rgba(203,232,255,0.85)'],
                         'Earth',
                         0
@@ -1835,7 +1837,7 @@
                 glowInner: 'rgba(98,164,240,0.18)',
                 glowOuter: 'rgba(98,164,240,0.0)',
                 label: 'rgba(214,236,255,0.92)'
-            }, 'Earth', earthColorImg, earthSpinTurns(st.m));
+            }, 'Earth', earthColorImg, earthSpinTurns(st.modelM));
 
             // Draw Earth shadow in moon-radii coordinates (isotropic physical scale).
             const shadowAxisLocal = normalize(moonLocalFromWorld(sunAxis));
