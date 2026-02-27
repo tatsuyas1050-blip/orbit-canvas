@@ -1134,6 +1134,8 @@
                 const denom = Math.sqrt(Math.max(1e-9, dist * dist - radiusWorld * radiusWorld));
                 return (focal * radiusWorld) / denom;
             }
+            const sunCenterWorld = scale(sunAxis, -SHADOW_GEOM.earthSunDistanceEr);
+            const sunRadiusWorld = SHADOW_GEOM.sunRer;
             function drawProjectedEarthTexture(centerWorld, radiusWorld, cp, rp, spinTurns) {
                 if (!earthTex.ready || !earthTex.data || !cp || !Number.isFinite(rp) || rp < 1.1) return false;
 
@@ -1183,7 +1185,13 @@
                         const tex = sampleEquirectTex(earthTex, nTex.x, nTex.y, nTex.z, spinTurns);
                         if (!tex) continue;
 
-                        const lambert = Math.max(0, -nWorld.x);
+                        const pointWorld = {
+                            x: centerWorld.x + nWorld.x * radiusWorld,
+                            y: centerWorld.y + nWorld.y * radiusWorld,
+                            z: centerWorld.z + nWorld.z * radiusWorld
+                        };
+                        const sunDir = normalize(sub(sunCenterWorld, pointWorld));
+                        const lambert = Math.max(0, dot(nWorld, sunDir));
                         const ambient = 0.16;
                         const light = ambient + (1 - ambient) * Math.pow(lambert, 0.9);
 
@@ -1200,19 +1208,77 @@
             }
 
             // ---- shadow cone/cylinder solid in WORLD ----
-            function drawRingPath(ring) {
-                if (!ring || !ring.length) return;
-                ctx.beginPath();
-                ctx.moveTo(ring[0].x, ring[0].y);
-                for (let i = 1; i < ring.length; i++) ctx.lineTo(ring[i].x, ring[i].y);
-                ctx.closePath();
+            const shadowNearClipZ = 0.03;
+            function camFromWorldPoint(pWorld) {
+                return toCam(sub(pWorld, camPos));
+            }
+            function projectCamPoint(c) {
+                return { x: cx + (c.x * focal) / c.z, y: cy - (c.y * focal) / c.z, z: c.z };
+            }
+            function clipPolygonNear(camPts, nearZ) {
+                if (!camPts || camPts.length < 3) return [];
+                const out = [];
+                for (let i = 0; i < camPts.length; i++) {
+                    const a = camPts[i];
+                    const b = camPts[(i + 1) % camPts.length];
+                    const aIn = a.z >= nearZ;
+                    const bIn = b.z >= nearZ;
+                    if (aIn && bIn) {
+                        out.push(b);
+                    } else if (aIn && !bIn) {
+                        const t = (nearZ - a.z) / (b.z - a.z);
+                        out.push({
+                            x: a.x + (b.x - a.x) * t,
+                            y: a.y + (b.y - a.y) * t,
+                            z: nearZ
+                        });
+                    } else if (!aIn && bIn) {
+                        const t = (nearZ - a.z) / (b.z - a.z);
+                        out.push({
+                            x: a.x + (b.x - a.x) * t,
+                            y: a.y + (b.y - a.y) * t,
+                            z: nearZ
+                        });
+                        out.push(b);
+                    }
+                }
+                return out;
+            }
+            function clipSegmentNear(a, b, nearZ) {
+                const aIn = a.z >= nearZ;
+                const bIn = b.z >= nearZ;
+                if (aIn && bIn) return [a, b];
+                if (!aIn && !bIn) return null;
+                const t = (nearZ - a.z) / (b.z - a.z);
+                const c = {
+                    x: a.x + (b.x - a.x) * t,
+                    y: a.y + (b.y - a.y) * t,
+                    z: nearZ
+                };
+                return aIn ? [a, c] : [c, b];
+            }
+            function drawClippedLoopWorld(worldPoints, strokeStyle, lineWidth) {
+                if (!worldPoints || worldPoints.length < 3) return;
+                ctx.strokeStyle = strokeStyle;
+                ctx.lineWidth = lineWidth;
+                for (let i = 0; i < worldPoints.length; i++) {
+                    const aCam = camFromWorldPoint(worldPoints[i]);
+                    const bCam = camFromWorldPoint(worldPoints[(i + 1) % worldPoints.length]);
+                    const clipped = clipSegmentNear(aCam, bCam, shadowNearClipZ);
+                    if (!clipped) continue;
+                    const a2 = projectCamPoint(clipped[0]);
+                    const b2 = projectCamPoint(clipped[1]);
+                    ctx.beginPath();
+                    ctx.moveTo(a2.x, a2.y);
+                    ctx.lineTo(b2.x, b2.y);
+                    ctx.stroke();
+                }
             }
             function drawShadowSolid(opts) {
                 const seg = opts.segments || 28;
-                const nearRing = [];
-                const farRing = [];
+                const nearRingWorld = [];
+                const farRingWorld = [];
                 const useTip = opts.r1 <= 0.03;
-                const nearCenter = projectPoint({ x: opts.x0, y: 0, z: 0 });
                 const opaque = !!opts.opaque;
 
                 function mulRgb(rgb, s) {
@@ -1225,61 +1291,56 @@
 
                 for (let i = 0; i < seg; i++) {
                     const a = (i / seg) * Math.PI * 2;
-                    const near = projectPoint({ x: opts.x0, y: Math.cos(a) * opts.r0, z: Math.sin(a) * opts.r0 });
-                    if (!near) return;
-                    nearRing.push(near);
-                    if (!useTip) {
-                        const far = projectPoint({ x: opts.x1, y: Math.cos(a) * opts.r1, z: Math.sin(a) * opts.r1 });
-                        if (!far) return;
-                        farRing.push(far);
-                    }
+                    nearRingWorld.push({ x: opts.x0, y: Math.cos(a) * opts.r0, z: Math.sin(a) * opts.r0 });
+                    if (!useTip) farRingWorld.push({ x: opts.x1, y: Math.cos(a) * opts.r1, z: Math.sin(a) * opts.r1 });
                 }
-
-                const tip = useTip ? projectPoint({ x: opts.x1, y: 0, z: 0 }) : null;
-                if (useTip && !tip) return;
-                const farCenter = useTip ? tip : projectPoint({ x: opts.x1, y: 0, z: 0 });
+                const tipWorld = useTip ? { x: opts.x1, y: 0, z: 0 } : null;
 
                 const faces = [];
                 for (let i = 0; i < seg; i++) {
                     const j = (i + 1) % seg;
+                    const faceWorld = useTip
+                        ? [nearRingWorld[i], nearRingWorld[j], tipWorld]
+                        : [nearRingWorld[i], nearRingWorld[j], farRingWorld[j], farRingWorld[i]];
+                    const faceCam = faceWorld.map(camFromWorldPoint);
+                    const clippedCam = clipPolygonNear(faceCam, shadowNearClipZ);
+                    if (clippedCam.length < 3) continue;
+
                     const midA = ((i + 0.5) / seg) * Math.PI * 2;
                     const shade = 0.45 + 0.55 * Math.abs(Math.sin(midA - sim.view.yaw * 0.25));
                     const alpha = opaque ? 1 : (opts.alphaMin + (opts.alphaMax - opts.alphaMin) * shade);
                     const brightness = (typeof opts.brightnessMin === 'number' && typeof opts.brightnessMax === 'number')
                         ? (opts.brightnessMin + (opts.brightnessMax - opts.brightnessMin) * shade)
                         : 1;
-                    const rgb = mulRgb(opts.rgb, brightness);
-                    if (useTip) {
-                        const p0 = nearRing[i];
-                        const p1 = nearRing[j];
-                        const p2 = tip;
-                        const depth = (p0.z + p1.z + p2.z) / 3;
-                        faces.push({ points: [p0, p1, p2], depth: depth, alpha: alpha, rgb: rgb });
-                    } else {
-                        const p0 = nearRing[i];
-                        const p1 = nearRing[j];
-                        const p2 = farRing[j];
-                        const p3 = farRing[i];
-                        const depth = (p0.z + p1.z + p2.z + p3.z) * 0.25;
-                        faces.push({ points: [p0, p1, p2, p3], depth: depth, alpha: alpha, rgb: rgb });
-                    }
+                    faces.push({
+                        points: clippedCam.map(projectCamPoint),
+                        depth: clippedCam.reduce((acc, p) => acc + p.z, 0) / clippedCam.length,
+                        alpha: alpha,
+                        rgb: mulRgb(opts.rgb, brightness)
+                    });
                 }
 
-                if (opts.capNear && nearCenter) {
-                    faces.push({
-                        points: nearRing.slice(),
-                        depth: nearCenter.z + 0.001,
-                        alpha: (typeof opts.capNearAlpha === 'number') ? opts.capNearAlpha : (opaque ? 1 : opts.alphaMax),
-                        rgb: opts.capRgb || opts.rgb
-                    });
+                if (opts.capNear) {
+                    const nearCapCam = clipPolygonNear(nearRingWorld.map(camFromWorldPoint), shadowNearClipZ);
+                    if (nearCapCam.length >= 3) {
+                        faces.push({
+                            points: nearCapCam.map(projectCamPoint),
+                            depth: nearCapCam.reduce((acc, p) => acc + p.z, 0) / nearCapCam.length + 0.001,
+                            alpha: (typeof opts.capNearAlpha === 'number') ? opts.capNearAlpha : (opaque ? 1 : opts.alphaMax),
+                            rgb: opts.capRgb || opts.rgb
+                        });
+                    }
                 }
-                if (opts.capFar && !useTip && farCenter) {
-                    faces.push({
-                        points: farRing.slice(),
-                        depth: farCenter.z - 0.001,
-                        alpha: (typeof opts.capFarAlpha === 'number') ? opts.capFarAlpha : (opaque ? 1 : opts.alphaMax),
-                        rgb: opts.capRgb || opts.rgb
-                    });
+                if (opts.capFar && !useTip) {
+                    const farCapCam = clipPolygonNear(farRingWorld.map(camFromWorldPoint), shadowNearClipZ);
+                    if (farCapCam.length >= 3) {
+                        faces.push({
+                            points: farCapCam.map(projectCamPoint),
+                            depth: farCapCam.reduce((acc, p) => acc + p.z, 0) / farCapCam.length - 0.001,
+                            alpha: (typeof opts.capFarAlpha === 'number') ? opts.capFarAlpha : (opaque ? 1 : opts.alphaMax),
+                            rgb: opts.capRgb || opts.rgb
+                        });
+                    }
                 }
 
                 faces.sort((a, b) => b.depth - a.depth);
@@ -1292,14 +1353,8 @@
                     ctx.fill();
                 });
 
-                ctx.strokeStyle = opts.edge;
-                ctx.lineWidth = Math.max(0.8, w * 0.0018);
-                drawRingPath(nearRing);
-                ctx.stroke();
-                if (!useTip) {
-                    drawRingPath(farRing);
-                    ctx.stroke();
-                }
+                drawClippedLoopWorld(nearRingWorld, opts.edge, Math.max(0.8, w * 0.0018));
+                if (!useTip) drawClippedLoopWorld(farRingWorld, opts.edge, Math.max(0.8, w * 0.0018));
 
                 const guideCount = Math.max(0, Math.floor(opts.guides || 0));
                 if (guideCount > 0) {
@@ -1313,12 +1368,15 @@
                     ctx.lineWidth = Math.max(0.7, w * 0.0015);
                     for (let k = 0; k < guideCount; k++) {
                         const idx = Math.floor((k / guideCount) * seg) % seg;
-                        const a = nearRing[idx];
-                        const b = useTip ? tip : farRing[idx];
-                        if (!a || !b) continue;
+                        const aCam = camFromWorldPoint(nearRingWorld[idx]);
+                        const bCam = camFromWorldPoint(useTip ? tipWorld : farRingWorld[idx]);
+                        const clipped = clipSegmentNear(aCam, bCam, shadowNearClipZ);
+                        if (!clipped) continue;
+                        const a2 = projectCamPoint(clipped[0]);
+                        const b2 = projectCamPoint(clipped[1]);
                         ctx.beginPath();
-                        ctx.moveTo(a.x, a.y);
-                        ctx.lineTo(b.x, b.y);
+                        ctx.moveTo(a2.x, a2.y);
+                        ctx.lineTo(b2.x, b2.y);
                         ctx.stroke();
                     }
                     ctx.globalAlpha = 1;
@@ -1326,18 +1384,13 @@
             }
             function drawProjectedRing(xEr, rEr, strokeStyle, lineWidth, dash) {
                 const seg = 64;
-                const ring = [];
+                const ringWorld = [];
                 for (let i = 0; i < seg; i++) {
                     const a = (i / seg) * Math.PI * 2;
-                    const q = projectPoint({ x: xEr, y: Math.cos(a) * rEr, z: Math.sin(a) * rEr });
-                    if (!q) return;
-                    ring.push(q);
+                    ringWorld.push({ x: xEr, y: Math.cos(a) * rEr, z: Math.sin(a) * rEr });
                 }
                 if (dash && typeof ctx.setLineDash === 'function') ctx.setLineDash(dash);
-                ctx.strokeStyle = strokeStyle;
-                ctx.lineWidth = lineWidth;
-                drawRingPath(ring);
-                ctx.stroke();
+                drawClippedLoopWorld(ringWorld, strokeStyle, lineWidth);
                 if (dash && typeof ctx.setLineDash === 'function') ctx.setLineDash([]);
             }
             function drawShadowText(xEr, rEr, angleRad, text, color) {
@@ -1449,9 +1502,52 @@
                 }
             }
 
-            // Sun direction line (Sun is at WORLD -X)
-            const sunFar = projectPoint({ x: -12, y: 0, z: 0 });
+            const sunFar = projectPoint(sunCenterWorld);
+            const sunFarR = projectRadius(sunCenterWorld, sunRadiusWorld);
             const earth2 = projectPoint({ x: 0, y: 0, z: 0 });
+            if (sunFar && sunFarR && sunFarR > 0.22) {
+                const halo = ctx.createRadialGradient(
+                    sunFar.x,
+                    sunFar.y,
+                    Math.max(0.1, sunFarR * 0.8),
+                    sunFar.x,
+                    sunFar.y,
+                    Math.max(0.1, sunFarR * 12.5)
+                );
+                halo.addColorStop(0, 'rgba(255,220,126,0.24)');
+                halo.addColorStop(1, 'rgba(255,180,80,0)');
+                ctx.fillStyle = halo;
+                ctx.beginPath();
+                ctx.arc(sunFar.x, sunFar.y, Math.max(0.1, sunFarR * 12.5), 0, Math.PI * 2);
+                ctx.fill();
+
+                const sg = ctx.createRadialGradient(
+                    sunFar.x - sunFarR * 0.24,
+                    sunFar.y - sunFarR * 0.22,
+                    Math.max(0.1, sunFarR * 0.18),
+                    sunFar.x,
+                    sunFar.y,
+                    Math.max(0.1, sunFarR * 1.04)
+                );
+                sg.addColorStop(0, 'rgba(255,250,232,0.98)');
+                sg.addColorStop(0.62, 'rgba(255,220,138,0.96)');
+                sg.addColorStop(1, 'rgba(255,168,78,0.92)');
+                ctx.fillStyle = sg;
+                ctx.beginPath();
+                ctx.arc(sunFar.x, sunFar.y, sunFarR, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255,230,178,0.92)';
+                ctx.lineWidth = Math.max(0.8, sunFarR * 0.2);
+                ctx.beginPath();
+                ctx.arc(sunFar.x, sunFar.y, sunFarR, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(255,238,190,0.92)';
+                ctx.font = Math.max(10, Math.floor(w * 0.016)) + 'px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('Sun', sunFar.x + Math.max(6, sunFarR * 1.2), sunFar.y - Math.max(4, sunFarR * 0.9));
+            }
             if (sunFar && earth2) {
                 ctx.strokeStyle = 'rgba(255,208,110,0.65)';
                 ctx.lineWidth = Math.max(1.0, w * 0.0022);
