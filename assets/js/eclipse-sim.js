@@ -8,8 +8,6 @@
         earthRkm: 6371,
         moonRkm: 1737.4,
         moonDistanceEr: 60.3,
-        umbraLengthEr: 216,
-        penumbraSlope: 0.0045,
         pathY0: 1.361, // 月の移動軌道を時間に合わせて調整
         pathY1: -1.821, // 月の移動軌道を時間に合わせて調整
         pathZBase: 0.3765, 
@@ -19,6 +17,23 @@
         shadowLenEr: 90,
         frameMs: 120
     });
+    const SHADOW_PHYS = Object.freeze({
+        sunRkm: 695700,
+        earthSunDistanceKm: 149597870.7
+    });
+    const SHADOW_GEOM = Object.freeze((() => {
+        const sunRer = SHADOW_PHYS.sunRkm / CFG.earthRkm;
+        const earthSunDistanceEr = SHADOW_PHYS.earthSunDistanceKm / CFG.earthRkm;
+        const umbraSlopeEr = (sunRer - 1) / earthSunDistanceEr;
+        const penumbraSlopeEr = (sunRer + 1) / earthSunDistanceEr;
+        return {
+            sunRer: sunRer,
+            earthSunDistanceEr: earthSunDistanceEr,
+            umbraSlopeEr: umbraSlopeEr,
+            penumbraSlopeEr: penumbraSlopeEr,
+            umbraLengthEr: 1 / umbraSlopeEr
+        };
+    })());
     
     const VIEW_CTRL = Object.freeze({
         yawTurnPerCanvas: Math.PI * 1.15,
@@ -495,7 +510,11 @@
         }
 
         function shadowAt(xEr) {
-            return { umbra: Math.max(0.02, 1 - xEr / CFG.umbraLengthEr), penumbra: 1 + xEr * CFG.penumbraSlope };
+            const x = Math.max(0, xEr);
+            return {
+                umbra: Math.max(0, 1 - x * SHADOW_GEOM.umbraSlopeEr),
+                penumbra: 1 + x * SHADOW_GEOM.penumbraSlopeEr
+            };
         }
 
         function speed(minute) {
@@ -894,12 +913,12 @@
                 }
             }
 
-            const penumbraEndX = Math.min(CFG.shadowLenEr + 20, CFG.umbraLengthEr * 0.65);
-            const penumbraEndR = 1 + penumbraEndX * CFG.penumbraSlope;
+            const penumbraEndX = Math.min(CFG.shadowLenEr + 20, SHADOW_GEOM.umbraLengthEr * 0.65);
+            const penumbraEndR = 1 + penumbraEndX * SHADOW_GEOM.penumbraSlopeEr;
             const umbraCylinderEndX = 14;
             // 要望: 本影円錐の長さを半影と同じ長さにする
             const umbraConeEndX = penumbraEndX;
-            const umbraConeEndR = Math.max(0.03, 1 - umbraConeEndX / CFG.umbraLengthEr);
+            const umbraConeEndR = Math.max(0.03, 1 - umbraConeEndX * SHADOW_GEOM.umbraSlopeEr);
 
             drawShadowSolid({
                 x0: 0.2, r0: 1.0,
@@ -1180,70 +1199,255 @@
                 return true;
             }
 
-            // ---- shadow cone/cylinder wireframe in WORLD ----
-            const axisU = orbitPerpAxis; // perpendicular in eclipse plane
-            const axisV = orbitAxis;     // eclipse plane normal
-
-            function drawRing(xEr, rEr, strokeStyle, alpha) {
-                const seg = 56;
-                let first = true;
+            // ---- shadow cone/cylinder solid in WORLD ----
+            function drawRingPath(ring) {
+                if (!ring || !ring.length) return;
                 ctx.beginPath();
-                for (let i = 0; i <= seg; i++) {
-                    const a = (i / seg) * Math.PI * 2;
-                    const p = add(
-                        scale(sunAxis, xEr),
-                        add(scale(axisU, Math.cos(a) * rEr), scale(axisV, Math.sin(a) * rEr))
-                    );
-                    const q = projectPoint(p);
-                    if (!q) continue;
-                    if (first) { ctx.moveTo(q.x, q.y); first = false; }
-                    else ctx.lineTo(q.x, q.y);
-                }
-                if (first) return false;
-                ctx.strokeStyle = strokeStyle;
-                ctx.globalAlpha = clamp(alpha, 0, 1);
-                ctx.lineWidth = Math.max(1.0, w * 0.0020);
-                ctx.stroke();
-                ctx.globalAlpha = 1;
-                return true;
+                ctx.moveTo(ring[0].x, ring[0].y);
+                for (let i = 1; i < ring.length; i++) ctx.lineTo(ring[i].x, ring[i].y);
+                ctx.closePath();
             }
+            function drawShadowSolid(opts) {
+                const seg = opts.segments || 28;
+                const nearRing = [];
+                const farRing = [];
+                const useTip = opts.r1 <= 0.03;
+                const nearCenter = projectPoint({ x: opts.x0, y: 0, z: 0 });
+                const opaque = !!opts.opaque;
 
-            function drawConeGuides(x0, r0, x1, r1, strokeStyle, alpha) {
-                const guides = 6;
-                ctx.strokeStyle = strokeStyle;
-                ctx.globalAlpha = clamp(alpha, 0, 1);
-                ctx.lineWidth = Math.max(0.9, w * 0.0016);
-                for (let k = 0; k < guides; k++) {
-                    const a = (k / guides) * Math.PI * 2;
-                    const p0 = add(scale(sunAxis, x0), add(scale(axisU, Math.cos(a) * r0), scale(axisV, Math.sin(a) * r0)));
-                    const p1 = add(scale(sunAxis, x1), add(scale(axisU, Math.cos(a) * r1), scale(axisV, Math.sin(a) * r1)));
-                    const q0 = projectPoint(p0);
-                    const q1 = projectPoint(p1);
-                    if (!q0 || !q1) continue;
+                function mulRgb(rgb, s) {
+                    return [
+                        Math.max(0, Math.min(255, Math.round(rgb[0] * s))),
+                        Math.max(0, Math.min(255, Math.round(rgb[1] * s))),
+                        Math.max(0, Math.min(255, Math.round(rgb[2] * s)))
+                    ];
+                }
+
+                for (let i = 0; i < seg; i++) {
+                    const a = (i / seg) * Math.PI * 2;
+                    const near = projectPoint({ x: opts.x0, y: Math.cos(a) * opts.r0, z: Math.sin(a) * opts.r0 });
+                    if (!near) return;
+                    nearRing.push(near);
+                    if (!useTip) {
+                        const far = projectPoint({ x: opts.x1, y: Math.cos(a) * opts.r1, z: Math.sin(a) * opts.r1 });
+                        if (!far) return;
+                        farRing.push(far);
+                    }
+                }
+
+                const tip = useTip ? projectPoint({ x: opts.x1, y: 0, z: 0 }) : null;
+                if (useTip && !tip) return;
+                const farCenter = useTip ? tip : projectPoint({ x: opts.x1, y: 0, z: 0 });
+
+                const faces = [];
+                for (let i = 0; i < seg; i++) {
+                    const j = (i + 1) % seg;
+                    const midA = ((i + 0.5) / seg) * Math.PI * 2;
+                    const shade = 0.45 + 0.55 * Math.abs(Math.sin(midA - sim.view.yaw * 0.25));
+                    const alpha = opaque ? 1 : (opts.alphaMin + (opts.alphaMax - opts.alphaMin) * shade);
+                    const brightness = (typeof opts.brightnessMin === 'number' && typeof opts.brightnessMax === 'number')
+                        ? (opts.brightnessMin + (opts.brightnessMax - opts.brightnessMin) * shade)
+                        : 1;
+                    const rgb = mulRgb(opts.rgb, brightness);
+                    if (useTip) {
+                        const p0 = nearRing[i];
+                        const p1 = nearRing[j];
+                        const p2 = tip;
+                        const depth = (p0.z + p1.z + p2.z) / 3;
+                        faces.push({ points: [p0, p1, p2], depth: depth, alpha: alpha, rgb: rgb });
+                    } else {
+                        const p0 = nearRing[i];
+                        const p1 = nearRing[j];
+                        const p2 = farRing[j];
+                        const p3 = farRing[i];
+                        const depth = (p0.z + p1.z + p2.z + p3.z) * 0.25;
+                        faces.push({ points: [p0, p1, p2, p3], depth: depth, alpha: alpha, rgb: rgb });
+                    }
+                }
+
+                if (opts.capNear && nearCenter) {
+                    faces.push({
+                        points: nearRing.slice(),
+                        depth: nearCenter.z + 0.001,
+                        alpha: (typeof opts.capNearAlpha === 'number') ? opts.capNearAlpha : (opaque ? 1 : opts.alphaMax),
+                        rgb: opts.capRgb || opts.rgb
+                    });
+                }
+                if (opts.capFar && !useTip && farCenter) {
+                    faces.push({
+                        points: farRing.slice(),
+                        depth: farCenter.z - 0.001,
+                        alpha: (typeof opts.capFarAlpha === 'number') ? opts.capFarAlpha : (opaque ? 1 : opts.alphaMax),
+                        rgb: opts.capRgb || opts.rgb
+                    });
+                }
+
+                faces.sort((a, b) => b.depth - a.depth);
+                faces.forEach((face) => {
                     ctx.beginPath();
-                    ctx.moveTo(q0.x, q0.y);
-                    ctx.lineTo(q1.x, q1.y);
+                    ctx.moveTo(face.points[0].x, face.points[0].y);
+                    for (let i = 1; i < face.points.length; i++) ctx.lineTo(face.points[i].x, face.points[i].y);
+                    ctx.closePath();
+                    ctx.fillStyle = 'rgba(' + face.rgb[0] + ',' + face.rgb[1] + ',' + face.rgb[2] + ',' + face.alpha.toFixed(3) + ')';
+                    ctx.fill();
+                });
+
+                ctx.strokeStyle = opts.edge;
+                ctx.lineWidth = Math.max(0.8, w * 0.0018);
+                drawRingPath(nearRing);
+                ctx.stroke();
+                if (!useTip) {
+                    drawRingPath(farRing);
                     ctx.stroke();
                 }
-                ctx.globalAlpha = 1;
+
+                const guideCount = Math.max(0, Math.floor(opts.guides || 0));
+                if (guideCount > 0) {
+                    const guideAlpha = clamp(
+                        Number.isFinite(opts.guideAlpha) ? opts.guideAlpha : 0.6,
+                        0,
+                        1
+                    );
+                    ctx.strokeStyle = opts.guide || opts.edge;
+                    ctx.globalAlpha = guideAlpha;
+                    ctx.lineWidth = Math.max(0.7, w * 0.0015);
+                    for (let k = 0; k < guideCount; k++) {
+                        const idx = Math.floor((k / guideCount) * seg) % seg;
+                        const a = nearRing[idx];
+                        const b = useTip ? tip : farRing[idx];
+                        if (!a || !b) continue;
+                        ctx.beginPath();
+                        ctx.moveTo(a.x, a.y);
+                        ctx.lineTo(b.x, b.y);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+                }
+            }
+            function drawProjectedRing(xEr, rEr, strokeStyle, lineWidth, dash) {
+                const seg = 64;
+                const ring = [];
+                for (let i = 0; i < seg; i++) {
+                    const a = (i / seg) * Math.PI * 2;
+                    const q = projectPoint({ x: xEr, y: Math.cos(a) * rEr, z: Math.sin(a) * rEr });
+                    if (!q) return;
+                    ring.push(q);
+                }
+                if (dash && typeof ctx.setLineDash === 'function') ctx.setLineDash(dash);
+                ctx.strokeStyle = strokeStyle;
+                ctx.lineWidth = lineWidth;
+                drawRingPath(ring);
+                ctx.stroke();
+                if (dash && typeof ctx.setLineDash === 'function') ctx.setLineDash([]);
+            }
+            function drawShadowText(xEr, rEr, angleRad, text, color) {
+                const p = projectPoint({
+                    x: xEr,
+                    y: Math.cos(angleRad) * rEr,
+                    z: Math.sin(angleRad) * rEr
+                });
+                if (!p) return;
+                ctx.fillStyle = color;
+                ctx.font = Math.max(10, Math.floor(w * 0.016)) + 'px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(text, p.x + 8, p.y - 6);
             }
 
-            const xNear = 0.2;
-            const xFar = Math.max(10, CFG.shadowLenEr);
-            const penR0 = shadowAt(xNear).penumbra;
-            const penR1 = shadowAt(xFar).penumbra;
-            const umbR0 = shadowAt(xNear).umbra;
-            const umbR1 = shadowAt(xFar).umbra;
+            const penumbraEndX = Math.min(CFG.shadowLenEr + 20, SHADOW_GEOM.umbraLengthEr * 0.65);
+            const penumbraEndR = 1 + penumbraEndX * SHADOW_GEOM.penumbraSlopeEr;
+            const umbraCylinderEndX = 14;
+            const umbraConeEndX = penumbraEndX;
+            const umbraConeEndR = Math.max(0.03, 1 - umbraConeEndX * SHADOW_GEOM.umbraSlopeEr);
 
-            // Penumbra (outer)
-            drawRing(xNear, penR0, 'rgba(140,185,255,0.28)', 1);
-            drawRing(xFar, penR1, 'rgba(140,185,255,0.18)', 1);
-            drawConeGuides(xNear, penR0, xFar, penR1, 'rgba(140,185,255,0.14)', 1);
+            drawShadowSolid({
+                x0: 0.2, r0: 1.0,
+                x1: penumbraEndX, r1: penumbraEndR,
+                segments: 30,
+                rgb: [14, 16, 20],
+                alphaMin: 0.014,
+                alphaMax: 0.052,
+                edge: 'rgba(72,76,88,0.42)',
+                guides: 10,
+                guide: 'rgba(90,96,112,0.50)',
+                guideAlpha: 0.48
+            });
 
-            // Umbra (inner)
-            drawRing(xNear, umbR0, 'rgba(96,84,210,0.55)', 1);
-            drawRing(xFar, umbR1, 'rgba(96,84,210,0.38)', 1);
-            drawConeGuides(xNear, umbR0, xFar, umbR1, 'rgba(96,84,210,0.30)', 1);
+            drawShadowSolid({
+                x0: 0.2, r0: 1.0,
+                x1: umbraCylinderEndX, r1: 1.0,
+                segments: 26,
+                rgb: [56, 14, 14],
+                opaque: true,
+                brightnessMin: 0.54,
+                brightnessMax: 0.80,
+                alphaMin: 1,
+                alphaMax: 1,
+                edge: 'rgba(152,62,58,0.72)',
+                capNear: true,
+                capFar: true,
+                capNearAlpha: 1,
+                capFarAlpha: 1,
+                capRgb: [42, 10, 10],
+                guides: 8,
+                guide: 'rgba(176,84,78,0.58)',
+                guideAlpha: 0.56
+            });
+
+            drawShadowSolid({
+                x0: umbraCylinderEndX, r0: 1.0,
+                x1: umbraConeEndX, r1: umbraConeEndR,
+                segments: 26,
+                rgb: [68, 18, 14],
+                opaque: true,
+                brightnessMin: 0.52,
+                brightnessMax: 0.78,
+                alphaMin: 1,
+                alphaMax: 1,
+                edge: 'rgba(170,74,62,0.74)',
+                capNear: true,
+                capNearAlpha: 1,
+                capRgb: [48, 12, 10],
+                guides: 8,
+                guide: 'rgba(192,92,76,0.60)',
+                guideAlpha: 0.58
+            });
+
+            const shadowNowX = st.p.x;
+            drawProjectedRing(
+                shadowNowX,
+                st.sh.penumbra,
+                'rgba(96,102,118,0.90)',
+                Math.max(1.2, w * 0.002),
+                [Math.max(4, w * 0.006), Math.max(3, w * 0.0045)]
+            );
+            drawProjectedRing(
+                shadowNowX,
+                st.sh.umbra,
+                'rgba(188,102,90,0.96)',
+                Math.max(1.3, w * 0.0022),
+                null
+            );
+            drawShadowText(shadowNowX, st.sh.penumbra, Math.PI * 0.14, 'Penumbra', 'rgba(122,130,148,0.90)');
+            drawShadowText(shadowNowX, st.sh.umbra, Math.PI * 0.34, 'Umbra', 'rgba(212,126,112,0.94)');
+
+            const axisNow = projectPoint({ x: shadowNowX, y: 0, z: 0 });
+            const moonNow = projectPoint(st.p);
+            if (axisNow && moonNow) {
+                if (typeof ctx.setLineDash === 'function') {
+                    ctx.setLineDash([Math.max(3, w * 0.005), Math.max(3, w * 0.005)]);
+                }
+                ctx.strokeStyle = st.inU
+                    ? 'rgba(196,108,94,0.62)'
+                    : (st.inP ? 'rgba(114,122,138,0.58)' : 'rgba(132,140,156,0.50)');
+                ctx.lineWidth = Math.max(0.9, w * 0.00155);
+                ctx.beginPath();
+                ctx.moveTo(axisNow.x, axisNow.y);
+                ctx.lineTo(moonNow.x, moonNow.y);
+                ctx.stroke();
+                if (typeof ctx.setLineDash === 'function') {
+                    ctx.setLineDash([]);
+                }
+            }
 
             // Sun direction line (Sun is at WORLD -X)
             const sunFar = projectPoint({ x: -12, y: 0, z: 0 });
@@ -1501,18 +1705,22 @@
 
             const earthLocal = moonLocalFromWorld(normalize({ x: -st.p.x, y: -st.p.y, z: -st.p.z }));
             const sunLocal = moonLocalFromWorld(normalize({ x: -1, y: 0, z: 0 }));
+            const erToMoonR = 1 / moonRer;
+            const moonDistEr = Math.hypot(st.p.x, st.p.y, st.p.z);
+            const earthDistMoonR = moonDistEr * erToMoonR;
             const earthCenter = {
-                x: earthLocal.x * MOON_VIEW.skyEarthDist,
-                y: earthLocal.y * MOON_VIEW.skyEarthDist,
-                z: earthLocal.z * MOON_VIEW.skyEarthDist
+                x: earthLocal.x * earthDistMoonR,
+                y: earthLocal.y * earthDistMoonR,
+                z: earthLocal.z * earthDistMoonR
             };
+            const sunDistMoonR = SHADOW_GEOM.earthSunDistanceEr * erToMoonR;
             const sunCenter = {
-                x: sunLocal.x * MOON_VIEW.skySunDist,
-                y: sunLocal.y * MOON_VIEW.skySunDist,
-                z: sunLocal.z * MOON_VIEW.skySunDist
+                x: sunLocal.x * sunDistMoonR,
+                y: sunLocal.y * sunDistMoonR,
+                z: sunLocal.z * sunDistMoonR
             };
-            const earthRadius3d = MOON_VIEW.skyEarthDist * Math.tan(MOON_VIEW.earthAngDeg * degToRad);
-            const sunRadius3d = MOON_VIEW.skySunDist * Math.tan(MOON_VIEW.sunAngDeg * degToRad);
+            const earthRadius3d = erToMoonR;
+            const sunRadius3d = SHADOW_GEOM.sunRer * erToMoonR;
 
             drawSkyBody(sunCenter, sunRadius3d, {
                 core: 'rgba(255,245,210,0.98)',
@@ -1532,6 +1740,227 @@
                 glowOuter: 'rgba(98,164,240,0.0)',
                 label: 'rgba(214,236,255,0.92)'
             }, 'Earth', earthColorImg, earthSpinTurns(st.m));
+
+            // Draw Earth shadow in moon-radii coordinates (isotropic physical scale).
+            const shadowAxisLocal = normalize(moonLocalFromWorld(sunAxis));
+            let shadowRadialU = cross(shadowAxisLocal, { x: 0, y: 1, z: 0 });
+            if (Math.hypot(shadowRadialU.x, shadowRadialU.y, shadowRadialU.z) < 1e-6) {
+                shadowRadialU = cross(shadowAxisLocal, { x: 0, y: 0, z: 1 });
+            }
+            shadowRadialU = normalize(shadowRadialU);
+            const shadowRadialV = normalize(cross(shadowRadialU, shadowAxisLocal));
+            const shadowNearClipZ = 0.03;
+
+            const localPerEr = 1 / moonRer;
+            const localPerErX = localPerEr;
+            const localPerErR = localPerEr;
+
+            function shadowPointAt(xEr, rEr, angleRad) {
+                const c = add(earthCenter, scale(shadowAxisLocal, xEr * localPerErX));
+                return add(
+                    c,
+                    add(
+                        scale(shadowRadialU, Math.cos(angleRad) * rEr * localPerErR),
+                        scale(shadowRadialV, Math.sin(angleRad) * rEr * localPerErR)
+                    )
+                );
+            }
+            function camFromLocalPoint(p) {
+                return toCamVec({ x: p.x - camPos.x, y: p.y - camPos.y, z: p.z - camPos.z });
+            }
+            function projectCamPoint(c) {
+                return { x: cx + (c.x * focal) / c.z, y: cy - (c.y * focal) / c.z, z: c.z };
+            }
+            function clipPolygonNear(camPts, nearZ) {
+                if (!camPts || camPts.length < 3) return [];
+                const out = [];
+                for (let i = 0; i < camPts.length; i++) {
+                    const a = camPts[i];
+                    const b = camPts[(i + 1) % camPts.length];
+                    const aIn = a.z >= nearZ;
+                    const bIn = b.z >= nearZ;
+                    if (aIn && bIn) {
+                        out.push(b);
+                    } else if (aIn && !bIn) {
+                        const t = (nearZ - a.z) / (b.z - a.z);
+                        out.push({
+                            x: a.x + (b.x - a.x) * t,
+                            y: a.y + (b.y - a.y) * t,
+                            z: nearZ
+                        });
+                    } else if (!aIn && bIn) {
+                        const t = (nearZ - a.z) / (b.z - a.z);
+                        out.push({
+                            x: a.x + (b.x - a.x) * t,
+                            y: a.y + (b.y - a.y) * t,
+                            z: nearZ
+                        });
+                        out.push(b);
+                    }
+                }
+                return out;
+            }
+            function clipSegmentNear(a, b, nearZ) {
+                const aIn = a.z >= nearZ;
+                const bIn = b.z >= nearZ;
+                if (aIn && bIn) return [a, b];
+                if (!aIn && !bIn) return null;
+                const t = (nearZ - a.z) / (b.z - a.z);
+                const c = {
+                    x: a.x + (b.x - a.x) * t,
+                    y: a.y + (b.y - a.y) * t,
+                    z: nearZ
+                };
+                return aIn ? [a, c] : [c, b];
+            }
+            function drawClippedLoop(localPoints, strokeStyle, lineWidth) {
+                if (!localPoints || localPoints.length < 3) return;
+                ctx.strokeStyle = strokeStyle;
+                ctx.lineWidth = lineWidth;
+                for (let i = 0; i < localPoints.length; i++) {
+                    const aCam = camFromLocalPoint(localPoints[i]);
+                    const bCam = camFromLocalPoint(localPoints[(i + 1) % localPoints.length]);
+                    const clipped = clipSegmentNear(aCam, bCam, shadowNearClipZ);
+                    if (!clipped) continue;
+                    const a2 = projectCamPoint(clipped[0]);
+                    const b2 = projectCamPoint(clipped[1]);
+                    ctx.beginPath();
+                    ctx.moveTo(a2.x, a2.y);
+                    ctx.lineTo(b2.x, b2.y);
+                    ctx.stroke();
+                }
+            }
+            function drawShadowConeVolume(opts) {
+                const seg = opts.segments || 28;
+                const nearRing = [];
+                const farRing = [];
+                const useTip = opts.r1 <= 0.003;
+                for (let i = 0; i < seg; i++) {
+                    const a = (i / seg) * Math.PI * 2;
+                    nearRing.push(shadowPointAt(opts.x0, opts.r0, a));
+                    if (!useTip) farRing.push(shadowPointAt(opts.x1, opts.r1, a));
+                }
+                const tip = useTip ? shadowPointAt(opts.x1, 0, 0) : null;
+
+                const faces = [];
+                for (let i = 0; i < seg; i++) {
+                    const j = (i + 1) % seg;
+                    const faceLocal = useTip
+                        ? [nearRing[i], nearRing[j], tip]
+                        : [nearRing[i], nearRing[j], farRing[j], farRing[i]];
+                    const faceCam = faceLocal.map(camFromLocalPoint);
+                    const clippedCam = clipPolygonNear(faceCam, shadowNearClipZ);
+                    if (clippedCam.length < 3) continue;
+                    const shade = 0.45 + 0.55 * Math.abs(Math.sin(((i + 0.5) / seg) * Math.PI * 2 - sim.moonView.yaw * 0.18));
+                    const alpha = opts.alphaMin + (opts.alphaMax - opts.alphaMin) * shade;
+                    faces.push({
+                        points: clippedCam.map(projectCamPoint),
+                        depth: clippedCam.reduce((acc, p) => acc + p.z, 0) / clippedCam.length,
+                        alpha: alpha
+                    });
+                }
+
+                faces.sort((a, b) => b.depth - a.depth);
+                faces.forEach((face) => {
+                    ctx.beginPath();
+                    ctx.moveTo(face.points[0].x, face.points[0].y);
+                    for (let i = 1; i < face.points.length; i++) ctx.lineTo(face.points[i].x, face.points[i].y);
+                    ctx.closePath();
+                    ctx.fillStyle = 'rgba(' + opts.rgb[0] + ',' + opts.rgb[1] + ',' + opts.rgb[2] + ',' + face.alpha.toFixed(3) + ')';
+                    ctx.fill();
+                });
+
+                drawClippedLoop(nearRing, opts.edge, Math.max(0.8, w * 0.0015));
+                if (!useTip) drawClippedLoop(farRing, opts.edge, Math.max(0.8, w * 0.0015));
+
+                const guideCount = Math.max(0, Math.floor(opts.guides || 0));
+                if (guideCount > 0) {
+                    ctx.strokeStyle = opts.guide || opts.edge;
+                    ctx.globalAlpha = clamp(opts.guideAlpha || 0.4, 0, 1);
+                    ctx.lineWidth = Math.max(0.65, w * 0.0013);
+                    for (let k = 0; k < guideCount; k++) {
+                        const idx = Math.floor((k / guideCount) * seg) % seg;
+                        const aCam = camFromLocalPoint(nearRing[idx]);
+                        const bCam = camFromLocalPoint(useTip ? tip : farRing[idx]);
+                        const clipped = clipSegmentNear(aCam, bCam, shadowNearClipZ);
+                        if (!clipped) continue;
+                        const a2 = projectCamPoint(clipped[0]);
+                        const b2 = projectCamPoint(clipped[1]);
+                        ctx.beginPath();
+                        ctx.moveTo(a2.x, a2.y);
+                        ctx.lineTo(b2.x, b2.y);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+                }
+            }
+            function projectShadowLabelPoint(pLocal) {
+                const c = camFromLocalPoint(pLocal);
+                const z = Math.max(shadowNearClipZ, c.z);
+                return projectCamPoint({ x: c.x, y: c.y, z: z });
+            }
+
+            const x0Er = 0.2;
+            const x1Er = clamp(Math.max(st.p.x + 16, 36), 36, CFG.shadowLenEr + 20);
+            const penR0Er = shadowAt(x0Er).penumbra;
+            const penR1Er = shadowAt(x1Er).penumbra;
+            const umbraCylEndEr = Math.min(14, x1Er * 0.42);
+            const umbraConeR1Er = Math.max(0.03, shadowAt(x1Er).umbra);
+
+            drawShadowConeVolume({
+                x0: x0Er,
+                r0: penR0Er,
+                x1: x1Er,
+                r1: penR1Er,
+                segments: 28,
+                rgb: [12, 14, 18],
+                alphaMin: 0.018,
+                alphaMax: 0.062,
+                edge: 'rgba(82,90,106,0.32)',
+                guides: 8,
+                guide: 'rgba(104,112,130,0.44)',
+                guideAlpha: 0.36
+            });
+            drawShadowConeVolume({
+                x0: x0Er,
+                r0: shadowAt(x0Er).umbra,
+                x1: umbraCylEndEr,
+                r1: shadowAt(umbraCylEndEr).umbra,
+                segments: 24,
+                rgb: [62, 16, 12],
+                alphaMin: 0.19,
+                alphaMax: 0.30,
+                edge: 'rgba(154,70,62,0.46)',
+                guides: 6,
+                guide: 'rgba(176,88,76,0.56)',
+                guideAlpha: 0.44
+            });
+            drawShadowConeVolume({
+                x0: umbraCylEndEr,
+                r0: shadowAt(umbraCylEndEr).umbra,
+                x1: x1Er,
+                r1: umbraConeR1Er,
+                segments: 24,
+                rgb: [78, 20, 14],
+                alphaMin: 0.21,
+                alphaMax: 0.34,
+                edge: 'rgba(176,84,68,0.50)',
+                guides: 6,
+                guide: 'rgba(198,98,82,0.60)',
+                guideAlpha: 0.46
+            });
+
+            const penLabel = projectShadowLabelPoint(shadowPointAt(x1Er * 0.88, penR1Er * 0.8, Math.PI * 0.14));
+            ctx.fillStyle = 'rgba(124,132,148,0.9)';
+            ctx.font = Math.max(10, Math.floor(w * 0.016)) + 'px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Penumbra Cone', penLabel.x + 8, penLabel.y - 6);
+
+            const umbLabel = projectShadowLabelPoint(shadowPointAt(x1Er * 0.78, Math.max(umbraConeR1Er, 0.28), Math.PI * 0.28));
+            ctx.fillStyle = 'rgba(214,126,110,0.95)';
+            ctx.font = Math.max(10, Math.floor(w * 0.016)) + 'px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Umbra Cone', umbLabel.x + 8, umbLabel.y - 6);
 
             const moonCenter = { x: 0, y: 0, z: 0 };
             const moonProj = projectPoint(moonCenter);
