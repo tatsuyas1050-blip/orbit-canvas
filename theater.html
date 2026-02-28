@@ -485,27 +485,21 @@
         }
         .eclipse-overlay-badges {
             position: absolute;
-            display: grid;
-            gap: 0.24rem;
+            inset: 0;
             pointer-events: none;
             z-index: 3;
         }
         .eclipse-overlay-face {
-            left: 0.55rem;
-            top: 0.55rem;
-            max-width: calc(100% - 1.1rem);
+            inset: 0;
         }
         .eclipse-overlay-orbit {
-            left: 0.55rem;
-            bottom: 0.55rem;
-            max-width: calc(100% - 8.4rem);
+            inset: 0;
         }
         .eclipse-overlay-badge {
+            position: absolute;
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-            width: max-content;
-            max-width: 100%;
             padding: 0.18rem 0.46rem;
             border-radius: 999px;
             border: 1px solid rgba(141, 183, 232, 0.34);
@@ -523,6 +517,44 @@
             font-size: 0.72rem;
             color: #eaf5ff;
             font-weight: 600;
+        }
+        .eclipse-overlay-badge.is-stage {
+            top: 0.52rem;
+            left: 50%;
+            transform: translateX(-50%);
+            gap: 0.28rem;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.58);
+            justify-content: center;
+        }
+        .eclipse-overlay-badge.is-stage .eclipse-overlay-key {
+            color: rgba(198, 220, 244, 0.92);
+        }
+        .eclipse-overlay-badge.is-stage .eclipse-overlay-val {
+            color: #f3fbff;
+        }
+        .eclipse-overlay-badge.is-metric {
+            left: 0.55rem;
+            white-space: nowrap;
+        }
+        .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(2) {
+            bottom: 2.05rem;
+        }
+        .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(3) {
+            bottom: 0.55rem;
+        }
+        .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(2) {
+            bottom: 0.55rem;
+        }
+        .eclipse-overlay-badge.is-metric .eclipse-overlay-key,
+        .eclipse-overlay-badge.is-metric .eclipse-overlay-val {
+            overflow: visible;
+            text-overflow: clip;
+            white-space: nowrap;
         }
         .eclipse-actions {
             display: flex;
@@ -730,9 +762,8 @@
                 width: 1.82rem;
                 height: 1.82rem;
             }
-            .eclipse-overlay-orbit {
-                max-width: calc(100% - 7.7rem);
-            }
+            .eclipse-overlay-orbit { inset: 0; }
+            .eclipse-overlay-badge.is-stage { top: 0.44rem; }
             .eclipse-overlay-key {
                 font-size: 0.61rem;
             }
@@ -931,15 +962,27 @@
             gap: 0.8rem;
             margin-bottom: 0.75rem;
         }
-        .live-status-badge {
+        .mission-live-shell .live-status-badge {
             margin: 0;
             align-self: start;
             font-family: 'Barlow Condensed', 'Noto Sans JP', sans-serif;
-            font-size: 0.82rem;
+            font-size: 0.68rem;
             text-transform: uppercase;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.09em;
             border-radius: 999px;
-            padding: 0.28rem 0.68rem;
+            padding: 0.2rem 0.52rem;
+            line-height: 1.1;
+            justify-self: start;
+        }
+        .mission-live-shell .live-status-badge.status-offline {
+            font-size: 0.64rem;
+            letter-spacing: 0.08em;
+        }
+        .mission-live-shell .live-title-wrap {
+            min-width: 0;
+        }
+        .mission-live-shell .live-title {
+            margin-top: 0;
         }
         .status-offline {
             background: rgba(204, 224, 248, 0.08);
@@ -1365,6 +1408,18 @@
             .live-telemetry-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+            .mission-badge-row {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                gap: 0.34rem;
+                padding-bottom: 0.2rem;
+                scrollbar-width: thin;
+                -webkit-overflow-scrolling: touch;
+            }
+            .mission-chip {
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
             .mission-timeline-track {
                 padding-bottom: 4.15rem;
             }
@@ -1380,46 +1435,282 @@
             .mission-live-shell {
                 gap: 0.82rem;
             }
+            .mission-live-shell::before,
+            .mission-live-shell::after,
+            .mission-live-shell .panel-bg {
+                border-radius: 12px;
+            }
+            .mission-live-shell::after {
+                background-size: 28px 28px;
+                opacity: 0.2;
+            }
             .mission-live-shell .mission-brief {
                 padding: 0.92rem;
+            }
+            .mission-title {
+                font-size: clamp(1.26rem, 6.8vw, 1.72rem);
+                line-height: 1.12;
+                letter-spacing: 0.04em;
             }
             .mission-kicker {
                 font-size: 0.74rem;
             }
             .mission-copy {
                 font-size: 0.86rem;
+                line-height: 1.55;
+                margin-top: 0.5rem;
+            }
+            .mission-countdown-block {
+                border-radius: 9px;
+                padding: 0.66rem 0.72rem;
+            }
+            .mission-countdown {
+                letter-spacing: 0.07em;
+                font-size: clamp(0.96rem, 4.3vw, 1.15rem);
+            }
+            .mission-now {
+                font-size: 0.72rem;
+            }
+            .mission-badge-row {
+                margin-top: 0.66rem;
             }
             .mission-live-shell .live-panel,
             .mission-live-shell .live-hero {
                 padding: 0.8rem;
             }
             .mission-live-shell .live-hero-head {
-                grid-template-columns: 1fr;
+                grid-template-columns: auto minmax(0, 1fr);
+                align-items: center;
                 gap: 0.55rem;
             }
             .live-telemetry-grid {
                 grid-template-columns: 1fr;
             }
-            .mission-timeline-track {
+            .mission-live-shell .live-status-badge {
+                font-size: 0.62rem;
+                letter-spacing: 0.08em;
+                padding: 0.15rem 0.42rem;
+            }
+            .mission-live-shell .live-status-badge.status-offline {
+                font-size: 0.6rem;
+                letter-spacing: 0.07em;
+            }
+            .live-title {
+                font-size: clamp(0.95rem, 4.1vw, 1.08rem);
+                line-height: 1.44;
+            }
+            .live-panel-title {
+                font-size: 0.9rem;
+                letter-spacing: 0.08em;
+            }
+            .live-panel-desc {
+                font-size: 0.83rem;
+            }
+            .mission-live-shell .cmt-list {
+                max-height: min(44vh, 340px);
+            }
+            .mission-live-shell .cmt-item {
+                padding: 0.44rem 0.48rem;
+            }
+            .mission-live-shell .cmt-form {
+                padding: 0.55rem;
+            }
+            .mission-live-shell .cmt-submit-btn {
+                padding: 0.36rem 0.78rem;
+                font-size: 0.82rem;
+            }
+            .mission-timeline-panel {
                 overflow-x: auto;
                 overflow-y: hidden;
-                padding-bottom: 4.35rem;
+                padding-bottom: 0.22rem;
+                -webkit-overflow-scrolling: touch;
                 scrollbar-width: thin;
+            }
+            .mission-timeline-track {
+                width: max(100%, 680px);
+                min-width: 680px;
+                overflow: visible;
+                padding-bottom: 4.15rem;
             }
             .mission-timeline-line,
             .mission-timeline-progress {
-                min-width: 640px;
+                min-width: 0;
             }
             .mission-timeline-now-marker {
                 z-index: 5;
             }
             .mission-timeline-node {
-                width: 92px;
-                min-width: 92px;
+                width: 88px;
+                min-width: 88px;
             }
             .mission-node-label {
                 white-space: normal;
+                font-size: 0.66rem;
+                line-height: 1.3;
+            }
+            .eclipse-panel {
+                margin-top: 0.25rem;
+            }
+            .eclipse-grid {
+                grid-template-columns: 1fr;
+                gap: 0.7rem;
+                margin-bottom: 0.72rem;
+            }
+            .eclipse-card {
+                padding: 0.58rem;
+                border-radius: 10px;
+            }
+            .eclipse-card h4 {
+                margin-bottom: 0.46rem;
+                font-size: 0.82rem;
+                letter-spacing: 0.05em;
+            }
+            #eclipse-face-canvas,
+            #eclipse-orbit-canvas {
+                border-radius: 8px;
+            }
+            #eclipse-orbit-canvas {
+                aspect-ratio: 1 / 1;
+            }
+            .eclipse-slider-controls {
+                flex-wrap: nowrap;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .eclipse-slider-controls .eclipse-slider-wrap {
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+            .eclipse-slider-play-btn {
+                width: 2.5rem;
+                min-width: 2.5rem;
+                min-height: 2.15rem;
+                padding: 0;
+                font-size: 0.96rem;
+            }
+            .eclipse-slider-wrap input[type="range"] {
+                min-height: 1.5rem;
+            }
+            #eclipse-time-slider-face::-webkit-slider-thumb,
+            #eclipse-time-slider-orbit::-webkit-slider-thumb {
+                width: 18px;
+                height: 18px;
+            }
+            #eclipse-time-slider-face::-moz-range-thumb,
+            #eclipse-time-slider-orbit::-moz-range-thumb {
+                width: 18px;
+                height: 18px;
+                border: 0;
+            }
+            .eclipse-orbit-toolbar {
+                top: 0.36rem;
+                left: 0.36rem;
+                right: 0.36rem;
+                gap: 0.34rem;
+                align-items: flex-start;
+            }
+            .eclipse-center-switch,
+            .eclipse-zoom-controls {
+                padding: 0.15rem;
+                gap: 0.2rem;
+            }
+            .eclipse-switch-btn {
+                min-height: 1.9rem;
+                padding: 0.22rem 0.62rem;
+                font-size: 0.72rem;
+            }
+            .eclipse-zoom-btn {
+                width: 1.95rem;
+                height: 1.95rem;
+                font-size: 1rem;
+            }
+            .eclipse-overlay-face,
+            .eclipse-overlay-orbit { inset: 0; }
+            .eclipse-window-time {
+                right: 0.4rem;
+                bottom: 0.4rem;
+                padding: 0.16rem 0.4rem;
+                font-size: 0.72rem;
+            }
+            .eclipse-overlay-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.28rem;
+                padding: 0.16rem 0.4rem;
+                white-space: nowrap;
+                line-height: 1.1;
+                border-radius: 7px;
+            }
+            .eclipse-overlay-badge.is-stage {
+                top: 0.42rem;
+                gap: 0.24rem;
+            }
+            .eclipse-overlay-badge.is-metric { left: 0.4rem; }
+            .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 1.9rem; }
+            .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(3) { bottom: 0.4rem; }
+            .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 0.4rem; }
+            .eclipse-overlay-key {
+                font-size: 0.56rem;
+                letter-spacing: 0.02em;
+            }
+            .eclipse-overlay-val {
+                font-size: 0.64rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .mission-live-shell .mission-brief,
+            .mission-live-shell .live-panel,
+            .mission-live-shell .live-hero {
+                padding: 0.72rem;
+            }
+            .mission-badge-row {
+                gap: 0.3rem;
+            }
+            .mission-chip {
+                font-size: 0.64rem;
+                padding: 0.17rem 0.48rem;
+            }
+            .mission-title {
+                font-size: clamp(1.16rem, 7vw, 1.38rem);
+            }
+            .mission-copy {
+                font-size: 0.82rem;
+            }
+            .mission-countdown {
+                letter-spacing: 0.05em;
+            }
+            .eclipse-card {
+                padding: 0.5rem;
+            }
+            .eclipse-slider-controls {
+                gap: 0.38rem;
+            }
+            .eclipse-slider-play-btn {
+                width: 2.3rem;
+                min-width: 2.3rem;
+                min-height: 2rem;
+            }
+            .eclipse-switch-btn {
                 font-size: 0.68rem;
+                padding: 0.2rem 0.52rem;
+            }
+            .eclipse-zoom-btn {
+                width: 1.82rem;
+                height: 1.82rem;
+            }
+            .eclipse-overlay-badge {
+                padding: 0.15rem 0.35rem;
+                gap: 0.22rem;
+            }
+            .eclipse-overlay-badge.is-stage { top: 0.38rem; }
+            .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 1.8rem; }
+            .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(3) { bottom: 0.36rem; }
+            .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 0.36rem; }
+            .eclipse-overlay-key {
+                font-size: 0.53rem;
+            }
+            .eclipse-overlay-val {
+                font-size: 0.61rem;
             }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -1997,15 +2288,15 @@
                             <div class="eclipse-face-window">
                                 <canvas id="eclipse-face-canvas"></canvas>
                                 <div class="eclipse-overlay-badges eclipse-overlay-face">
-                                    <div class="eclipse-overlay-badge">
+                                    <div class="eclipse-overlay-badge is-stage">
                                         <span class="eclipse-overlay-key">食の段階</span>
                                         <span id="eclipse-face-stage" class="eclipse-overlay-val">-</span>
                                     </div>
-                                    <div class="eclipse-overlay-badge">
+                                    <div class="eclipse-overlay-badge is-metric">
                                         <span class="eclipse-overlay-key">本影被覆率</span>
                                         <span id="eclipse-face-umbra-coverage" class="eclipse-overlay-val">-</span>
                                     </div>
-                                    <div class="eclipse-overlay-badge">
+                                    <div class="eclipse-overlay-badge is-metric">
                                         <span class="eclipse-overlay-key">半影被覆率</span>
                                         <span id="eclipse-face-penumbra-coverage" class="eclipse-overlay-val">-</span>
                                     </div>
@@ -2035,11 +2326,11 @@
                                 </div>
                                 <div id="eclipse-orbit-time-label" class="eclipse-view-time eclipse-window-time">JST -</div>
                                 <div class="eclipse-overlay-badges eclipse-overlay-orbit">
-                                    <div class="eclipse-overlay-badge">
+                                    <div class="eclipse-overlay-badge is-stage">
                                         <span class="eclipse-overlay-key">食の段階</span>
                                         <span id="eclipse-orbit-stage" class="eclipse-overlay-val">-</span>
                                     </div>
-                                    <div class="eclipse-overlay-badge">
+                                    <div class="eclipse-overlay-badge is-metric">
                                         <span class="eclipse-overlay-key">地球-月距離</span>
                                         <span id="eclipse-orbit-moon-distance" class="eclipse-overlay-val">-</span>
                                     </div>
