@@ -377,7 +377,8 @@
             orbitStage: document.getElementById('eclipse-orbit-stage'),
             faceUmbra: document.getElementById('eclipse-face-umbra-coverage'),
             facePenumbra: document.getElementById('eclipse-face-penumbra-coverage'),
-            orbitDist: document.getElementById('eclipse-orbit-moon-distance'),
+            orbitUmbra: document.getElementById('eclipse-orbit-umbra-coverage'),
+            orbitPenumbra: document.getElementById('eclipse-orbit-penumbra-coverage'),
             faceTime: document.getElementById('eclipse-face-time-label'),
             orbitTime: document.getElementById('eclipse-orbit-time-label')
         };
@@ -2375,7 +2376,8 @@
             if (dom.orbitStage) dom.orbitStage.textContent = st.stage;
             if (dom.faceUmbra) dom.faceUmbra.textContent = fmtNum(st.umC * 100, 1) + '%';
             if (dom.facePenumbra) dom.facePenumbra.textContent = fmtNum(st.peC * 100, 1) + '%';
-            if (dom.orbitDist) dom.orbitDist.textContent = fmtNum(st.p.x * CFG.earthRkm, 0) + ' km';
+            if (dom.orbitUmbra) dom.orbitUmbra.textContent = fmtNum(st.umC * 100, 1) + '%';
+            if (dom.orbitPenumbra) dom.orbitPenumbra.textContent = fmtNum(st.peC * 100, 1) + '%';
             renderFace(st);
             if (sim.center === 'earth') {
                 renderEarthCentric(st);

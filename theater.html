@@ -548,6 +548,9 @@
             bottom: 0.55rem;
         }
         .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(2) {
+            bottom: 2.05rem;
+        }
+        .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(3) {
             bottom: 0.55rem;
         }
         .eclipse-overlay-badge.is-metric .eclipse-overlay-key,
@@ -1648,7 +1651,8 @@
             .eclipse-overlay-badge.is-metric { left: 0.4rem; }
             .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 1.9rem; }
             .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(3) { bottom: 0.4rem; }
-            .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 0.4rem; }
+            .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 1.9rem; }
+            .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(3) { bottom: 0.4rem; }
             .eclipse-overlay-key {
                 font-size: 0.56rem;
                 letter-spacing: 0.02em;
@@ -1705,7 +1709,8 @@
             .eclipse-overlay-badge.is-stage { top: 0.38rem; }
             .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 1.8rem; }
             .eclipse-overlay-face .eclipse-overlay-badge.is-metric:nth-child(3) { bottom: 0.36rem; }
-            .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 0.36rem; }
+            .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(2) { bottom: 1.8rem; }
+            .eclipse-overlay-orbit .eclipse-overlay-badge.is-metric:nth-child(3) { bottom: 0.36rem; }
             .eclipse-overlay-key {
                 font-size: 0.53rem;
             }
@@ -2331,8 +2336,12 @@
                                         <span id="eclipse-orbit-stage" class="eclipse-overlay-val">-</span>
                                     </div>
                                     <div class="eclipse-overlay-badge is-metric">
-                                        <span class="eclipse-overlay-key">地球-月距離</span>
-                                        <span id="eclipse-orbit-moon-distance" class="eclipse-overlay-val">-</span>
+                                        <span class="eclipse-overlay-key">本影被覆率</span>
+                                        <span id="eclipse-orbit-umbra-coverage" class="eclipse-overlay-val">-</span>
+                                    </div>
+                                    <div class="eclipse-overlay-badge is-metric">
+                                        <span class="eclipse-overlay-key">半影被覆率</span>
+                                        <span id="eclipse-orbit-penumbra-coverage" class="eclipse-overlay-val">-</span>
                                     </div>
                                 </div>
                             </div>
