@@ -557,6 +557,9 @@
             syncCenterToggle();
             if (liveActive()) render();
         }
+        function toggleCenterMode() {
+            setCenterMode(sim.center === 'earth' ? 'moon' : 'earth');
+        }
 
         function moonPos(minute) {
             const p = minute / CFG.durationMin;
@@ -2432,10 +2435,10 @@
             btn.addEventListener('click', function () { sim.play = !sim.play; syncBtn(); });
         });
         if (centerEarthBtn) {
-            centerEarthBtn.addEventListener('click', function () { setCenterMode('earth'); });
+            centerEarthBtn.addEventListener('click', function () { toggleCenterMode(); });
         }
         if (centerMoonBtn) {
-            centerMoonBtn.addEventListener('click', function () { setCenterMode('moon'); });
+            centerMoonBtn.addEventListener('click', function () { toggleCenterMode(); });
         }
         if (zoomSlider) {
             zoomSlider.addEventListener('input', function () {

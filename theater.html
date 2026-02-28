@@ -2358,9 +2358,7 @@
     width: calc((100% - (var(--switch-pad) * 2) - var(--switch-gap)) / 2);
     border-radius: 999px;
     background: linear-gradient(180deg, rgba(126, 196, 255, 0.95), rgba(74, 139, 210, 0.92));
-    box-shadow:
-        0 10px 18px rgba(0,0,0,0.24),
-        0 0 0 1px rgba(236, 248, 255, 0.22) inset;
+    box-shadow: 0 10px 18px rgba(0,0,0,0.24);
     transform: translateX(0);
     transition: transform 220ms ease;
     z-index: 0;
@@ -2388,12 +2386,15 @@
     -webkit-tap-highlight-color: transparent;
 }
 .eclipse-switch-btn:hover {
-    opacity: 0.95;
+    opacity: 1;
+    background: transparent;
+    border-color: transparent;
 }
 .eclipse-switch-btn:active {
     transform: translateY(1px);
 }
 .eclipse-switch-btn.is-active {
+    border-color: transparent;
     color: #f9fdff;
     text-shadow: 0 1px 10px rgba(0,0,0,0.55);
 }
@@ -3341,24 +3342,13 @@ function initEclipseCenterSwitchUI() {
         moonBtn.classList.toggle('is-active', isMoon);
     }
 
-    // Non-invasive listeners: do not prevent existing handlers in eclipse-sim.js.
+    // Let eclipse-sim.js own the center mode state, then reflect it to track UI.
     earthBtn.addEventListener('click', () => {
-        track.classList.add('is-earth');
-        track.classList.remove('is-moon');
-        // keep visual state consistent even if other logic sets it later
-        earthBtn.classList.add('is-active');
-        moonBtn.classList.remove('is-active');
-        earthBtn.setAttribute('aria-pressed', 'true');
-        moonBtn.setAttribute('aria-pressed', 'false');
+        requestAnimationFrame(syncFromButtons);
     }, { passive: true });
 
     moonBtn.addEventListener('click', () => {
-        track.classList.add('is-moon');
-        track.classList.remove('is-earth');
-        moonBtn.classList.add('is-active');
-        earthBtn.classList.remove('is-active');
-        moonBtn.setAttribute('aria-pressed', 'true');
-        earthBtn.setAttribute('aria-pressed', 'false');
+        requestAnimationFrame(syncFromButtons);
     }, { passive: true });
 
     // Initial sync (also helps if eclipse-sim.js toggles state later)
