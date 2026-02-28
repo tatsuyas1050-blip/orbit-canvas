@@ -329,6 +329,8 @@
             axis: document.getElementById('eclipse-axis-distance'),
             dist: document.getElementById('eclipse-moon-distance'),
             speed: document.getElementById('eclipse-rel-speed'),
+            faceTime: document.getElementById('eclipse-face-time-label'),
+            orbitTime: document.getElementById('eclipse-orbit-time-label'),
             cam: document.getElementById('eclipse-camera-angle')
         };
 
@@ -346,6 +348,7 @@
         });
         const startMs = new Date(CFG.startTimeJst).getTime();
         const fmtJst = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        let lastDisplayMinute = null;
         const startUtc = new Date(startMs);
         const startUtcHours = startUtc.getUTCHours()
             + startUtc.getUTCMinutes() / 60
@@ -2304,13 +2307,6 @@
             ctx.arc(moonProj.x, moonProj.y, moonR, 0, Math.PI * 2);
             ctx.stroke();
 
-            const earthSunSep = Math.acos(clamp(dot(earthLocal, sunLocal), -1, 1)) * 180 / Math.PI;
-            const altitudeKm = (camDist - 1) * CFG.moonRkm;
-            ctx.fillStyle = 'rgba(208,224,245,0.86)';
-            ctx.font = Math.max(10, Math.floor(w * 0.018)) + 'px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText('高度 ' + fmtNum(altitudeKm, 0) + ' km', 10, 18);
-            ctx.fillText('地球-太陽離角 ' + fmtNum(earthSunSep, 2) + '°', 10, 34);
         }
 
         function syncBtn() {
@@ -2323,8 +2319,15 @@
 
         function render() {
             const st = state(sim.m);
-            if (dom.time) dom.time.textContent = '日本時間 ' + fmtJst.format(new Date(startMs + st.m * 60000));
-            if (dom.min) dom.min.textContent = '+' + String(Math.round(st.m)).padStart(3, '0') + ' 分';
+            const displayMinute = Math.round(st.m);
+            if (displayMinute !== lastDisplayMinute) {
+                lastDisplayMinute = displayMinute;
+                const currentTime = fmtJst.format(new Date(startMs + displayMinute * 60000));
+                if (dom.time) dom.time.textContent = '日本時間 ' + currentTime;
+                if (dom.min) dom.min.textContent = '+' + String(displayMinute).padStart(3, '0') + ' 分';
+                if (dom.faceTime) dom.faceTime.textContent = 'JST ' + currentTime;
+                if (dom.orbitTime) dom.orbitTime.textContent = 'JST ' + currentTime;
+            }
             if (dom.stage) dom.stage.textContent = st.stage;
             if (dom.umbra) dom.umbra.textContent = fmtNum(st.umC * 100, 1) + '%';
             if (dom.penumbra) dom.penumbra.textContent = fmtNum(st.peC * 100, 1) + '%';
@@ -2390,19 +2393,89 @@
             zoomOutBtn.addEventListener('click', function () { zoomBy(1); });
         }
 
-        function stopDrag(e) {
+        const pointerMap = new Map();
+        const pinch = {
+            active: false,
+            mode: 'moon',
+            baseDist: 0,
+            baseZoom: 0
+        };
+
+        function activeCenterMode() {
+            return sim.center === 'earth' ? 'earth' : 'moon';
+        }
+        function releasePointerCaptureSafe(pointerId) {
+            if (pointerId === undefined || pointerId === null) return;
+            try { orbitCanvas.releasePointerCapture(pointerId); } catch (err) {}
+        }
+        function stopDrag() {
             if (!sim.dragMode) return;
             const active = viewStateByMode(sim.dragMode);
             active.drag = false;
             active.pid = null;
             sim.dragMode = null;
             orbitCanvas.classList.remove('is-dragging');
-            if (e && e.pointerId !== undefined) {
-                try { orbitCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
+        }
+        function pinchDistance() {
+            if (pointerMap.size < 2) return 0;
+            const vals = Array.from(pointerMap.values());
+            const a = vals[0];
+            const b = vals[1];
+            return Math.hypot(a.x - b.x, a.y - b.y);
+        }
+        function startPinch() {
+            if (pointerMap.size < 2) return;
+            const mode = activeCenterMode();
+            pinch.active = true;
+            pinch.mode = mode;
+            pinch.baseDist = Math.max(1, pinchDistance());
+            pinch.baseZoom = ensureViewDistance(mode);
+            stopDrag();
+            if (sim.auto) {
+                sim.auto = false;
+                syncBtn();
+            }
+        }
+        function stopPinch() {
+            pinch.active = false;
+            pinch.baseDist = 0;
+        }
+        function updatePinchZoom() {
+            if (!pinch.active || pointerMap.size < 2) return;
+            const mode = activeCenterMode();
+            const dist = Math.max(1, pinchDistance());
+            if (mode !== pinch.mode) {
+                pinch.mode = mode;
+                pinch.baseDist = dist;
+                pinch.baseZoom = ensureViewDistance(mode);
+                return;
+            }
+            const scale = dist / Math.max(1, pinch.baseDist);
+            const active = viewStateByMode(mode);
+            const z = zoomInfoByMode(mode);
+            const nextDist = clamp(pinch.baseZoom / scale, z.min, z.max);
+            if (Math.abs(nextDist - active.dist) < 0.001) return;
+            active.dist = nextDist;
+            if (liveActive()) render();
+        }
+        function handlePointerEnd(e) {
+            pointerMap.delete(e.pointerId);
+            releasePointerCaptureSafe(e.pointerId);
+            if (pointerMap.size < 2) stopPinch();
+            if (sim.dragMode) {
+                const active = viewStateByMode(sim.dragMode);
+                if (active.pid === e.pointerId) stopDrag();
             }
         }
         orbitCanvas.addEventListener('pointerdown', function (e) {
-            const mode = sim.center === 'earth' ? 'earth' : 'moon';
+            pointerMap.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            try { orbitCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+            if (pointerMap.size >= 2) {
+                startPinch();
+                return;
+            }
+
+            const mode = activeCenterMode();
             const active = viewStateByMode(mode);
             sim.dragMode = mode;
             active.drag = true;
@@ -2410,9 +2483,17 @@
             active.x = e.clientX;
             active.y = e.clientY;
             orbitCanvas.classList.add('is-dragging');
-            try { orbitCanvas.setPointerCapture(e.pointerId); } catch (err) {}
         });
         orbitCanvas.addEventListener('pointermove', function (e) {
+            if (pointerMap.has(e.pointerId)) {
+                pointerMap.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            }
+            if (pinch.active || pointerMap.size >= 2) {
+                if (!pinch.active && pointerMap.size >= 2) startPinch();
+                updatePinchZoom();
+                return;
+            }
+
             if (!sim.dragMode) return;
             const active = viewStateByMode(sim.dragMode);
             if (!active.drag || (active.pid !== null && active.pid !== e.pointerId)) return;
@@ -2433,11 +2514,15 @@
             if (sim.auto) { sim.auto = false; syncBtn(); }
             if (liveActive()) render();
         });
-        orbitCanvas.addEventListener('pointerup', stopDrag);
-        orbitCanvas.addEventListener('pointercancel', stopDrag);
-        orbitCanvas.addEventListener('pointerleave', function () {
-            if (sim.dragMode) stopDrag();
-        });
+        orbitCanvas.addEventListener('pointerup', handlePointerEnd);
+        orbitCanvas.addEventListener('pointercancel', handlePointerEnd);
+        orbitCanvas.addEventListener('pointerleave', handlePointerEnd);
+        orbitCanvas.addEventListener('touchstart', function (e) {
+            if (e.touches && e.touches.length > 1) e.preventDefault();
+        }, { passive: false });
+        orbitCanvas.addEventListener('touchmove', function (e) {
+            if (e.touches && e.touches.length > 1) e.preventDefault();
+        }, { passive: false });
         orbitCanvas.addEventListener('wheel', function (e) {
             e.preventDefault();
             const raw = clamp(e.deltaY / 120, -4, 4);
