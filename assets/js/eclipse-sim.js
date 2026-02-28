@@ -2370,11 +2370,19 @@
         }
 
         function syncBtn() {
-            const playIcon = '\u25B6';
-            const pauseIcon = '\u23F8';
+            const iconSrc = sim.play ? 'assets/img/stop.png' : 'assets/img/play.png';
             const label = sim.play ? '一時停止' : '再生';
             playBtns.forEach((btn) => {
-                btn.textContent = sim.play ? pauseIcon : playIcon;
+                if (!btn) return;
+                let icon = btn.querySelector('.eclipse-play-icon');
+                if (!icon) {
+                    icon = document.createElement('img');
+                    icon.className = 'eclipse-play-icon';
+                    icon.alt = '';
+                    icon.setAttribute('aria-hidden', 'true');
+                    btn.replaceChildren(icon);
+                }
+                icon.src = iconSrc;
                 btn.setAttribute('aria-pressed', sim.play ? 'true' : 'false');
                 btn.setAttribute('aria-label', label);
                 btn.title = label;
