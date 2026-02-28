@@ -4,7 +4,7 @@
     const CFG = Object.freeze({
         startTimeJst: '2026-03-03T17:00:00+09:00',
         durationMin: 390,
-        initialMin: 214, // 初期位置を「食の最大(20:34)」に変更
+        initialMin: 0, // 初期位置は17:00（スライダー左端）
         earthRkm: 6371,
         moonRkm: 1737.4,
         moonDistanceEr: 60.3,
@@ -304,7 +304,9 @@
             console.warn('earth_color.jpg load error:', err);
         });
 
-        const slider = document.getElementById('eclipse-time-slider');
+        const faceSlider = document.getElementById('eclipse-time-slider-face');
+        const orbitSlider = document.getElementById('eclipse-time-slider-orbit');
+        const timeSliders = [faceSlider, orbitSlider];
         const playBtn = document.getElementById('eclipse-play-toggle');
         const rotateBtn = document.getElementById('eclipse-autorotate-toggle');
         const centerEarthBtn = document.getElementById('eclipse-center-earth');
@@ -316,7 +318,7 @@
         const viewCanvas = orbitCanvas;
         const moonCentricCanvas = orbitCanvas;
         const eventList = document.getElementById('eclipse-event-list');
-        if (!slider || !playBtn || !rotateBtn || !faceCanvas || !orbitCanvas || !eventList) return;
+        if (!faceSlider || !orbitSlider || !playBtn || !rotateBtn || !faceCanvas || !orbitCanvas || !eventList) return;
 
         const dom = {
             time: document.getElementById('eclipse-time-label'),
@@ -391,27 +393,21 @@
                 z: c * Math.cos(lonRad)
             };
         }
-        function shadowDirFromMoon(p) {
-            const v = { x: 0, y: -p.y, z: -p.z };
-            const len = Math.hypot(v.x, v.y, v.z);
-            if (len < 1e-6) return { x: 0, y: 1, z: 0 };
-            return { x: v.x / len, y: v.y / len, z: v.z / len };
-        }
-
         const sim = {
             m: CFG.initialMin,
             play: false,
-            auto: true,
+            auto: false,
             center: 'moon',
             dragMode: null,
             last: 0,
             starsFace: makeStars(140, 901),
             stars3d: makeStars(90, 2203),
             view: {
-                yaw: -0.92,
-                pitch: 0.34,
-                targetYaw: -0.92,
-                targetPitch: 0.34,
+                // Earth-centered initial framing: place Moon behind Earth.
+                yaw: 0.36,
+                pitch: 0.18,
+                targetYaw: 0.36,
+                targetPitch: 0.18,
                 dist: 4.6,
                 scale: 320,
                 cx: 0,
@@ -422,10 +418,11 @@
                 y: 0
             },
             moonView: {
-                yaw: -1.0,
-                pitch: 0.18,
-                targetYaw: -1.0,
-                targetPitch: 0.18,
+                // Moon-centered initial framing: view the Earth-facing side of the Moon.
+                yaw: Math.PI,
+                pitch: 0.0,
+                targetYaw: Math.PI,
+                targetPitch: 0.0,
                 dist: MOON_VIEW.camDist,
                 drag: false,
                 pid: null,
@@ -434,10 +431,19 @@
             }
         };
 
-        slider.min = '0';
-        slider.max = String(CFG.durationMin);
-        slider.step = '1';
-        slider.value = String(sim.m);
+        timeSliders.forEach((slider) => {
+            slider.min = '0';
+            slider.max = String(CFG.durationMin);
+            slider.step = '1';
+            slider.value = String(sim.m);
+        });
+
+        function syncTimeSliders() {
+            const v = String(Math.round(sim.m));
+            timeSliders.forEach((slider) => {
+                if (slider.value !== v) slider.value = v;
+            });
+        }
 
         function syncCenterToggle() {
             if (!centerEarthBtn || !centerMoonBtn) return;
@@ -553,13 +559,6 @@
                 peC: clamp(overlapArea(moonRer, sh.penumbra, d) / moonArea, 0, 1)
             };
         }
-
-        const initState = state(sim.m);
-        const initShadowLocal = moonLocalFromWorld(shadowDirFromMoon(initState.p));
-        sim.moonView.yaw = wrapAngle(Math.atan2(initShadowLocal.x, initShadowLocal.z));
-        sim.moonView.pitch = clamp(-Math.atan2(initShadowLocal.y, Math.hypot(initShadowLocal.x, initShadowLocal.z)), VIEW_CTRL.pitchMin, VIEW_CTRL.pitchMax);
-        sim.moonView.targetYaw = sim.moonView.yaw;
-        sim.moonView.targetPitch = sim.moonView.pitch;
 
         function disp(v) { return { x: v.x * CFG.scaleX, y: v.y * CFG.scaleYZ, z: v.z * CFG.scaleYZ }; }
         function rot(v) {
@@ -1042,8 +1041,8 @@
             ];
             const earthFallbackColors = ['#8bc0ff', '#3568a3', '#102848', 'rgba(165,208,255,0.65)'];
             const items = [
-                texturedSphere({ x: 0, y: 0, z: 0 }, 1, earthColorImg, earthFallbackColors, 'Earth', earthSpinTurns(st.modelM)),
-                sphere(st.p, moonRer, moonColors, 'Moon')
+                texturedSphere({ x: 0, y: 0, z: 0 }, 1, earthColorImg, earthFallbackColors, '地球', earthSpinTurns(st.modelM)),
+                sphere(st.p, moonRer, moonColors, '月')
             ].filter(Boolean).sort((a, b) => b.z - a.z);
             items.forEach((it) => it.draw());
         }
@@ -1482,8 +1481,8 @@
                 Math.max(1.3, w * 0.0022),
                 null
             );
-            drawShadowText(shadowNowX, st.sh.penumbra, Math.PI * 0.14, 'Penumbra', 'rgba(122,130,148,0.90)');
-            drawShadowText(shadowNowX, st.sh.umbra, Math.PI * 0.34, 'Umbra', 'rgba(212,126,112,0.94)');
+            drawShadowText(shadowNowX, st.sh.penumbra, Math.PI * 0.14, '半影', 'rgba(122,130,148,0.90)');
+            drawShadowText(shadowNowX, st.sh.umbra, Math.PI * 0.34, '本影', 'rgba(212,126,112,0.94)');
 
             const axisNow = projectPoint({ x: shadowNowX, y: 0, z: 0 });
             const moonNow = projectPoint(st.p);
@@ -1548,7 +1547,7 @@
                 ctx.fillStyle = 'rgba(255,238,190,0.92)';
                 ctx.font = Math.max(10, Math.floor(w * 0.016)) + 'px sans-serif';
                 ctx.textAlign = 'left';
-                ctx.fillText('Sun', sunFar.x + Math.max(6, sunFarR * 1.2), sunFar.y - Math.max(4, sunFarR * 0.9));
+                ctx.fillText('太陽', sunFar.x + Math.max(6, sunFarR * 1.2), sunFar.y - Math.max(4, sunFarR * 0.9));
             }
             if (sunFar && earth2) {
                 ctx.strokeStyle = 'rgba(255,208,110,0.65)';
@@ -1578,7 +1577,7 @@
             const moonCenter = st.p;     // WORLD
             const moonRadius = moonRer;  // Earth radii
 
-            function drawBodyDisc(centerWorld, radiusWorld, img, spinTurns, fallback, label, tintAlpha) {
+            function drawBodyDisc(centerWorld, radiusWorld, img, spinTurns, fallback, label, tintAlpha, tintColor, drawOutline) {
                 const cp = projectPoint(centerWorld);
                 const rp = projectRadius(centerWorld, radiusWorld);
                 if (!cp || !rp || rp < 1.1) return null;
@@ -1619,16 +1618,37 @@
                 ctx.fill();
 
                 if (tintAlpha > 0.001) {
-                    ctx.fillStyle = 'rgba(166,62,42,' + tintAlpha.toFixed(3) + ')';
+                    const tint = tintColor || { r: 166, g: 62, b: 42 };
+                    const darkAlpha = clamp(0.18 + tintAlpha * 0.74, 0, 0.86);
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.fillStyle = 'rgba(28,10,12,' + darkAlpha.toFixed(3) + ')';
+                    circle(ctx, cp.x, cp.y, rp);
+                    ctx.fill();
+                    ctx.globalCompositeOperation = 'source-over';
+
+                    const colorAlpha = clamp(0.16 + tintAlpha * 1.18, 0, 0.94);
+                    ctx.fillStyle = 'rgba(' + tint.r + ',' + tint.g + ',' + tint.b + ',' + colorAlpha.toFixed(3) + ')';
+                    circle(ctx, cp.x, cp.y, rp);
+                    ctx.fill();
+
+                    const hotAlpha0 = clamp(tintAlpha * 0.62, 0, 0.72);
+                    const hotAlpha1 = clamp(tintAlpha * 0.54, 0, 0.62);
+                    const hot = ctx.createRadialGradient(cp.x - rp * 0.12, cp.y - rp * 0.06, rp * 0.12, cp.x, cp.y, rp * 1.06);
+                    hot.addColorStop(0, 'rgba(255,150,102,' + hotAlpha0.toFixed(3) + ')');
+                    hot.addColorStop(0.65, 'rgba(166,64,44,' + hotAlpha1.toFixed(3) + ')');
+                    hot.addColorStop(1, 'rgba(40,12,12,0)');
+                    ctx.fillStyle = hot;
                     circle(ctx, cp.x, cp.y, rp);
                     ctx.fill();
                 }
                 ctx.restore();
 
-                ctx.strokeStyle = fallback[3];
-                ctx.lineWidth = Math.max(1, rp * 0.04);
-                circle(ctx, cp.x, cp.y, rp);
-                ctx.stroke();
+                if (drawOutline !== false) {
+                    ctx.strokeStyle = fallback[3];
+                    ctx.lineWidth = Math.max(1, rp * 0.04);
+                    circle(ctx, cp.x, cp.y, rp);
+                    ctx.stroke();
+                }
 
                 ctx.fillStyle = 'rgba(226,238,255,0.92)';
                 ctx.font = Math.max(10, Math.floor(w * 0.018)) + 'px sans-serif';
@@ -1641,8 +1661,15 @@
             const earthP = projectPoint(earthCenter);
             const moonP = projectPoint(moonCenter);
 
-            const moonTone = smoothstep(0.18, 0.95, st.umC);
-            const moonTint = lerp(0.0, 0.24, moonTone);
+            // Earth-centered view: make the whole Moon color shift smoothly over eclipse timeline.
+            const eclipseRise = smoothstep(OFFICIAL_EVENT_MIN.P1, OFFICIAL_EVENT_MIN.MAX, st.m);
+            const eclipseFall = 1 - smoothstep(OFFICIAL_EVENT_MIN.MAX, OFFICIAL_EVENT_MIN.P4, st.m);
+            const eclipseTone = clamp(Math.min(eclipseRise, eclipseFall), 0, 1);
+            const totalityRise = smoothstep(OFFICIAL_EVENT_MIN.U2, OFFICIAL_EVENT_MIN.MAX, st.m);
+            const totalityFall = 1 - smoothstep(OFFICIAL_EVENT_MIN.MAX, OFFICIAL_EVENT_MIN.U3, st.m);
+            const totalityTone = clamp(Math.min(totalityRise, totalityFall), 0, 1);
+            const moonTint = clamp(lerp(0, 0.9, Math.pow(eclipseTone, 0.72)), 0, 0.9);
+            const moonTintColor = mixRgbHex('#636d82', '#d24a2a', clamp(eclipseTone * 0.45 + totalityTone * 0.85, 0, 1));
             const moonTexImg = (moonColorImg.complete && moonColorImg.naturalWidth > 0) ? moonColorImg : moonImg;
 
             const drawOrder = [
@@ -1658,8 +1685,10 @@
                         earthColorImg,
                         earthSpinTurns(st.modelM),
                         ['#cde7ff', '#6ea8df', '#244778', 'rgba(203,232,255,0.85)'],
-                        'Earth',
-                        0
+                        '地球',
+                        0,
+                        null,
+                        false
                     );
                 } else {
                     drawBodyDisc(
@@ -1668,8 +1697,9 @@
                         moonTexImg,
                         0,
                         ['#f0f0f0', '#9ea4ad', '#3e434b', 'rgba(242,245,255,0.58)'],
-                        'Moon',
-                        moonTint
+                        '月',
+                        moonTint,
+                        moonTintColor
                     );
                 }
             }
@@ -1791,9 +1821,11 @@
                 ctx.arc(cp.x, cp.y, rp, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
-                ctx.strokeStyle = palette.ring;
-                ctx.lineWidth = Math.max(0.8, rp * 0.11);
-                ctx.stroke();
+                if (!palette.noRing) {
+                    ctx.strokeStyle = palette.ring;
+                    ctx.lineWidth = Math.max(0.8, rp * 0.11);
+                    ctx.stroke();
+                }
 
                 ctx.fillStyle = palette.label;
                 ctx.font = Math.max(10, Math.floor(w * 0.019)) + 'px sans-serif';
@@ -1828,16 +1860,17 @@
                 glowInner: 'rgba(255,205,112,0.24)',
                 glowOuter: 'rgba(255,180,90,0.0)',
                 label: 'rgba(255,236,190,0.92)'
-            }, 'Sun');
+            }, '太陽');
             drawSkyBody(earthCenter, earthRadius3d, {
                 core: 'rgba(205,236,255,0.98)',
                 mid: 'rgba(120,186,240,0.96)',
                 edge: 'rgba(46,92,148,0.94)',
                 ring: 'rgba(198,232,255,0.9)',
+                noRing: true,
                 glowInner: 'rgba(98,164,240,0.18)',
                 glowOuter: 'rgba(98,164,240,0.0)',
                 label: 'rgba(214,236,255,0.92)'
-            }, 'Earth', earthColorImg, earthSpinTurns(st.modelM));
+            }, '地球', earthColorImg, earthSpinTurns(st.modelM));
 
             // Draw Earth shadow in moon-radii coordinates (isotropic physical scale).
             const shadowAxisLocal = normalize(moonLocalFromWorld(sunAxis));
@@ -2011,13 +2044,14 @@
                 x1: x1Er,
                 r1: penR1Er,
                 segments: 28,
-                rgb: [12, 14, 18],
-                alphaMin: 0.018,
-                alphaMax: 0.062,
-                edge: 'rgba(82,90,106,0.32)',
+                // 半影エリア: うっすらグレーの視認性を追加
+                rgb: [74, 82, 96],
+                alphaMin: 0.034,
+                alphaMax: 0.096,
+                edge: 'rgba(112,122,142,0.44)',
                 guides: 8,
-                guide: 'rgba(104,112,130,0.44)',
-                guideAlpha: 0.36
+                guide: 'rgba(126,136,154,0.52)',
+                guideAlpha: 0.46
             });
             drawShadowConeVolume({
                 x0: x0Er,
@@ -2048,17 +2082,37 @@
                 guideAlpha: 0.46
             });
 
-            const penLabel = projectShadowLabelPoint(shadowPointAt(x1Er * 0.88, penR1Er * 0.8, Math.PI * 0.14));
-            ctx.fillStyle = 'rgba(124,132,148,0.9)';
-            ctx.font = Math.max(10, Math.floor(w * 0.016)) + 'px sans-serif';
+            const shadowLabelFontPx = Math.max(10, Math.floor(w * 0.016));
+            ctx.font = shadowLabelFontPx + 'px sans-serif';
             ctx.textAlign = 'left';
-            ctx.fillText('Penumbra Cone', penLabel.x + 8, penLabel.y - 6);
 
-            const umbLabel = projectShadowLabelPoint(shadowPointAt(x1Er * 0.78, Math.max(umbraConeR1Er, 0.28), Math.PI * 0.28));
-            ctx.fillStyle = 'rgba(214,126,110,0.95)';
-            ctx.font = Math.max(10, Math.floor(w * 0.016)) + 'px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText('Umbra Cone', umbLabel.x + 8, umbLabel.y - 6);
+            // ラベルは3か所に配置:
+            // 1) 月の通過付近 2) 地球寄り 3) 地球と反対側
+            const nearMoonXEr = clamp(st.p.x, x0Er + 1.4, x1Er - 1.4);
+            const earthSideBaseXEr = x0Er + Math.max(2.2, (umbraCylEndEr - x0Er) * 0.42);
+            const earthSideXEr = clamp(lerp(earthSideBaseXEr, nearMoonXEr, 0.82), x0Er + 1.0, x1Er - 1.0);
+            const antiEarthXEr = clamp(x0Er + (x1Er - x0Er) * 0.86, x0Er + 1.0, x1Er - 1.0);
+            const labelAnchors = [
+                { xEr: nearMoonXEr, angleRad: Math.PI * 0.18, radiusScale: 0.84 },
+                { xEr: earthSideXEr, angleRad: Math.PI * 0.58, radiusScale: 0.96 },
+                { xEr: antiEarthXEr, angleRad: -Math.PI * 0.28, radiusScale: 0.78 }
+            ];
+            function drawShadowAreaLabelSet(text, color, radiusAtX, minRadiusEr) {
+                ctx.fillStyle = color;
+                for (let i = 0; i < labelAnchors.length; i++) {
+                    const a = labelAnchors[i];
+                    const rEr = Math.max(minRadiusEr, radiusAtX(a.xEr) * a.radiusScale);
+                    const p = projectShadowLabelPoint(shadowPointAt(a.xEr, rEr, a.angleRad));
+                    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+                    ctx.fillText(text, p.x + 8, p.y - 6);
+                }
+            }
+            drawShadowAreaLabelSet('半影エリア', 'rgba(124,132,148,0.9)', function (xEr) {
+                return shadowAt(xEr).penumbra;
+            }, 0.24);
+            drawShadowAreaLabelSet('本影エリア', 'rgba(214,126,110,0.95)', function (xEr) {
+                return shadowAt(xEr).umbra;
+            }, 0.28);
 
             const moonCenter = { x: 0, y: 0, z: 0 };
             const moonProj = projectPoint(moonCenter);
@@ -2255,22 +2309,22 @@
             ctx.fillStyle = 'rgba(208,224,245,0.86)';
             ctx.font = Math.max(10, Math.floor(w * 0.018)) + 'px sans-serif';
             ctx.textAlign = 'left';
-            ctx.fillText('Satellite Alt ' + fmtNum(altitudeKm, 0) + ' km', 10, 18);
-            ctx.fillText('Earth-Sun Sep ' + fmtNum(earthSunSep, 2) + '°', 10, 34);
+            ctx.fillText('高度 ' + fmtNum(altitudeKm, 0) + ' km', 10, 18);
+            ctx.fillText('地球-太陽離角 ' + fmtNum(earthSunSep, 2) + '°', 10, 34);
         }
 
         function syncBtn() {
             playBtn.textContent = sim.play ? '停止' : '再生';
             playBtn.setAttribute('aria-pressed', sim.play ? 'true' : 'false');
-            rotateBtn.textContent = sim.auto ? '自動回転: ON' : '自動回転: OFF';
+            rotateBtn.textContent = sim.auto ? '自動回転: オン' : '自動回転: オフ';
             rotateBtn.setAttribute('aria-pressed', sim.auto ? 'true' : 'false');
             syncCenterToggle();
         }
 
         function render() {
             const st = state(sim.m);
-            if (dom.time) dom.time.textContent = 'JST ' + fmtJst.format(new Date(startMs + st.m * 60000));
-            if (dom.min) dom.min.textContent = '+' + String(Math.round(st.m)).padStart(3, '0') + ' min';
+            if (dom.time) dom.time.textContent = '日本時間 ' + fmtJst.format(new Date(startMs + st.m * 60000));
+            if (dom.min) dom.min.textContent = '+' + String(Math.round(st.m)).padStart(3, '0') + ' 分';
             if (dom.stage) dom.stage.textContent = st.stage;
             if (dom.umbra) dom.umbra.textContent = fmtNum(st.umC * 100, 1) + '%';
             if (dom.penumbra) dom.penumbra.textContent = fmtNum(st.peC * 100, 1) + '%';
@@ -2279,13 +2333,13 @@
             if (dom.speed) dom.speed.textContent = fmtNum(speed(st.m), 2) + ' km/s';
             if (dom.cam) {
                 const active = sim.center === 'earth' ? sim.view : sim.moonView;
-                const modeLabel = sim.center === 'earth' ? 'Earth Center' : 'Moon Center';
+                const modeLabel = sim.center === 'earth' ? '地球中心' : '月中心';
                 const zoom = zoomInfoByMode(sim.center);
                 const d = ensureViewDistance(sim.center);
-                const distText = ' / Dist ' + d.toFixed(2) + zoom.unit;
+                const distText = ' / 距離 ' + d.toFixed(2) + zoom.unit;
                 dom.cam.textContent = modeLabel
-                    + ' / Yaw ' + (active.yaw * 180 / Math.PI).toFixed(1) + '°'
-                    + ' / Pitch ' + (active.pitch * 180 / Math.PI).toFixed(1) + '°'
+                    + ' / 方位角 ' + (active.yaw * 180 / Math.PI).toFixed(1) + '°'
+                    + ' / 仰角 ' + (active.pitch * 180 / Math.PI).toFixed(1) + '°'
                     + distText;
             }
             renderFace(st);
@@ -2308,9 +2362,18 @@
             }).join('');
         }
 
-        slider.addEventListener('input', function () {
-            sim.m = clamp(Number(slider.value) || 0, 0, CFG.durationMin);
-            sim.play = false; syncBtn(); if (liveActive()) render();
+        function onTimeSliderInput(activeSlider) {
+            sim.m = clamp(Number(activeSlider.value) || 0, 0, CFG.durationMin);
+            syncTimeSliders();
+            sim.play = false;
+            syncBtn();
+            if (liveActive()) render();
+        }
+
+        timeSliders.forEach((slider) => {
+            slider.addEventListener('input', function () {
+                onTimeSliderInput(slider);
+            });
         });
         playBtn.addEventListener('click', function () { sim.play = !sim.play; syncBtn(); });
         rotateBtn.addEventListener('click', function () { sim.auto = !sim.auto; syncBtn(); if (liveActive()) render(); });
@@ -2388,7 +2451,7 @@
             if (!sim.last) sim.last = ts;
             if (ts - sim.last >= CFG.frameMs) {
                 if (liveActive()) {
-                    if (sim.play) { sim.m = (sim.m + 1) % (CFG.durationMin + 1); slider.value = String(sim.m); }
+                    if (sim.play) { sim.m = (sim.m + 1) % (CFG.durationMin + 1); syncTimeSliders(); }
                     if (sim.center === 'earth') {
                         if (sim.auto && !sim.view.drag) {
                             sim.view.targetYaw = wrapAngle(sim.view.targetYaw + 0.0045);
@@ -2414,6 +2477,7 @@
             requestAnimationFrame(tick);
         }
 
+        syncTimeSliders();
         buildEvents();
         syncBtn();
         if (liveActive()) render();

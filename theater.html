@@ -439,6 +439,9 @@
             width: 100%;
             accent-color: #82b7ff;
         }
+        .eclipse-card-slider {
+            margin-top: 0.5rem;
+        }
         .eclipse-actions {
             display: flex;
             flex-wrap: wrap;
@@ -1138,44 +1141,47 @@
             <div id="eclipse-sim-panel" class="panel-bg live-panel eclipse-panel">
                 <h3 class="live-panel-title">2026/03/03 皆既月食シミュレーション</h3>
                 <p class="live-panel-desc">
-                    スライダーで時刻を動かしながら、月面ビューと統合3Dグローブビューで位置関係を確認できます。<br>
+                    スライダーで時刻を動かしながら、月観察ビューと3D宇宙ビューで位置関係を確認できます。<br>
                     ※視認性のため3D図の距離スケール（太陽-地球-月方向）は圧縮したモデルです。
                 </p>
 
                 <div class="eclipse-controls">
                     <div class="eclipse-time-row">
                         <span id="eclipse-time-label" class="eclipse-time-main">-</span>
-                        <span id="eclipse-minute-label" class="eclipse-time-offset">+000 min</span>
-                    </div>
-                    <div class="eclipse-slider-wrap">
-                        <input id="eclipse-time-slider" type="range" min="0" max="390" step="1" value="214" aria-label="月食シミュレーション時刻">
+                        <span id="eclipse-minute-label" class="eclipse-time-offset">+000 分</span>
                     </div>
                     <div class="eclipse-actions">
                         <button id="eclipse-play-toggle" type="button" class="eclipse-btn" aria-pressed="false">再生</button>
-                        <button id="eclipse-autorotate-toggle" type="button" class="eclipse-btn" aria-pressed="true">自動回転: ON</button>
+                        <button id="eclipse-autorotate-toggle" type="button" class="eclipse-btn" aria-pressed="false">自動回転: オフ</button>
                     </div>
                 </div>
 
                 <div class="eclipse-grid">
                     <div class="eclipse-card">
-                        <h4>月面ビュー</h4>
+                        <h4>月観察ビュー</h4>
                         <canvas id="eclipse-face-canvas"></canvas>
+                        <div class="eclipse-slider-wrap eclipse-card-slider">
+                            <input id="eclipse-time-slider-face" type="range" min="0" max="390" step="1" value="0" aria-label="月観察ビュー時刻">
+                        </div>
                         <div class="eclipse-canvas-note">地球の影が月へ重なる見え方を再現しています。</div>
                     </div>
                     <div class="eclipse-card">
-                        <h4>統合3Dグローブビュー</h4>
+                        <h4>3D宇宙ビュー</h4>
                         <div class="eclipse-orbit-window">
                             <canvas id="eclipse-orbit-canvas"></canvas>
                             <div class="eclipse-orbit-toolbar">
-                                <div class="eclipse-center-switch" role="group" aria-label="Center body">
-                                    <button id="eclipse-center-earth" type="button" class="eclipse-btn eclipse-switch-btn" aria-pressed="false">Earth</button>
-                                    <button id="eclipse-center-moon" type="button" class="eclipse-btn eclipse-switch-btn is-active" aria-pressed="true">Moon</button>
+                                <div class="eclipse-center-switch" role="group" aria-label="中心天体">
+                                    <button id="eclipse-center-earth" type="button" class="eclipse-btn eclipse-switch-btn" aria-pressed="false">地球</button>
+                                    <button id="eclipse-center-moon" type="button" class="eclipse-btn eclipse-switch-btn is-active" aria-pressed="true">月</button>
                                 </div>
-                                <div class="eclipse-zoom-controls" role="group" aria-label="Zoom controls">
-                                    <button id="eclipse-zoom-out" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="Zoom out">−</button>
-                                    <button id="eclipse-zoom-in" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="Zoom in">＋</button>
+                                <div class="eclipse-zoom-controls" role="group" aria-label="ズーム操作">
+                                    <button id="eclipse-zoom-out" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="縮小">−</button>
+                                    <button id="eclipse-zoom-in" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="拡大">＋</button>
                                 </div>
                             </div>
+                        </div>
+                        <div class="eclipse-slider-wrap eclipse-card-slider">
+                            <input id="eclipse-time-slider-orbit" type="range" min="0" max="390" step="1" value="0" aria-label="3D宇宙ビュー時刻">
                         </div>
                         <div class="eclipse-canvas-note">ウィンドウ内スイッチで地球中心/月中心を切替。ドラッグで回転、ホイールまたは +/- でズーム。</div>
                     </div>
