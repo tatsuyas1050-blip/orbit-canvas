@@ -363,6 +363,7 @@
         const playBtns = [facePlayBtn, orbitPlayBtn];
         const centerEarthBtn = document.getElementById('eclipse-center-earth');
         const centerMoonBtn = document.getElementById('eclipse-center-moon');
+        const zoomSlider = document.getElementById('eclipse-zoom-slider');
         const zoomInBtn = document.getElementById('eclipse-zoom-in');
         const zoomOutBtn = document.getElementById('eclipse-zoom-out');
         const faceCanvas = document.getElementById('eclipse-face-canvas');
@@ -523,6 +524,19 @@
             active.dist = d;
             return d;
         }
+        function syncZoomSlider() {
+            if (!zoomSlider) return;
+            const mode = sim.center === 'earth' ? 'earth' : 'moon';
+            const z = zoomInfoByMode(mode);
+            const dist = ensureViewDistance(mode);
+            zoomSlider.min = String(z.min);
+            zoomSlider.max = String(z.max);
+            zoomSlider.step = '0.01';
+            // Vertical slider is rendered as bottom(min) -> top(max).
+            // Invert mapping so moving upward means zoom-in (camera distance decreases).
+            const next = (z.max + z.min - dist).toFixed(3);
+            if (zoomSlider.value !== next) zoomSlider.value = next;
+        }
         function zoomBy(notches) {
             if (!Number.isFinite(notches) || notches === 0) return;
             const mode = sim.center === 'earth' ? 'earth' : 'moon';
@@ -530,6 +544,7 @@
             const z = zoomInfoByMode(mode);
             const base = ensureViewDistance(mode);
             active.dist = clamp(base + z.step * notches, z.min, z.max);
+            syncZoomSlider();
             if (liveActive()) render();
         }
         function setCenterMode(mode) {
@@ -538,6 +553,7 @@
             if (sim.dragMode) stopDrag();
             ensureViewDistance(mode);
             sim.center = mode;
+            syncZoomSlider();
             syncCenterToggle();
             if (liveActive()) render();
         }
@@ -2421,11 +2437,26 @@
         if (centerMoonBtn) {
             centerMoonBtn.addEventListener('click', function () { setCenterMode('moon'); });
         }
+        if (zoomSlider) {
+            zoomSlider.addEventListener('input', function () {
+                const mode = sim.center === 'earth' ? 'earth' : 'moon';
+                const active = viewStateByMode(mode);
+                const z = zoomInfoByMode(mode);
+                const raw = Number(zoomSlider.value);
+                const mapped = Number.isFinite(raw) ? (z.max + z.min - raw) : active.dist;
+                active.dist = clamp(mapped, z.min, z.max);
+                if (liveActive()) render();
+            });
+        }
         if (zoomInBtn) {
-            zoomInBtn.addEventListener('click', function () { zoomBy(-1); });
+            zoomInBtn.addEventListener('click', function () {
+                zoomBy(-1);
+            });
         }
         if (zoomOutBtn) {
-            zoomOutBtn.addEventListener('click', function () { zoomBy(1); });
+            zoomOutBtn.addEventListener('click', function () {
+                zoomBy(1);
+            });
         }
 
         const pointerMap = new Map();
@@ -2487,6 +2518,7 @@
             const nextDist = clamp(pinch.baseZoom / scale, z.min, z.max);
             if (Math.abs(nextDist - active.dist) < 0.001) return;
             active.dist = nextDist;
+            syncZoomSlider();
             if (liveActive()) render();
         }
         function handlePointerEnd(e) {
@@ -2586,6 +2618,7 @@
         }
 
         syncTimeSliders();
+        syncZoomSlider();
         buildEvents();
         syncBtn();
         if (liveActive()) render();
