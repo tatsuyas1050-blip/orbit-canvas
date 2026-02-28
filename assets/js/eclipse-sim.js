@@ -451,7 +451,7 @@
         const sim = {
             m: CFG.initialMin,
             play: false,
-            center: 'moon',
+            center: 'earth',
             dragMode: null,
             last: 0,
             starsFace: makeStars(140, 901),
@@ -2465,7 +2465,7 @@
         const pointerMap = new Map();
         const pinch = {
             active: false,
-            mode: 'moon',
+            mode: 'earth',
             baseDist: 0,
             baseZoom: 0
         };

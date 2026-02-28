@@ -2611,8 +2611,8 @@
                                     <div class="eclipse-center-switch" role="group" aria-label="中心天体">
                                         <span class="eclipse-center-switch-label" aria-hidden="true">TARGET</span>
                                         <div class="eclipse-center-switch-track">
-                                            <button id="eclipse-center-earth" type="button" class="eclipse-btn eclipse-switch-btn" aria-pressed="false">地球</button>
-                                            <button id="eclipse-center-moon" type="button" class="eclipse-btn eclipse-switch-btn is-active" aria-pressed="true">月</button>
+                                            <button id="eclipse-center-earth" type="button" class="eclipse-btn eclipse-switch-btn is-active" aria-pressed="true">地球</button>
+                                            <button id="eclipse-center-moon" type="button" class="eclipse-btn eclipse-switch-btn" aria-pressed="false">月</button>
                                         </div>
                                     </div>
                                     <div class="eclipse-zoom-controls" role="group" aria-label="ズーム操作">
@@ -3330,8 +3330,8 @@ function initEclipseCenterSwitchUI() {
         const earthActive = earthBtn.classList.contains('is-active') || earthBtn.getAttribute('aria-pressed') === 'true';
         const moonActive = moonBtn.classList.contains('is-active') || moonBtn.getAttribute('aria-pressed') === 'true';
 
-        // Fallback: if both false, trust DOM initial state (moon default in markup).
-        const isMoon = moonActive || (!earthActive && !moonActive);
+        // Fallback: if both false, trust DOM initial state (earth default in markup).
+        const isMoon = moonActive && !earthActive;
 
         track.classList.toggle('is-earth', !isMoon);
         track.classList.toggle('is-moon', isMoon);
