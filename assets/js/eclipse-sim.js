@@ -196,6 +196,57 @@
         }
         return out;
     }
+    function makeStarsSphere(n, seed) {
+        const rnd = lcg(seed);
+        const out = [];
+        for (let i = 0; i < n; i++) {
+            const u = rnd();
+            const v = rnd();
+            const dy = v * 2 - 1;
+            const lon = u * Math.PI * 2;
+            const r = Math.sqrt(Math.max(0, 1 - dy * dy));
+            out.push({
+                x: u,
+                y: v,
+                dx: r * Math.cos(lon),
+                dy: dy,
+                dz: r * Math.sin(lon),
+                a: 0.3 + rnd() * 0.7,
+                s: 0.4 + rnd() * 1.6
+            });
+        }
+        return out;
+    }
+    function drawStarfield3D(ctx, stars, cx, cy, focal, camRight, camUp, camForward, w, h) {
+        const pad = 4;
+        for (let i = 0; i < stars.length; i++) {
+            const s = stars[i];
+            let sx = s.dx;
+            let sy = s.dy;
+            let sz = s.dz;
+            if (!Number.isFinite(sx) || !Number.isFinite(sy) || !Number.isFinite(sz)) {
+                const u = clamp(Number(s.x) || 0, 0, 1);
+                const v = clamp(Number(s.y) || 0, 0, 1);
+                const fy = v * 2 - 1;
+                const lon = u * Math.PI * 2;
+                const r = Math.sqrt(Math.max(0, 1 - fy * fy));
+                sx = r * Math.cos(lon);
+                sy = fy;
+                sz = r * Math.sin(lon);
+            }
+            const z = sx * camForward.x + sy * camForward.y + sz * camForward.z;
+            if (z <= 0.035) continue;
+            const x = sx * camRight.x + sy * camRight.y + sz * camRight.z;
+            const y = sx * camUp.x + sy * camUp.y + sz * camUp.z;
+            const px = cx + (x * focal) / z;
+            const py = cy - (y * focal) / z;
+            if (px < -pad || px > w + pad || py < -pad || py > h + pad) continue;
+            const alpha = clamp(s.a * (0.26 + z * 0.74), 0.12, 0.88);
+            const size = s.s * (0.85 + z * 0.3);
+            ctx.fillStyle = 'rgba(190,215,255,' + alpha.toFixed(3) + ')';
+            ctx.fillRect(px, py, size, size);
+        }
+    }
 
     function overlapArea(r1, r2, d) {
         if (d >= r1 + r2) return 0;
@@ -307,8 +358,9 @@
         const faceSlider = document.getElementById('eclipse-time-slider-face');
         const orbitSlider = document.getElementById('eclipse-time-slider-orbit');
         const timeSliders = [faceSlider, orbitSlider];
-        const playBtn = document.getElementById('eclipse-play-toggle');
-        const rotateBtn = document.getElementById('eclipse-autorotate-toggle');
+        const facePlayBtn = document.getElementById('eclipse-play-toggle-face');
+        const orbitPlayBtn = document.getElementById('eclipse-play-toggle-orbit');
+        const playBtns = [facePlayBtn, orbitPlayBtn];
         const centerEarthBtn = document.getElementById('eclipse-center-earth');
         const centerMoonBtn = document.getElementById('eclipse-center-moon');
         const zoomInBtn = document.getElementById('eclipse-zoom-in');
@@ -318,11 +370,9 @@
         const viewCanvas = orbitCanvas;
         const moonCentricCanvas = orbitCanvas;
         const eventList = document.getElementById('eclipse-event-list');
-        if (!faceSlider || !orbitSlider || !playBtn || !rotateBtn || !faceCanvas || !orbitCanvas || !eventList) return;
+        if (!faceSlider || !orbitSlider || !facePlayBtn || !orbitPlayBtn || !faceCanvas || !orbitCanvas || !eventList) return;
 
         const dom = {
-            time: document.getElementById('eclipse-time-label'),
-            min: document.getElementById('eclipse-minute-label'),
             stage: document.getElementById('eclipse-stage'),
             umbra: document.getElementById('eclipse-umbra-coverage'),
             penumbra: document.getElementById('eclipse-penumbra-coverage'),
@@ -349,6 +399,8 @@
         const startMs = new Date(CFG.startTimeJst).getTime();
         const fmtJst = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         let lastDisplayMinute = null;
+        const PLAYBACK_MIN_PER_MS = 1 / CFG.frameMs;
+        const MAX_TICK_MS = 250;
         const startUtc = new Date(startMs);
         const startUtcHours = startUtc.getUTCHours()
             + startUtc.getUTCMinutes() / 60
@@ -399,12 +451,11 @@
         const sim = {
             m: CFG.initialMin,
             play: false,
-            auto: false,
             center: 'moon',
             dragMode: null,
             last: 0,
             starsFace: makeStars(140, 901),
-            stars3d: makeStars(90, 2203),
+            stars3d: makeStarsSphere(140, 2203),
             view: {
                 // Earth-centered initial framing: place Moon behind Earth.
                 yaw: 0.36,
@@ -437,12 +488,12 @@
         timeSliders.forEach((slider) => {
             slider.min = '0';
             slider.max = String(CFG.durationMin);
-            slider.step = '1';
+            slider.step = '0.01';
             slider.value = String(sim.m);
         });
 
         function syncTimeSliders() {
-            const v = String(Math.round(sim.m));
+            const v = sim.m.toFixed(2);
             timeSliders.forEach((slider) => {
                 if (slider.value !== v) slider.value = v;
             });
@@ -480,7 +531,6 @@
             const z = zoomInfoByMode(mode);
             const base = ensureViewDistance(mode);
             active.dist = clamp(base + z.step * notches, z.min, z.max);
-            if (sim.auto) { sim.auto = false; syncBtn(); }
             if (liveActive()) render();
         }
         function setCenterMode(mode) {
@@ -1076,10 +1126,6 @@
             bg.addColorStop(1, '#02050a');
             ctx.fillStyle = bg;
             ctx.fillRect(0, 0, w, h);
-            sim.stars3d.forEach((s) => {
-                ctx.fillStyle = 'rgba(190,215,255,' + (s.a * 0.55).toFixed(3) + ')';
-                ctx.fillRect(s.x * w, s.y * h, s.s, s.s);
-            });
 
             // ---- camera (orbit around Earth) ----
             const cx = w * 0.5;
@@ -1113,6 +1159,7 @@
             }
             camRight = normalize(camRight);
             const camUp = normalize(cross(camRight, camForward)); // right × forward
+            drawStarfield3D(ctx, sim.stars3d, cx, cy, focal, camRight, camUp, camForward, w, h);
 
             function toCam(vWorld) {
                 return {
@@ -1725,10 +1772,6 @@
             bg.addColorStop(1, '#02050a');
             ctx.fillStyle = bg;
             ctx.fillRect(0, 0, w, h);
-            sim.stars3d.forEach((s) => {
-                ctx.fillStyle = 'rgba(190,215,255,' + (s.a * 0.55).toFixed(3) + ')';
-                ctx.fillRect(s.x * w, s.y * h, s.s, s.s);
-            });
 
             const camDist = ensureViewDistance('moon');
             const camPos = rotateMoonLocal({ x: 0, y: 0, z: camDist }, sim.moonView.yaw, sim.moonView.pitch);
@@ -1742,6 +1785,7 @@
             }
             camRight = normalize(camRight);
             const camUp = normalize(cross(camToMoon, camRight));
+            drawStarfield3D(ctx, sim.stars3d, cx, cy, focal, camRight, camUp, camToMoon, w, h);
 
             function toCamVec(v) {
                 return { x: dot(v, camRight), y: dot(v, camUp), z: dot(v, camToMoon) };
@@ -2310,10 +2354,15 @@
         }
 
         function syncBtn() {
-            playBtn.textContent = sim.play ? '停止' : '再生';
-            playBtn.setAttribute('aria-pressed', sim.play ? 'true' : 'false');
-            rotateBtn.textContent = sim.auto ? '自動回転: オン' : '自動回転: オフ';
-            rotateBtn.setAttribute('aria-pressed', sim.auto ? 'true' : 'false');
+            const playIcon = '\u25B6';
+            const pauseIcon = '\u23F8';
+            const label = sim.play ? '一時停止' : '再生';
+            playBtns.forEach((btn) => {
+                btn.textContent = sim.play ? pauseIcon : playIcon;
+                btn.setAttribute('aria-pressed', sim.play ? 'true' : 'false');
+                btn.setAttribute('aria-label', label);
+                btn.title = label;
+            });
             syncCenterToggle();
         }
 
@@ -2323,8 +2372,6 @@
             if (displayMinute !== lastDisplayMinute) {
                 lastDisplayMinute = displayMinute;
                 const currentTime = fmtJst.format(new Date(startMs + displayMinute * 60000));
-                if (dom.time) dom.time.textContent = '日本時間 ' + currentTime;
-                if (dom.min) dom.min.textContent = '+' + String(displayMinute).padStart(3, '0') + ' 分';
                 if (dom.faceTime) dom.faceTime.textContent = 'JST ' + currentTime;
                 if (dom.orbitTime) dom.orbitTime.textContent = 'JST ' + currentTime;
             }
@@ -2378,8 +2425,9 @@
                 onTimeSliderInput(slider);
             });
         });
-        playBtn.addEventListener('click', function () { sim.play = !sim.play; syncBtn(); });
-        rotateBtn.addEventListener('click', function () { sim.auto = !sim.auto; syncBtn(); if (liveActive()) render(); });
+        playBtns.forEach((btn) => {
+            btn.addEventListener('click', function () { sim.play = !sim.play; syncBtn(); });
+        });
         if (centerEarthBtn) {
             centerEarthBtn.addEventListener('click', function () { setCenterMode('earth'); });
         }
@@ -2431,10 +2479,6 @@
             pinch.baseDist = Math.max(1, pinchDistance());
             pinch.baseZoom = ensureViewDistance(mode);
             stopDrag();
-            if (sim.auto) {
-                sim.auto = false;
-                syncBtn();
-            }
         }
         function stopPinch() {
             pinch.active = false;
@@ -2511,7 +2555,6 @@
             active.targetPitch = clamp(active.targetPitch + pitchDelta, VIEW_CTRL.pitchMin, VIEW_CTRL.pitchMax);
             active.yaw = lerpAngle(active.yaw, active.targetYaw, 0.72);
             active.pitch = lerp(active.pitch, active.targetPitch, 0.72);
-            if (sim.auto) { sim.auto = false; syncBtn(); }
             if (liveActive()) render();
         });
         orbitCanvas.addEventListener('pointerup', handlePointerEnd);
@@ -2534,30 +2577,23 @@
 
         function tick(ts) {
             if (!sim.last) sim.last = ts;
-            if (ts - sim.last >= CFG.frameMs) {
-                if (liveActive()) {
-                    if (sim.play) { sim.m = (sim.m + 1) % (CFG.durationMin + 1); syncTimeSliders(); }
-                    if (sim.center === 'earth') {
-                        if (sim.auto && !sim.view.drag) {
-                            sim.view.targetYaw = wrapAngle(sim.view.targetYaw + 0.0045);
-                        }
-                        sim.view.yaw = lerpAngle(sim.view.yaw, sim.view.targetYaw, VIEW_CTRL.followLerp);
-                        sim.view.pitch = lerp(sim.view.pitch, sim.view.targetPitch, VIEW_CTRL.followLerp);
-                    } else {
-                        if (sim.auto && !sim.moonView.drag) {
-                            sim.moonView.targetYaw = wrapAngle(sim.moonView.targetYaw + 0.0032);
-                            sim.moonView.targetPitch = clamp(
-                                0.16 + Math.sin(sim.moonView.targetYaw * 0.58) * 0.22,
-                                VIEW_CTRL.pitchMin,
-                                VIEW_CTRL.pitchMax
-                            );
-                        }
-                        sim.moonView.yaw = lerpAngle(sim.moonView.yaw, sim.moonView.targetYaw, VIEW_CTRL.followLerp);
-                        sim.moonView.pitch = lerp(sim.moonView.pitch, sim.moonView.targetPitch, VIEW_CTRL.followLerp);
-                    }
-                    render();
+            const dt = clamp(ts - sim.last, 0, MAX_TICK_MS);
+            sim.last = ts;
+            if (liveActive()) {
+                if (sim.play) {
+                    const loopLen = CFG.durationMin + 1;
+                    sim.m = (sim.m + dt * PLAYBACK_MIN_PER_MS) % loopLen;
+                    if (sim.m < 0) sim.m += loopLen;
+                    syncTimeSliders();
                 }
-                sim.last = ts;
+                if (sim.center === 'earth') {
+                    sim.view.yaw = lerpAngle(sim.view.yaw, sim.view.targetYaw, VIEW_CTRL.followLerp);
+                    sim.view.pitch = lerp(sim.view.pitch, sim.view.targetPitch, VIEW_CTRL.followLerp);
+                } else {
+                    sim.moonView.yaw = lerpAngle(sim.moonView.yaw, sim.moonView.targetYaw, VIEW_CTRL.followLerp);
+                    sim.moonView.pitch = lerp(sim.moonView.pitch, sim.moonView.targetPitch, VIEW_CTRL.followLerp);
+                }
+                render();
             }
             requestAnimationFrame(tick);
         }
