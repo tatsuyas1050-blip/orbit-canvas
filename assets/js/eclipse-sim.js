@@ -370,18 +370,16 @@
         const viewCanvas = orbitCanvas;
         const moonCentricCanvas = orbitCanvas;
         const eventList = document.getElementById('eclipse-event-list');
-        if (!faceSlider || !orbitSlider || !facePlayBtn || !orbitPlayBtn || !faceCanvas || !orbitCanvas || !eventList) return;
+        if (!faceSlider || !orbitSlider || !facePlayBtn || !orbitPlayBtn || !faceCanvas || !orbitCanvas) return;
 
         const dom = {
-            stage: document.getElementById('eclipse-stage'),
-            umbra: document.getElementById('eclipse-umbra-coverage'),
-            penumbra: document.getElementById('eclipse-penumbra-coverage'),
-            axis: document.getElementById('eclipse-axis-distance'),
-            dist: document.getElementById('eclipse-moon-distance'),
-            speed: document.getElementById('eclipse-rel-speed'),
+            faceStage: document.getElementById('eclipse-face-stage'),
+            orbitStage: document.getElementById('eclipse-orbit-stage'),
+            faceUmbra: document.getElementById('eclipse-face-umbra-coverage'),
+            facePenumbra: document.getElementById('eclipse-face-penumbra-coverage'),
+            orbitDist: document.getElementById('eclipse-orbit-moon-distance'),
             faceTime: document.getElementById('eclipse-face-time-label'),
-            orbitTime: document.getElementById('eclipse-orbit-time-label'),
-            cam: document.getElementById('eclipse-camera-angle')
+            orbitTime: document.getElementById('eclipse-orbit-time-label')
         };
 
         const moonRer = CFG.moonRkm / CFG.earthRkm;
@@ -835,8 +833,6 @@
             ctx.strokeStyle = 'rgba(255,240,210,0.62)'; ctx.lineWidth = Math.max(1.1, r * 0.02);
             ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
 
-            ctx.fillStyle = 'rgba(240,248,255,0.92)'; ctx.font = Math.max(12, Math.floor(w * 0.032)) + 'px sans-serif'; ctx.textAlign = 'center';
-            ctx.fillText(st.stage, cx, h - Math.max(14, h * 0.05));
         }
 
         function render3D(st) {
@@ -2375,23 +2371,11 @@
                 if (dom.faceTime) dom.faceTime.textContent = 'JST ' + currentTime;
                 if (dom.orbitTime) dom.orbitTime.textContent = 'JST ' + currentTime;
             }
-            if (dom.stage) dom.stage.textContent = st.stage;
-            if (dom.umbra) dom.umbra.textContent = fmtNum(st.umC * 100, 1) + '%';
-            if (dom.penumbra) dom.penumbra.textContent = fmtNum(st.peC * 100, 1) + '%';
-            if (dom.axis) dom.axis.textContent = fmtNum(st.d * CFG.earthRkm, 0) + ' km';
-            if (dom.dist) dom.dist.textContent = fmtNum(st.p.x * CFG.earthRkm, 0) + ' km';
-            if (dom.speed) dom.speed.textContent = fmtNum(speed(st.m), 2) + ' km/s';
-            if (dom.cam) {
-                const active = sim.center === 'earth' ? sim.view : sim.moonView;
-                const modeLabel = sim.center === 'earth' ? '地球中心' : '月中心';
-                const zoom = zoomInfoByMode(sim.center);
-                const d = ensureViewDistance(sim.center);
-                const distText = ' / 距離 ' + d.toFixed(2) + zoom.unit;
-                dom.cam.textContent = modeLabel
-                    + ' / 方位角 ' + (active.yaw * 180 / Math.PI).toFixed(1) + '°'
-                    + ' / 仰角 ' + (active.pitch * 180 / Math.PI).toFixed(1) + '°'
-                    + distText;
-            }
+            if (dom.faceStage) dom.faceStage.textContent = st.stage;
+            if (dom.orbitStage) dom.orbitStage.textContent = st.stage;
+            if (dom.faceUmbra) dom.faceUmbra.textContent = fmtNum(st.umC * 100, 1) + '%';
+            if (dom.facePenumbra) dom.facePenumbra.textContent = fmtNum(st.peC * 100, 1) + '%';
+            if (dom.orbitDist) dom.orbitDist.textContent = fmtNum(st.p.x * CFG.earthRkm, 0) + ' km';
             renderFace(st);
             if (sim.center === 'earth') {
                 renderEarthCentric(st);
@@ -2401,6 +2385,7 @@
         }
 
         function buildEvents() {
+            if (!eventList) return;
             const rows = [
                 ['P1', '半影食開始', OFFICIAL_EVENT_MIN.P1], ['U1', '部分食開始', OFFICIAL_EVENT_MIN.U1], ['U2', '皆既食開始', OFFICIAL_EVENT_MIN.U2],
                 ['MAX', '食最大', OFFICIAL_EVENT_MIN.MAX], ['U3', '皆既食終了', OFFICIAL_EVENT_MIN.U3], ['U4', '部分食終了', OFFICIAL_EVENT_MIN.U4],

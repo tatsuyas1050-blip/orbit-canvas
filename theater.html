@@ -6,7 +6,7 @@
     <title>ソノッキーの部屋 - Sonocky's Room</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Shippori+Mincho:wght@400;500;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/pages.css">
@@ -483,6 +483,47 @@
             pointer-events: none;
             z-index: 3;
         }
+        .eclipse-overlay-badges {
+            position: absolute;
+            display: grid;
+            gap: 0.24rem;
+            pointer-events: none;
+            z-index: 3;
+        }
+        .eclipse-overlay-face {
+            left: 0.55rem;
+            top: 0.55rem;
+            max-width: calc(100% - 1.1rem);
+        }
+        .eclipse-overlay-orbit {
+            left: 0.55rem;
+            bottom: 0.55rem;
+            max-width: calc(100% - 8.4rem);
+        }
+        .eclipse-overlay-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            width: max-content;
+            max-width: 100%;
+            padding: 0.18rem 0.46rem;
+            border-radius: 999px;
+            border: 1px solid rgba(141, 183, 232, 0.34);
+            background: rgba(6, 16, 30, 0.72);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            line-height: 1.25;
+            white-space: nowrap;
+        }
+        .eclipse-overlay-key {
+            font-size: 0.64rem;
+            color: rgba(171, 198, 228, 0.9);
+            letter-spacing: 0.03em;
+        }
+        .eclipse-overlay-val {
+            font-size: 0.72rem;
+            color: #eaf5ff;
+            font-weight: 600;
+        }
         .eclipse-actions {
             display: flex;
             flex-wrap: wrap;
@@ -689,7 +730,705 @@
                 width: 1.82rem;
                 height: 1.82rem;
             }
+            .eclipse-overlay-orbit {
+                max-width: calc(100% - 7.7rem);
+            }
+            .eclipse-overlay-key {
+                font-size: 0.61rem;
+            }
+            .eclipse-overlay-val {
+                font-size: 0.68rem;
+            }
             #eclipse-orbit-canvas { aspect-ratio: 4 / 3; }
+        }
+        /* --- 2.1 Mission Control Theme (Live Tab) --- */
+        .mission-live-shell {
+            --mission-bg-deep: #02060d;
+            --mission-bg-mid: #0b1422;
+            --mission-bg-surface: rgba(8, 15, 26, 0.78);
+            --mission-line: rgba(134, 173, 220, 0.26);
+            --mission-line-strong: rgba(160, 208, 255, 0.48);
+            --mission-red: #ff4b36;
+            --mission-cyan: #94d9ff;
+            --mission-mint: #7bffd6;
+            --mission-text: #edf4ff;
+            --mission-muted: rgba(209, 223, 239, 0.76);
+            position: relative;
+            display: grid;
+            gap: 1rem;
+            isolation: isolate;
+        }
+        .mission-live-shell::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 8% 3%, rgba(34, 76, 134, 0.28), transparent 48%),
+                radial-gradient(circle at 86% 0%, rgba(255, 87, 59, 0.16), transparent 34%),
+                linear-gradient(160deg, rgba(4, 9, 18, 0.92), rgba(3, 7, 13, 0.82));
+            border-radius: 14px;
+        }
+        .mission-live-shell::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            border-radius: 14px;
+            background-image:
+                linear-gradient(rgba(146, 191, 240, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(146, 191, 240, 0.06) 1px, transparent 1px);
+            background-size: 34px 34px;
+            opacity: 0.26;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.9));
+        }
+        .mission-live-shell > * {
+            position: relative;
+            z-index: 1;
+        }
+        .mission-live-shell .panel-bg {
+            border-radius: 14px;
+            border: 1px solid var(--mission-line);
+            background: linear-gradient(180deg, rgba(10, 20, 35, 0.78), rgba(3, 9, 18, 0.88));
+            box-shadow: inset 0 1px 0 rgba(196, 223, 255, 0.06), 0 18px 34px rgba(0, 0, 0, 0.38);
+            backdrop-filter: blur(8px);
+        }
+        .mission-live-shell .mission-brief {
+            position: relative;
+            padding: 1.15rem 1.2rem;
+            overflow: hidden;
+        }
+        .mission-live-shell .mission-brief::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -120%;
+            width: 45%;
+            height: 100%;
+            background: linear-gradient(110deg, transparent, rgba(148, 217, 255, 0.12), transparent);
+            animation: missionSweep 7s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes missionSweep {
+            from { transform: translateX(0); }
+            to { transform: translateX(360%); }
+        }
+        .mission-brief-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+            gap: 1rem;
+            align-items: center;
+        }
+        .mission-kicker {
+            margin: 0 0 0.45rem;
+            color: var(--mission-cyan);
+            font-family: 'Barlow Condensed', 'Noto Sans JP', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-size: 0.82rem;
+        }
+        .mission-title {
+            margin: 0;
+            font-family: 'Barlow Condensed', 'Noto Sans JP', sans-serif;
+            font-size: clamp(1.5rem, 2.8vw, 2.15rem);
+            letter-spacing: 0.05em;
+            color: #ffffff;
+            text-transform: uppercase;
+            line-height: 1.05;
+        }
+        .mission-copy {
+            margin: 0.55rem 0 0;
+            line-height: 1.65;
+            color: var(--mission-muted);
+            font-size: 0.92rem;
+        }
+        .mission-countdown-block {
+            border: 1px solid rgba(133, 176, 226, 0.35);
+            border-radius: 10px;
+            padding: 0.74rem 0.84rem 0.8rem;
+            background: linear-gradient(180deg, rgba(5, 14, 24, 0.88), rgba(2, 8, 15, 0.88));
+            text-align: right;
+        }
+        .mission-countdown-label {
+            display: block;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            color: rgba(199, 215, 235, 0.88);
+        }
+        .mission-countdown {
+            display: block;
+            margin-top: 0.28rem;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: clamp(1rem, 2vw, 1.28rem);
+            letter-spacing: 0.09em;
+            color: var(--mission-mint);
+            font-weight: 600;
+        }
+        .mission-now {
+            margin-top: 0.28rem;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.74rem;
+            color: rgba(179, 206, 233, 0.86);
+            letter-spacing: 0.05em;
+        }
+        .mission-badge-row {
+            margin-top: 0.78rem;
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+        .mission-chip {
+            border-radius: 999px;
+            border: 1px solid rgba(156, 201, 246, 0.36);
+            background: rgba(5, 16, 29, 0.7);
+            color: rgba(213, 231, 251, 0.92);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.69rem;
+            letter-spacing: 0.06em;
+            padding: 0.19rem 0.55rem;
+        }
+        .mission-chip.is-priority {
+            border-color: rgba(255, 113, 97, 0.62);
+            color: #ffc8c1;
+            background: rgba(45, 12, 8, 0.65);
+        }
+        .mission-live-shell .live-layout {
+            gap: 1rem;
+        }
+        .mission-live-shell .live-main,
+        .mission-live-shell .live-side {
+            gap: 1rem;
+        }
+        .mission-live-shell .live-panel,
+        .mission-live-shell .live-hero {
+            padding: 1rem;
+        }
+        .mission-live-shell .live-hero {
+            position: relative;
+            overflow: hidden;
+        }
+        .mission-live-shell .live-hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 80% -6%, rgba(255, 98, 74, 0.15), transparent 32%),
+                radial-gradient(circle at 4% 100%, rgba(116, 189, 255, 0.14), transparent 40%);
+            opacity: 0.9;
+        }
+        .mission-live-shell .live-hero > * {
+            position: relative;
+            z-index: 1;
+        }
+        .mission-live-shell .live-hero-head {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: start;
+            gap: 0.8rem;
+            margin-bottom: 0.75rem;
+        }
+        .live-status-badge {
+            margin: 0;
+            align-self: start;
+            font-family: 'Barlow Condensed', 'Noto Sans JP', sans-serif;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            border-radius: 999px;
+            padding: 0.28rem 0.68rem;
+        }
+        .status-offline {
+            background: rgba(204, 224, 248, 0.08);
+            color: rgba(183, 202, 227, 0.88);
+            border: 1px solid rgba(196, 217, 242, 0.22);
+        }
+        .status-online {
+            background: rgba(255, 75, 54, 0.19);
+            color: #ff998d;
+            border: 1px solid rgba(255, 96, 74, 0.62);
+            box-shadow: 0 0 16px rgba(255, 70, 47, 0.2);
+            animation: statusPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes statusPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 70, 47, 0.18); }
+            50% { box-shadow: 0 0 18px rgba(255, 88, 69, 0.32); }
+        }
+        .live-title-label {
+            color: rgba(185, 205, 228, 0.7);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+        }
+        .live-title {
+            margin-top: 0.16rem;
+            line-height: 1.36;
+            font-size: clamp(1.02rem, 2vw, 1.26rem);
+            color: var(--mission-text);
+        }
+        .live-title.is-live {
+            text-shadow: 0 0 10px rgba(255, 110, 95, 0.25);
+        }
+        .live-hero-desc {
+            margin: 0;
+            color: var(--mission-muted);
+            font-size: 0.88rem;
+            line-height: 1.62;
+        }
+        .live-telemetry-grid {
+            margin: 0.75rem 0;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.5rem;
+        }
+        .live-telemetry-item {
+            border: 1px solid rgba(145, 190, 238, 0.23);
+            border-radius: 9px;
+            padding: 0.45rem 0.52rem;
+            background: rgba(3, 12, 22, 0.68);
+            min-width: 0;
+        }
+        .live-telemetry-label {
+            display: block;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.64rem;
+            letter-spacing: 0.08em;
+            color: rgba(186, 205, 227, 0.68);
+            margin-bottom: 0.18rem;
+            text-transform: uppercase;
+        }
+        .live-telemetry-value {
+            display: block;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #e9f4ff;
+            word-break: break-word;
+        }
+        #live-signal-value.is-live {
+            color: #ff9d8f;
+        }
+        .live-frame {
+            margin-bottom: 0;
+            border-radius: 12px;
+            border: 1px solid rgba(156, 203, 252, 0.28);
+            background:
+                radial-gradient(circle at 30% 20%, #121f33 0%, #030811 68%),
+                linear-gradient(180deg, #050a12 0%, #02050c 100%);
+            color: rgba(171, 198, 228, 0.75);
+        }
+        .live-frame::before {
+            opacity: 0.16;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(120, 153, 190, 0.3) 2px, rgba(120, 153, 190, 0.3) 3px);
+        }
+        .live-frame::after {
+            content: "";
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 180%;
+            pointer-events: none;
+            background: linear-gradient(180deg, transparent 0%, rgba(117, 183, 248, 0.07) 48%, transparent 100%);
+            animation: telemetrySweep 5s linear infinite;
+            z-index: 0;
+        }
+        @keyframes telemetrySweep {
+            from { transform: translateY(0); }
+            to { transform: translateY(120%); }
+        }
+        .live-frame iframe {
+            position: relative;
+            z-index: 2;
+            border-radius: 11px;
+        }
+        .live-panel-title {
+            margin: 0 0 0.45rem;
+            border-bottom: 1px solid rgba(156, 197, 241, 0.26);
+            padding-bottom: 0.34rem;
+            color: #cde8ff;
+            font-family: 'Barlow Condensed', 'Noto Sans JP', sans-serif;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-size: 0.95rem;
+        }
+        .live-panel-desc {
+            color: var(--mission-muted);
+            font-size: 0.87rem;
+        }
+        .live-comments-note {
+            border-radius: 9px;
+            background: rgba(4, 14, 25, 0.8);
+            border: 1px dashed rgba(139, 182, 230, 0.35);
+        }
+        .mission-live-shell .comment-section {
+            margin-top: 0;
+        }
+        .mission-live-shell .cmt-section-title {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            letter-spacing: 0.06em;
+            color: #a4d8ff;
+            border-bottom-color: rgba(160, 204, 246, 0.3);
+        }
+        .mission-live-shell .cmt-list {
+            max-height: 315px;
+            border: 1px solid rgba(133, 171, 213, 0.22);
+            background: rgba(2, 9, 17, 0.62);
+            border-radius: 8px;
+            padding: 0.38rem;
+        }
+        .mission-live-shell .cmt-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(129, 170, 216, 0.18);
+            border-radius: 7px;
+        }
+        .mission-live-shell .cmt-form {
+            background: rgba(2, 12, 22, 0.66);
+            border: 1px solid rgba(128, 167, 209, 0.26);
+        }
+        .mission-live-shell .cmt-submit-btn {
+            background: linear-gradient(180deg, #ff654d, #e3422e);
+            color: #fff;
+            border-radius: 999px;
+            padding: 0.42rem 0.85rem;
+            font-family: 'Barlow Condensed', 'Noto Sans JP', sans-serif;
+            letter-spacing: 0.04em;
+        }
+        .mission-timeline-panel {
+            margin-top: 0;
+            width: 100%;
+        }
+        .mission-timeline-track {
+            position: relative;
+            margin-top: 0.35rem;
+            padding: 2.25rem 0 2.85rem;
+        }
+        .mission-timeline-line {
+            position: absolute;
+            left: 4%;
+            right: 4%;
+            top: 2.25rem;
+            height: 3px;
+            border-radius: 999px;
+            background: repeating-linear-gradient(
+                90deg,
+                rgba(24, 34, 47, 0.98) 0 10px,
+                rgba(33, 45, 61, 0.98) 10px 18px
+            );
+            box-shadow: inset 0 0 0 1px rgba(6, 10, 15, 0.28);
+            z-index: 1;
+        }
+        .mission-timeline-line::before {
+            content: "";
+            position: absolute;
+            left: 6.52%;
+            width: 86.96%;
+            top: 50%;
+            height: 3px;
+            border-radius: 999px;
+            transform: translateY(-50%);
+            background: linear-gradient(90deg, rgba(121, 169, 220, 0.62), rgba(180, 214, 248, 0.56));
+            box-shadow: 0 0 10px rgba(122, 189, 245, 0.3);
+        }
+        .mission-timeline-progress {
+            position: absolute;
+            left: 10%;
+            top: 2.25rem;
+            height: 3px;
+            border-radius: 999px;
+            width: 0%;
+            background: linear-gradient(90deg, #86d4ff, #ff9c90);
+            box-shadow: 0 0 14px rgba(151, 218, 255, 0.42);
+            transition: width 0.6s ease;
+            z-index: 2;
+        }
+        .mission-timeline-now-marker {
+            position: absolute;
+            top: 2.25rem;
+            left: 6%;
+            width: 24px;
+            height: 30px;
+            transform: translate(-50%, -88%);
+            background: url('assets/img/ss_end.png') center bottom / contain no-repeat;
+            filter: drop-shadow(0 2px 8px rgba(255, 114, 98, 0.35));
+            transition: left 0.6s ease;
+            z-index: 4;
+            pointer-events: none;
+        }
+        .mission-timeline-node {
+            position: absolute;
+            left: var(--pos, 0%);
+            top: 2.25rem;
+            transform: translateX(-50%);
+            width: 116px;
+            text-align: center;
+            z-index: 3;
+            height: 0;
+        }
+        .mission-node-dot {
+            position: absolute;
+            display: block;
+            width: 11px;
+            height: 11px;
+            margin: 0;
+            border-radius: 50%;
+            border: 2px solid rgba(170, 201, 235, 0.88);
+            background: #102233;
+            left: 50%;
+            top: 0;
+            transform: translate(-50%, -50%);
+            transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .mission-node-time {
+            position: absolute;
+            left: 50%;
+            top: -1.22rem;
+            transform: translateX(-50%);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.68rem;
+            letter-spacing: 0.07em;
+            color: rgba(177, 204, 231, 0.82);
+            white-space: nowrap;
+        }
+        .mission-node-label {
+            position: absolute;
+            left: 50%;
+            top: 0.72rem;
+            transform: translateX(-50%);
+            font-size: 0.74rem;
+            line-height: 1.35;
+            color: rgba(205, 222, 241, 0.9);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .mission-timeline-node.is-done:not(.is-current) .mission-node-dot {
+            background: #73c6ff;
+            border-color: #d4eeff;
+            transform: translate(-50%, -50%) scale(0.94);
+            box-shadow: 0 0 0 3px rgba(115, 198, 255, 0.16);
+        }
+        .mission-timeline-node.is-done:not(.is-current) .mission-node-dot::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 5px;
+            height: 3px;
+            border-left: 1.6px solid rgba(7, 22, 38, 0.92);
+            border-bottom: 1.6px solid rgba(7, 22, 38, 0.92);
+            transform: translate(-44%, -72%) rotate(-45deg);
+        }
+        .mission-timeline-node.is-current .mission-node-dot {
+            background: #ff715f;
+            border-color: #ffe6e1;
+            transform: translate(-50%, -50%) scale(1.18);
+            box-shadow: 0 0 0 6px rgba(255, 113, 95, 0.15), 0 0 14px rgba(255, 113, 95, 0.42);
+            animation: missionCurrentPulse 1.3s ease-in-out infinite;
+        }
+        .mission-timeline-node.is-current .mission-node-label,
+        .mission-timeline-node.is-current .mission-node-time {
+            color: #ffe5e1;
+        }
+        .mission-timeline-node.is-done:not(.is-current) .mission-node-label,
+        .mission-timeline-node.is-done:not(.is-current) .mission-node-time {
+            color: rgba(172, 220, 255, 0.95);
+        }
+        @keyframes missionCurrentPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 4px rgba(255, 113, 95, 0.12), 0 0 11px rgba(255, 113, 95, 0.35);
+            }
+            50% {
+                box-shadow: 0 0 0 7px rgba(255, 113, 95, 0.22), 0 0 18px rgba(255, 113, 95, 0.56);
+            }
+        }
+        .mission-timeline-status {
+            margin: 0.15rem 0 0;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.76rem;
+            color: rgba(193, 216, 240, 0.9);
+            letter-spacing: 0.03em;
+        }
+        .mission-timeline-status b {
+            color: #ffb0a5;
+            font-weight: 600;
+        }
+        .eclipse-panel {
+            margin-top: 0;
+            border-color: rgba(125, 178, 227, 0.42);
+            background: linear-gradient(180deg, rgba(5, 15, 27, 0.82), rgba(2, 9, 17, 0.9));
+        }
+        .eclipse-panel .live-panel-desc {
+            color: rgba(201, 219, 240, 0.76);
+        }
+        .eclipse-disclaimer {
+            margin: 0 0 0.72rem;
+            font-size: 0.76rem;
+            line-height: 1.45;
+            color: rgba(180, 203, 230, 0.82);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            letter-spacing: 0.01em;
+        }
+        .eclipse-grid {
+            gap: 0.85rem;
+        }
+        .eclipse-card {
+            border-radius: 12px;
+            border: 1px solid rgba(134, 178, 224, 0.26);
+            background: rgba(3, 11, 21, 0.7);
+        }
+        .eclipse-card h4 {
+            font-family: 'Barlow Condensed', 'Noto Sans JP', sans-serif;
+            font-size: 0.92rem;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #c5e5ff;
+        }
+        #eclipse-face-canvas,
+        #eclipse-orbit-canvas {
+            border-color: rgba(130, 182, 236, 0.35);
+            background: radial-gradient(circle at 35% 16%, #1a2b45 0%, #050d19 75%);
+            border-radius: 10px;
+        }
+        .eclipse-window-time {
+            border: 1px solid rgba(142, 196, 247, 0.42);
+            background: rgba(3, 12, 24, 0.82);
+            color: rgba(208, 230, 255, 0.94);
+        }
+        .eclipse-center-switch,
+        .eclipse-zoom-controls {
+            border-color: rgba(151, 198, 242, 0.45);
+            background: rgba(2, 10, 19, 0.76);
+        }
+        .eclipse-btn {
+            border-color: rgba(139, 190, 238, 0.4);
+            background: rgba(12, 29, 49, 0.74);
+            color: #e7f3ff;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            letter-spacing: 0.04em;
+        }
+        .eclipse-btn:hover {
+            background: rgba(25, 56, 92, 0.84);
+            border-color: rgba(170, 215, 255, 0.88);
+        }
+        .eclipse-btn.is-active {
+            background: rgba(94, 150, 216, 0.82);
+            border-color: rgba(209, 234, 255, 0.92);
+            color: #fff;
+        }
+        .eclipse-metric {
+            border-radius: 10px;
+            border: 1px solid rgba(130, 175, 220, 0.3);
+            background: rgba(4, 13, 23, 0.68);
+        }
+        .eclipse-metric-label {
+            color: rgba(172, 199, 227, 0.78);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.67rem;
+            letter-spacing: 0.08em;
+        }
+        .eclipse-metric-value {
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.89rem;
+            color: #eaf5ff;
+        }
+        .eclipse-events {
+            border: 1px dashed rgba(126, 178, 227, 0.45);
+            border-radius: 10px;
+            background: rgba(3, 11, 20, 0.55);
+        }
+        .eclipse-events h4 {
+            font-family: 'Barlow Condensed', 'Noto Sans JP', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #c4e4ff;
+        }
+        .eclipse-events ul {
+            color: rgba(217, 229, 242, 0.9);
+        }
+        @media (max-width: 1200px) {
+            .mission-brief-grid {
+                grid-template-columns: 1fr;
+                gap: 0.8rem;
+            }
+            .mission-countdown-block {
+                text-align: left;
+            }
+            .live-telemetry-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        @media (max-width: 980px) {
+            .live-telemetry-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .mission-timeline-track {
+                padding-bottom: 4.15rem;
+            }
+            .mission-timeline-node {
+                width: 96px;
+            }
+            .mission-node-label {
+                white-space: normal;
+                font-size: 0.7rem;
+            }
+        }
+        @media (max-width: 768px) {
+            .mission-live-shell {
+                gap: 0.82rem;
+            }
+            .mission-live-shell .mission-brief {
+                padding: 0.92rem;
+            }
+            .mission-kicker {
+                font-size: 0.74rem;
+            }
+            .mission-copy {
+                font-size: 0.86rem;
+            }
+            .mission-live-shell .live-panel,
+            .mission-live-shell .live-hero {
+                padding: 0.8rem;
+            }
+            .mission-live-shell .live-hero-head {
+                grid-template-columns: 1fr;
+                gap: 0.55rem;
+            }
+            .live-telemetry-grid {
+                grid-template-columns: 1fr;
+            }
+            .mission-timeline-track {
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding-bottom: 4.35rem;
+                scrollbar-width: thin;
+            }
+            .mission-timeline-line,
+            .mission-timeline-progress {
+                min-width: 640px;
+            }
+            .mission-timeline-now-marker {
+                z-index: 5;
+            }
+            .mission-timeline-node {
+                width: 92px;
+                min-width: 92px;
+            }
+            .mission-node-label {
+                white-space: normal;
+                font-size: 0.68rem;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .mission-brief::after,
+            .live-frame::after,
+            .status-online,
+            .mission-timeline-node.is-current .mission-node-dot {
+                animation: none !important;
+            }
         }
 /* --- 3. Gallery Styles (Card Layout) --- */
         .gallery-grid {
@@ -1151,121 +1890,169 @@
         </div>
 
         <div id="tab-live" class="section-content">
-            <div class="section-header">不定期ライブ配信</div>
-            <div class="live-layout">
-                <div class="live-main">
-                    <div class="panel-bg live-hero">
-                        <div class="live-hero-head">
-                            <span id="live-badge" class="live-status-badge status-offline">● オフライン</span>
-                            <div class="live-title-wrap">
-                                <span class="live-title-label">配信タイトル</span>
-                                <span id="live-title" class="live-title is-empty">未設定</span>
-                            </div>
-                            <p class="live-hero-desc">
-                                気まぐれに配信中。<br>
-                                天文台に限らず、その時ソノッキーがいる「星の見える場所」からお届けします。
+            <div class="section-header">ライブ配信</div>
+            <div class="mission-live-shell">
+                <section class="panel-bg mission-brief">
+                    <div class="mission-brief-grid">
+                        <div>
+                            <h2 class="mission-title">皆既月食🌕2026/3/3</h2>
+                            <p class="mission-copy">
+                                2026年3月3日の皆既月食に向けたライブ・シミュレーションページです。
                             </p>
                         </div>
-                        <div id="live-frame" class="live-frame">
-                            <div style="font-size:3rem; opacity:0.2; margin-bottom:10px;">📡</div>
-                            <p>Live Stream Offline</p>
+                        <div class="mission-countdown-block">
+                            <span class="mission-countdown-label">COUNTDOWN</span>
+                            <span id="mission-countdown" class="mission-countdown">T- --:--:--</span>
+                            <div id="mission-now" class="mission-now">JST --:--:--</div>
                         </div>
                     </div>
-                </div>
+                    <div class="mission-badge-row">
+                        <span class="mission-chip is-priority">目標日 2026年3月3日</span>
+                        <span class="mission-chip">部分食開始 18:50</span>
+                        <span class="mission-chip">皆既食開始 20:04</span>
+                        <span class="mission-chip">食の最大 20:34</span>
+                        <span class="mission-chip">皆既食終了 21:03</span>
+                    </div>
+                </section>
 
-                <aside class="live-side">
-                    <div id="live-comments-wrap" class="panel-bg live-panel live-chat-panel">
-                        <h3 class="live-panel-title">ライブコメント</h3>
-                        <p id="live-comments-note" class="live-panel-desc live-comments-note">
-                            配信中のみコメントできます。コメントはリアルタイムで更新されます。
-                        </p>
-                        <div id="live-comment-section"></div>
-                    </div>
-                </aside>
-            </div>
-            <div class="panel-bg live-panel live-info">
-                <h3 class="live-panel-title">配信について</h3>
-                <ul class="live-info-list">
-                    <li>実施する場合はSNS等で告知します。通知をオンにしてお待ちください。</li>
-                    <li>通信環境により映像が乱れる場合があります。</li>
-                </ul>
-            </div>
-            <div id="eclipse-sim-panel" class="panel-bg live-panel eclipse-panel">
-                <h3 class="live-panel-title">2026/03/03 皆既月食シミュレーション</h3>
-
-                <div class="eclipse-grid">
-                    <div class="eclipse-card">
-                        <h4>月観察ビュー</h4>
-                        <div class="eclipse-face-window">
-                            <canvas id="eclipse-face-canvas"></canvas>
-                            <div id="eclipse-face-time-label" class="eclipse-view-time eclipse-window-time">JST -</div>
-                        </div>
-                        <div class="eclipse-slider-controls eclipse-card-slider">
-                            <button id="eclipse-play-toggle-face" type="button" class="eclipse-btn eclipse-slider-play-btn" aria-pressed="false" aria-label="再生" title="再生">&#9654;</button>
-                            <div class="eclipse-slider-wrap">
-                                <input id="eclipse-time-slider-face" type="range" min="0" max="390" step="1" value="0" aria-label="月観察ビュー時刻">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="eclipse-card">
-                        <h4>3D宇宙ビュー</h4>
-                        <div class="eclipse-orbit-window">
-                            <canvas id="eclipse-orbit-canvas"></canvas>
-                            <div class="eclipse-orbit-toolbar">
-                                <div class="eclipse-center-switch" role="group" aria-label="中心天体">
-                                    <button id="eclipse-center-earth" type="button" class="eclipse-btn eclipse-switch-btn" aria-pressed="false">地球</button>
-                                    <button id="eclipse-center-moon" type="button" class="eclipse-btn eclipse-switch-btn is-active" aria-pressed="true">月</button>
-                                </div>
-                                <div class="eclipse-zoom-controls" role="group" aria-label="ズーム操作">
-                                    <button id="eclipse-zoom-out" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="縮小">−</button>
-                                    <button id="eclipse-zoom-in" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="拡大">＋</button>
+                <div class="live-layout">
+                    <div class="live-main">
+                        <div class="panel-bg live-hero">
+                            <div class="live-hero-head">
+                                <span id="live-badge" class="live-status-badge status-offline">● OFFLINE</span>
+                                <div class="live-title-wrap">
+<span id="live-title" class="live-title is-empty">Untitled</span>
                                 </div>
                             </div>
-                            <div id="eclipse-orbit-time-label" class="eclipse-view-time eclipse-window-time">JST -</div>
-                        </div>
-                        <div class="eclipse-slider-controls eclipse-card-slider">
-                            <button id="eclipse-play-toggle-orbit" type="button" class="eclipse-btn eclipse-slider-play-btn" aria-pressed="false" aria-label="再生" title="再生">&#9654;</button>
-                            <div class="eclipse-slider-wrap">
-                                <input id="eclipse-time-slider-orbit" type="range" min="0" max="390" step="1" value="0" aria-label="3D宇宙ビュー時刻">
+<div id="live-frame" class="live-frame">
+                                <div style="font-size:2.2rem; opacity:0.3; margin-bottom:8px; position:relative; z-index:1;">LIVE</div>
+                                <p style="position:relative; z-index:1;">Live Stream Offline</p>
                             </div>
                         </div>
                     </div>
+
+                    <aside class="live-side">
+                        <div id="live-comments-wrap" class="panel-bg live-panel live-chat-panel">
+                            <h3 class="live-panel-title">Live Comments</h3>
+                            <p id="live-comments-note" class="live-panel-desc live-comments-note">
+                                配信中のみコメントできます。コメントはリアルタイムで更新されます。
+                            </p>
+                            <div id="live-comment-section"></div>
+                        </div>
+                    </aside>
+                </div>
+                <div class="panel-bg live-panel mission-timeline mission-timeline-panel">
+                    <h3 class="live-panel-title">TIMELINE(JST)</h3>
+                    <div id="mission-timeline-track" class="mission-timeline-track">
+                        <div class="mission-timeline-line" aria-hidden="true"></div>
+                        <div id="mission-timeline-progress" class="mission-timeline-progress" aria-hidden="true"></div>
+                        <div id="mission-timeline-now-marker" class="mission-timeline-now-marker" aria-hidden="true"></div>
+
+                        <div id="mission-node-p1" class="mission-timeline-node" style="--pos:10%;">
+                            <span class="mission-node-time">17:43</span>
+                            <span class="mission-node-dot"></span>
+                            <span class="mission-node-label">半影食開始</span>
+                        </div>
+                        <div id="mission-node-u1" class="mission-timeline-node" style="--pos:25.68%;">
+                            <span class="mission-node-time">18:50</span>
+                            <span class="mission-node-dot"></span>
+                            <span class="mission-node-label">部分食開始</span>
+                        </div>
+                        <div id="mission-node-u2" class="mission-timeline-node" style="--pos:42.96%;">
+                            <span class="mission-node-time">20:04</span>
+                            <span class="mission-node-dot"></span>
+                            <span class="mission-node-label">皆既食開始</span>
+                        </div>
+                        <div id="mission-node-max" class="mission-timeline-node" style="--pos:50%;">
+                            <span class="mission-node-time">20:34</span>
+                            <span class="mission-node-dot"></span>
+                            <span class="mission-node-label">食の最大</span>
+                        </div>
+                        <div id="mission-node-u3" class="mission-timeline-node" style="--pos:56.8%;">
+                            <span class="mission-node-time">21:03</span>
+                            <span class="mission-node-dot"></span>
+                            <span class="mission-node-label">皆既食終了</span>
+                        </div>
+                        <div id="mission-node-u4" class="mission-timeline-node" style="--pos:74.32%;">
+                            <span class="mission-node-time">22:18</span>
+                            <span class="mission-node-dot"></span>
+                            <span class="mission-node-label">部分食終了</span>
+                        </div>
+                        <div id="mission-node-p4" class="mission-timeline-node" style="--pos:90%;">
+                            <span class="mission-node-time">23:25</span>
+                            <span class="mission-node-dot"></span>
+                            <span class="mission-node-label">半影食終了</span>
+                        </div>
+                    </div>
+                    <p id="mission-timeline-status" class="mission-timeline-status">現在位置 <b>0.0%</b> / 待機中</p>
                 </div>
 
-                <div class="eclipse-metrics">
-                    <div class="eclipse-metric">
-                        <span class="eclipse-metric-label">食の段階</span>
-                        <span id="eclipse-stage" class="eclipse-metric-value">-</span>
-                    </div>
-                    <div class="eclipse-metric">
-                        <span class="eclipse-metric-label">本影被覆率</span>
-                        <span id="eclipse-umbra-coverage" class="eclipse-metric-value">-</span>
-                    </div>
-                    <div class="eclipse-metric">
-                        <span class="eclipse-metric-label">半影被覆率</span>
-                        <span id="eclipse-penumbra-coverage" class="eclipse-metric-value">-</span>
-                    </div>
-                    <div class="eclipse-metric">
-                        <span class="eclipse-metric-label">影中心からの距離</span>
-                        <span id="eclipse-axis-distance" class="eclipse-metric-value">-</span>
-                    </div>
-                    <div class="eclipse-metric">
-                        <span class="eclipse-metric-label">地球-月距離（モデル）</span>
-                        <span id="eclipse-moon-distance" class="eclipse-metric-value">-</span>
-                    </div>
-                    <div class="eclipse-metric">
-                        <span class="eclipse-metric-label">相対移動速度（モデル）</span>
-                        <span id="eclipse-rel-speed" class="eclipse-metric-value">-</span>
-                    </div>
-                    <div class="eclipse-metric">
-                        <span class="eclipse-metric-label">カメラ角</span>
-                        <span id="eclipse-camera-angle" class="eclipse-metric-value">-</span>
-                    </div>
-                </div>
+                <div id="eclipse-sim-panel" class="panel-bg live-panel eclipse-panel">
+                    <h3 class="live-panel-title">2026/03/03 皆既月食シミュレーション</h3>
+                    <p class="eclipse-disclaimer">※ このシミュレーションは参考表示です。実際の見え方や時刻と完全には一致しない場合があります。</p>
 
-                <div class="eclipse-events">
-                    <h4>接触タイミング（モデル）</h4>
-                    <ul id="eclipse-event-list"></ul>
+                    <div class="eclipse-grid">
+                        <div class="eclipse-card">
+                            <h4>月観察ビュー</h4>
+                            <div class="eclipse-face-window">
+                                <canvas id="eclipse-face-canvas"></canvas>
+                                <div class="eclipse-overlay-badges eclipse-overlay-face">
+                                    <div class="eclipse-overlay-badge">
+                                        <span class="eclipse-overlay-key">食の段階</span>
+                                        <span id="eclipse-face-stage" class="eclipse-overlay-val">-</span>
+                                    </div>
+                                    <div class="eclipse-overlay-badge">
+                                        <span class="eclipse-overlay-key">本影被覆率</span>
+                                        <span id="eclipse-face-umbra-coverage" class="eclipse-overlay-val">-</span>
+                                    </div>
+                                    <div class="eclipse-overlay-badge">
+                                        <span class="eclipse-overlay-key">半影被覆率</span>
+                                        <span id="eclipse-face-penumbra-coverage" class="eclipse-overlay-val">-</span>
+                                    </div>
+                                </div>
+                                <div id="eclipse-face-time-label" class="eclipse-view-time eclipse-window-time">JST -</div>
+                            </div>
+                            <div class="eclipse-slider-controls eclipse-card-slider">
+                                <button id="eclipse-play-toggle-face" type="button" class="eclipse-btn eclipse-slider-play-btn" aria-pressed="false" aria-label="再生" title="再生">&#9654;</button>
+                                <div class="eclipse-slider-wrap">
+                                    <input id="eclipse-time-slider-face" type="range" min="0" max="390" step="1" value="0" aria-label="月観察ビュー時刻">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="eclipse-card">
+                            <h4>3D宇宙ビュー</h4>
+                            <div class="eclipse-orbit-window">
+                                <canvas id="eclipse-orbit-canvas"></canvas>
+                                <div class="eclipse-orbit-toolbar">
+                                    <div class="eclipse-center-switch" role="group" aria-label="中心天体">
+                                        <button id="eclipse-center-earth" type="button" class="eclipse-btn eclipse-switch-btn" aria-pressed="false">地球</button>
+                                        <button id="eclipse-center-moon" type="button" class="eclipse-btn eclipse-switch-btn is-active" aria-pressed="true">月</button>
+                                    </div>
+                                    <div class="eclipse-zoom-controls" role="group" aria-label="ズーム操作">
+                                        <button id="eclipse-zoom-out" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="縮小">−</button>
+                                        <button id="eclipse-zoom-in" type="button" class="eclipse-btn eclipse-zoom-btn" aria-label="拡大">＋</button>
+                                    </div>
+                                </div>
+                                <div id="eclipse-orbit-time-label" class="eclipse-view-time eclipse-window-time">JST -</div>
+                                <div class="eclipse-overlay-badges eclipse-overlay-orbit">
+                                    <div class="eclipse-overlay-badge">
+                                        <span class="eclipse-overlay-key">食の段階</span>
+                                        <span id="eclipse-orbit-stage" class="eclipse-overlay-val">-</span>
+                                    </div>
+                                    <div class="eclipse-overlay-badge">
+                                        <span class="eclipse-overlay-key">地球-月距離</span>
+                                        <span id="eclipse-orbit-moon-distance" class="eclipse-overlay-val">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="eclipse-slider-controls eclipse-card-slider">
+                                <button id="eclipse-play-toggle-orbit" type="button" class="eclipse-btn eclipse-slider-play-btn" aria-pressed="false" aria-label="再生" title="再生">&#9654;</button>
+                                <div class="eclipse-slider-wrap">
+                                    <input id="eclipse-time-slider-orbit" type="range" min="0" max="390" step="1" value="0" aria-label="3D宇宙ビュー時刻">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1376,10 +2163,10 @@
             badge.classList.remove('status-offline', 'status-online');
             if (isLive) {
                 badge.classList.add('status-online');
-                badge.textContent = '● ON AIR';
+                badge.textContent = 'ON AIR';
             } else {
                 badge.classList.add('status-offline');
-                badge.textContent = '● オフライン';
+                badge.textContent = 'OFFLINE';
             }
         }
 
@@ -1388,10 +2175,133 @@
             if (!el) return;
             const cleanTitle = String(title || '').trim();
             const hasTitle = cleanTitle.length > 0;
-            el.textContent = hasTitle ? cleanTitle : '未設定';
+            el.textContent = hasTitle ? cleanTitle : 'Untitled';
             el.title = hasTitle ? cleanTitle : '';
             el.classList.toggle('is-empty', !hasTitle);
             el.classList.toggle('is-live', !!isLive);
+        }
+
+        const ECLIPSE_PARTIAL_START_JST = new Date('2026-03-03T18:50:00+09:00').getTime();
+        const MISSION_TIMELINE_START_PCT = 10;
+        const MISSION_TIMELINE_END_PCT = 90;
+        const MISSION_TIMELINE_BEFORE_START_PCT = 6;
+        const MISSION_TIMELINE_EVENTS = Object.freeze([
+            { id: 'mission-node-p1', time: '17:43', label: '半影食開始', ts: new Date('2026-03-03T17:43:00+09:00').getTime() },
+            { id: 'mission-node-u1', time: '18:50', label: '部分食開始', ts: new Date('2026-03-03T18:50:00+09:00').getTime() },
+            { id: 'mission-node-u2', time: '20:04', label: '皆既食開始', ts: new Date('2026-03-03T20:04:00+09:00').getTime() },
+            { id: 'mission-node-max', time: '20:34', label: '食の最大', ts: new Date('2026-03-03T20:34:00+09:00').getTime() },
+            { id: 'mission-node-u3', time: '21:03', label: '皆既食終了', ts: new Date('2026-03-03T21:03:00+09:00').getTime() },
+            { id: 'mission-node-u4', time: '22:18', label: '部分食終了', ts: new Date('2026-03-03T22:18:00+09:00').getTime() },
+            { id: 'mission-node-p4', time: '23:25', label: '半影食終了', ts: new Date('2026-03-03T23:25:00+09:00').getTime() }
+        ]);
+        let __missionClockTimer = null;
+
+        function formatJstHms(ts) {
+            return new Intl.DateTimeFormat('ja-JP', {
+                timeZone: 'Asia/Tokyo',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).format(new Date(ts));
+        }
+
+        function updateLiveTelemetry(isLive, lastCheckedTs) {
+            const signalEl = document.getElementById('live-signal-value');
+            if (signalEl) {
+                signalEl.textContent = isLive ? 'on air' : 'standby';
+                signalEl.classList.toggle('is-live', !!isLive);
+            }
+            const checkedEl = document.getElementById('live-checked-at');
+            if (checkedEl) {
+                checkedEl.textContent = lastCheckedTs ? `${formatJstHms(lastCheckedTs)} JST` : '--:--:-- JST';
+            }
+        }
+
+        function updateMissionTimeline(nowTs) {
+            const progressEl = document.getElementById('mission-timeline-progress');
+            const markerEl = document.getElementById('mission-timeline-now-marker');
+            const statusEl = document.getElementById('mission-timeline-status');
+            if (!progressEl || !markerEl || !statusEl) return;
+
+            const firstTs = MISSION_TIMELINE_EVENTS[0].ts;
+            const lastTs = MISSION_TIMELINE_EVENTS[MISSION_TIMELINE_EVENTS.length - 1].ts;
+            const total = Math.max(1, lastTs - firstTs);
+            const rawRatio = (nowTs - firstTs) / total;
+            const ratio = Math.max(0, Math.min(1, rawRatio));
+            const pct = (ratio * 100).toFixed(1);
+            const trackSpan = MISSION_TIMELINE_END_PCT - MISSION_TIMELINE_START_PCT;
+            const progressWidth = (ratio * trackSpan).toFixed(3);
+            const markerPct = nowTs < firstTs
+                ? MISSION_TIMELINE_BEFORE_START_PCT
+                : (MISSION_TIMELINE_START_PCT + (ratio * trackSpan));
+
+            progressEl.style.left = `${MISSION_TIMELINE_START_PCT}%`;
+            progressEl.style.width = `${progressWidth}%`;
+            markerEl.style.left = `${markerPct.toFixed(3)}%`;
+
+            let currentIndex = 0;
+            let phase = 'before';
+            if (nowTs >= lastTs) {
+                currentIndex = MISSION_TIMELINE_EVENTS.length - 1;
+                phase = 'after';
+            } else if (nowTs >= firstTs) {
+                phase = 'running';
+                for (let i = 0; i < MISSION_TIMELINE_EVENTS.length; i++) {
+                    if (nowTs >= MISSION_TIMELINE_EVENTS[i].ts) currentIndex = i;
+                }
+            }
+
+            MISSION_TIMELINE_EVENTS.forEach((ev, idx) => {
+                const node = document.getElementById(ev.id);
+                if (!node) return;
+                const isDone = phase === 'after' ? idx <= currentIndex : idx < currentIndex;
+                const isCurrent = phase !== 'before' && idx === currentIndex;
+                node.classList.toggle('is-done', isDone);
+                node.classList.toggle('is-current', isCurrent);
+            });
+
+            if (phase === 'before') {
+                const next = MISSION_TIMELINE_EVENTS[0];
+                statusEl.innerHTML = `現在位置 <b>${pct}%</b> / 次: 3/3 ${next.time} ${next.label}`;
+                return;
+            }
+            if (phase === 'after') {
+                statusEl.innerHTML = `現在位置 <b>${pct}%</b> / 全行程終了`;
+                return;
+            }
+
+            const current = MISSION_TIMELINE_EVENTS[currentIndex];
+            const next = MISSION_TIMELINE_EVENTS[currentIndex + 1];
+            const nextText = next ? ` → 次: 3/3 ${next.time} ${next.label}` : '';
+            statusEl.innerHTML = `現在位置 <b>${pct}%</b> / ${current.time} ${current.label}${nextText}`;
+        }
+
+        function updateMissionClock() {
+            const now = Date.now();
+            const nowEl = document.getElementById('mission-now');
+            if (nowEl) {
+                nowEl.textContent = `JST ${formatJstHms(now)}`;
+            }
+
+            const countdownEl = document.getElementById('mission-countdown');
+            if (!countdownEl) return;
+
+            const diffMs = ECLIPSE_PARTIAL_START_JST - now;
+            const absMs = Math.abs(diffMs);
+            const h = Math.floor(absMs / 3600000);
+            const m = Math.floor((absMs % 3600000) / 60000);
+            const s = Math.floor((absMs % 60000) / 1000);
+            const sign = diffMs >= 0 ? 'T-' : 'T+';
+            countdownEl.textContent = `${sign} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+            updateMissionTimeline(now);
+        }
+
+        function startMissionClock() {
+            updateMissionClock();
+            if (__missionClockTimer) clearInterval(__missionClockTimer);
+            __missionClockTimer = setInterval(updateMissionClock, 1000);
         }
 
         function renderLiveFrame(state) {
@@ -1429,9 +2339,9 @@
             }
 
             // オフライン or タブ非表示：ダミー表示（元の見た目を維持）
-            const msg = isLive ? (tabActive ? 'Loading...' : '（ライブ準備中）') : 'Live Stream Offline';
+            const msg = isLive ? (tabActive ? 'Loading...' : '(Live tab inactive)') : 'Live Stream Offline';
             frame.innerHTML = `
-                <div style="font-size:3rem; opacity:0.2; margin-bottom:10px; position:relative; z-index:1;">📡</div>
+                <div style="font-size:2.2rem; opacity:0.3; margin-bottom:8px; position:relative; z-index:1;">LIVE</div>
                 <p style="position:relative; z-index:1;">${msg}</p>
             `;
         }
@@ -1457,6 +2367,7 @@
 
                 setLiveBadge(isLive);
                 setLiveTitle(title, isLive);
+                updateLiveTelemetry(isLive, __liveState.lastChecked);
                 renderLiveFrame(__liveState);
 
                 // ★配信状況が変わったらライブコメント表示も追従
@@ -1470,6 +2381,7 @@
 
         function startLivePolling() {
             if (__livePollTimer) clearInterval(__livePollTimer);
+            updateLiveTelemetry(false, null);
             syncLiveCommentUI(false);
             fetchLiveStatusOnce();
             __livePollTimer = setInterval(fetchLiveStatusOnce, LIVE_POLL_INTERVAL_MS);
@@ -1811,10 +2723,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            checkAuthStatus(); // 認証チェック
+            checkAuthStatus();
+            startMissionClock();
 
-            // コメント入力欄で Enter/Space を押したときに親のトグルが反応して
-            // コンテンツが閉じないよう、イベント伝播をここで止める（改行はデフォルト動作で行う）
             document.addEventListener('keydown', (e) => {
                 const t = e.target;
                 if (t && t.classList && t.classList.contains('cmt-input')) {
@@ -1824,7 +2735,6 @@
                 }
             }, true);
 
-            
             if (__initialHash) {
                 const activated = activateTabFromHash(__initialHash);
                 restoreHashWithoutJump(__initialHash);
@@ -1834,8 +2744,8 @@
             } else {
                 activateTabFromHash();
             }
-            fetchContents(); // データ取得開始
-            startLivePolling(); // ライブ配信状況の監視開始
+            fetchContents();
+            startLivePolling();
         });
 
         window.addEventListener('hashchange', () => {
