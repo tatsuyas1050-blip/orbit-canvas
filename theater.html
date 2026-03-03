@@ -382,41 +382,46 @@
                 aspect-ratio: auto;
             }
             .live-chat-panel {
-                display: flex;
-                flex-direction: column;
+                display: block;
                 min-height: 0;
-                overflow: hidden;
+                overflow-y: auto;
+                overflow-x: hidden;
             }
             #live-comment-section {
-                flex: 1 1 auto;
                 min-height: 0;
                 min-width: 0;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
+                display: block;
             }
             #live-comments-wrap .comment-section {
-                flex: 1 1 auto;
                 min-height: 0;
                 min-width: 0;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
+                display: block;
             }
             #live-comments-wrap .cmt-list {
-                flex: 1 1 auto;
                 min-height: 0;
                 min-width: 0;
-                max-height: none;
+                max-height: min(42vh, 430px);
                 overflow-y: auto;
                 overflow-x: hidden;
                 overscroll-behavior: contain;
+                margin-bottom: 0.7rem;
+            }
+            #live-comments-wrap .cmt-head {
+                display: flex;
+                flex-wrap: wrap;
+                row-gap: 4px;
             }
             #live-comments-wrap .cmt-item,
-            #live-comments-wrap .cmt-head,
             #live-comments-wrap .cmt-name,
             #live-comments-wrap .cmt-body {
                 min-width: 0;
+            }
+            #live-comments-wrap .cmt-name {
+                flex: 1 1 auto;
+            }
+            #live-comments-wrap .cmt-date {
+                margin-left: auto;
+                white-space: nowrap;
             }
             #live-comments-wrap .cmt-body,
             #live-comments-wrap .cmt-name {
@@ -2601,10 +2606,6 @@
 
                     <aside class="live-side">
                         <div id="live-comments-wrap" class="panel-bg live-panel live-chat-panel">
-                            <h3 class="live-panel-title">Live Comments</h3>
-                            <p id="live-comments-note" class="live-panel-desc live-comments-note">
-                                配信中のみコメントできます。コメントはリアルタイムで更新されます。
-                            </p>
                             <div id="live-comment-section"></div>
                         </div>
                     </aside>
@@ -3111,10 +3112,11 @@
 
             const input = document.getElementById('live-cmt-input');
             const btn = document.getElementById('live-cmt-submit');
-            if (input) input.disabled = !isActive;
+            const canUseInput = !!(isActive && currentUser);
+            if (input) input.disabled = !canUseInput;
             if (btn) {
                 const isBusy = btn.dataset.busy === "1";
-                if (!isActive) {
+                if (!canUseInput) {
                     btn.disabled = true;
                 } else if (!isBusy) {
                     btn.disabled = false;
@@ -3180,9 +3182,29 @@
                 `;
             }
 
+            const isLoggedIn = !!currentUser;
+            const userName = isLoggedIn ? escapeHtml(userProfile.name) : 'ゲスト';
+            const redirectUrl = encodeURIComponent(`/theater#tab-live`);
+            const loginHintHtml = isLoggedIn ? '' : `
+                <div class="cmt-login-req" style="margin-top:8px;">
+                    <p>コメントするにはログインが必要です</p>
+                    <a href="/lifelog?redirect=${redirectUrl}" class="cmt-login-link">ログイン画面へ (ライブ配信タブ)</a>
+                </div>
+            `;
+
+            formHtml = `
+                <div class="cmt-form">
+                    <div class="cmt-user-preview">
+                        投稿者: <b>${userName}</b>
+                    </div>
+                    <textarea id="live-cmt-input" class="cmt-input" placeholder="配信へのコメントを入力..." rows="2" ${isLoggedIn ? '' : 'disabled'}></textarea>
+                    <button id="live-cmt-submit" class="cmt-submit-btn" onclick="postLiveComment()" ${isLoggedIn ? '' : 'disabled'}>送信</button>
+                    ${loginHintHtml}
+                </div>
+            `;
+
             return `
                 <div class="comment-section">
-                    <h4 class="cmt-section-title">ライブコメント</h4>
                     <div class="cmt-list" id="live-cmt-list">
                         ${listHtml}
                     </div>
