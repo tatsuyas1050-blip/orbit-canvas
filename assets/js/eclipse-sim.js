@@ -361,6 +361,9 @@
         const facePlayBtn = document.getElementById('eclipse-play-toggle-face');
         const orbitPlayBtn = document.getElementById('eclipse-play-toggle-orbit');
         const playBtns = [facePlayBtn, orbitPlayBtn];
+        const faceRealtimeBtn = document.getElementById('eclipse-realtime-toggle-face');
+        const orbitRealtimeBtn = document.getElementById('eclipse-realtime-toggle-orbit');
+        const realtimeBtns = [faceRealtimeBtn, orbitRealtimeBtn].filter(Boolean);
         const centerEarthBtn = document.getElementById('eclipse-center-earth');
         const centerMoonBtn = document.getElementById('eclipse-center-moon');
         const zoomSlider = document.getElementById('eclipse-zoom-slider');
@@ -451,6 +454,7 @@
         const sim = {
             m: CFG.initialMin,
             play: false,
+            realtime: false,
             center: 'earth',
             dragMode: null,
             last: 0,
@@ -497,6 +501,34 @@
             timeSliders.forEach((slider) => {
                 if (slider.value !== v) slider.value = v;
             });
+        }
+
+        function realtimeMinuteNow() {
+            const nowMin = (Date.now() - startMs) / 60000;
+            return clamp(nowMin, 0, CFG.durationMin);
+        }
+
+        function syncRealtimeToggle() {
+            if (!realtimeBtns.length) return;
+            const active = !!sim.realtime;
+            realtimeBtns.forEach((btn) => {
+                btn.classList.toggle('is-active', active);
+                btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+                btn.setAttribute('aria-label', active ? 'リアルタイムモード ON' : 'リアルタイムモード');
+                btn.title = active ? 'リアルタイムモード ON' : 'リアルタイムモード';
+                btn.textContent = active ? 'RT ON' : 'RT';
+            });
+        }
+
+        function setRealtimeMode(enabled) {
+            const next = !!enabled;
+            sim.realtime = next;
+            if (sim.realtime) {
+                sim.play = false;
+                sim.m = realtimeMinuteNow();
+                syncTimeSliders();
+            }
+            syncBtn();
         }
 
         function syncCenterToggle() {
@@ -2387,6 +2419,7 @@
                 btn.setAttribute('aria-label', label);
                 btn.title = label;
             });
+            syncRealtimeToggle();
             syncCenterToggle();
         }
 
@@ -2427,6 +2460,7 @@
         }
 
         function onTimeSliderInput(activeSlider) {
+            sim.realtime = false;
             sim.m = clamp(Number(activeSlider.value) || 0, 0, CFG.durationMin);
             syncTimeSliders();
             sim.play = false;
@@ -2440,7 +2474,18 @@
             });
         });
         playBtns.forEach((btn) => {
-            btn.addEventListener('click', function () { sim.play = !sim.play; syncBtn(); });
+            btn.addEventListener('click', function () {
+                sim.realtime = false;
+                sim.play = !sim.play;
+                syncBtn();
+                if (liveActive()) render();
+            });
+        });
+        realtimeBtns.forEach((btn) => {
+            btn.addEventListener('click', function () {
+                setRealtimeMode(!sim.realtime);
+                if (liveActive()) render();
+            });
         });
         if (centerEarthBtn) {
             centerEarthBtn.addEventListener('click', function () { toggleCenterMode(); });
@@ -2610,7 +2655,15 @@
             const dt = clamp(ts - sim.last, 0, MAX_TICK_MS);
             sim.last = ts;
             if (liveActive()) {
-                if (sim.play) {
+                if (sim.realtime) {
+                    const nextRealtimeM = realtimeMinuteNow();
+                    if (Math.abs(nextRealtimeM - sim.m) > 0.005) {
+                        sim.m = nextRealtimeM;
+                        syncTimeSliders();
+                    } else {
+                        sim.m = nextRealtimeM;
+                    }
+                } else if (sim.play) {
                     const loopLen = CFG.durationMin + 1;
                     sim.m = (sim.m + dt * PLAYBACK_MIN_PER_MS) % loopLen;
                     if (sim.m < 0) sim.m += loopLen;

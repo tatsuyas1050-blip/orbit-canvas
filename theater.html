@@ -385,23 +385,43 @@
                 display: flex;
                 flex-direction: column;
                 min-height: 0;
+                overflow: hidden;
             }
             #live-comment-section {
                 flex: 1 1 auto;
                 min-height: 0;
+                min-width: 0;
                 display: flex;
                 flex-direction: column;
+                overflow: hidden;
             }
             #live-comments-wrap .comment-section {
                 flex: 1 1 auto;
                 min-height: 0;
+                min-width: 0;
                 display: flex;
                 flex-direction: column;
+                overflow: hidden;
             }
             #live-comments-wrap .cmt-list {
                 flex: 1 1 auto;
+                min-height: 0;
+                min-width: 0;
                 max-height: none;
                 overflow-y: auto;
+                overflow-x: hidden;
+                overscroll-behavior: contain;
+            }
+            #live-comments-wrap .cmt-item,
+            #live-comments-wrap .cmt-head,
+            #live-comments-wrap .cmt-name,
+            #live-comments-wrap .cmt-body {
+                min-width: 0;
+            }
+            #live-comments-wrap .cmt-body,
+            #live-comments-wrap .cmt-name {
+                overflow-wrap: anywhere;
+                word-break: break-word;
             }
         }
         .eclipse-panel {
@@ -467,6 +487,18 @@
             object-fit: contain;
             pointer-events: none;
             user-select: none;
+        }
+        .eclipse-realtime-btn {
+            min-width: 2.7rem;
+            min-height: 2.05rem;
+            padding: 0.24rem 0.56rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            font-size: 0.62rem;
+            letter-spacing: 0.08em;
+            line-height: 1;
         }
         .eclipse-card-slider {
             margin-top: 0.5rem;
@@ -893,6 +925,12 @@
                 min-height: 2.35rem;
                 font-size: 0.9rem;
                 padding: 0;
+            }
+            .eclipse-realtime-btn {
+                min-width: 2.45rem;
+                min-height: 2.05rem;
+                padding: 0.2rem 0.44rem;
+                font-size: 0.58rem;
             }
             .eclipse-orbit-toolbar {
                 inset: 0;
@@ -2644,6 +2682,7 @@
                                 <div id="eclipse-face-time-label" class="eclipse-view-time eclipse-window-time">JST -</div>
                             <div class="eclipse-slider-controls eclipse-card-slider eclipse-window-slider">
                                 <button id="eclipse-play-toggle-face" type="button" class="eclipse-btn eclipse-slider-play-btn" aria-pressed="false" aria-label="再生" title="再生"><img class="eclipse-play-icon" src="assets/img/play.png" alt="" aria-hidden="true"></button>
+                                <button id="eclipse-realtime-toggle-face" type="button" class="eclipse-btn eclipse-realtime-btn" aria-pressed="false" aria-label="リアルタイムモード" title="リアルタイムモード">RT</button>
                                 <div class="eclipse-slider-wrap">
                                     <input id="eclipse-time-slider-face" type="range" min="0" max="390" step="1" value="0" aria-label="月観察ビュー時刻">
                                 </div>
@@ -2691,6 +2730,7 @@
                                 </div>
                             <div class="eclipse-slider-controls eclipse-card-slider eclipse-window-slider">
                                 <button id="eclipse-play-toggle-orbit" type="button" class="eclipse-btn eclipse-slider-play-btn" aria-pressed="false" aria-label="再生" title="再生"><img class="eclipse-play-icon" src="assets/img/play.png" alt="" aria-hidden="true"></button>
+                                <button id="eclipse-realtime-toggle-orbit" type="button" class="eclipse-btn eclipse-realtime-btn" aria-pressed="false" aria-label="リアルタイムモード" title="リアルタイムモード">RT</button>
                                 <div class="eclipse-slider-wrap">
                                     <input id="eclipse-time-slider-orbit" type="range" min="0" max="390" step="1" value="0" aria-label="3D宇宙ビュー時刻">
                                 </div>
