@@ -313,6 +313,40 @@
         }
         .live-hero .live-frame { margin-bottom: 0; }
         .live-panel { padding: 1.4rem; }
+        .live-coming-soon {
+            margin-top: 0.4rem;
+            padding: 2.6rem 1.4rem;
+            text-align: center;
+            border: 1px solid rgba(212, 175, 55, 0.24);
+            border-radius: 14px;
+            background:
+                radial-gradient(circle at 85% 8%, rgba(216, 92, 110, 0.18), transparent 38%),
+                radial-gradient(circle at 8% 90%, rgba(64, 102, 188, 0.22), transparent 44%),
+                linear-gradient(180deg, rgba(14, 24, 38, 0.92), rgba(6, 12, 22, 0.95));
+        }
+        .live-coming-soon-label {
+            margin: 0;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.78rem;
+            letter-spacing: 0.14em;
+            color: rgba(196, 222, 255, 0.88);
+            text-transform: uppercase;
+        }
+        .live-coming-soon-title {
+            margin: 0.72rem 0 0;
+            font-family: 'Barlow Condensed', 'Noto Sans JP', sans-serif;
+            font-size: clamp(2rem, 5.1vw, 3.2rem);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #f5f9ff;
+        }
+        .live-coming-soon-text {
+            margin: 0.85rem auto 0;
+            max-width: 32rem;
+            line-height: 1.8;
+            font-size: 0.95rem;
+            color: rgba(224, 236, 252, 0.86);
+        }
         .live-info { margin-top: 1.4rem; }
         .live-panel-title {
             font-size: 1rem;
@@ -2564,8 +2598,13 @@
 
         <div id="tab-live" class="section-content">
             <div class="section-header">ライブ配信</div>
+            <div class="panel-bg live-coming-soon">
+                <p class="live-coming-soon-label">ライブ配信</p>
+                <h2 class="live-coming-soon-title">Coming Soon</h2>
+                <p class="live-coming-soon-text">次回の配信コンテンツを準備中です。公開までしばらくお待ちください。</p>
+            </div>
             <div class="mission-live-shell">
-                <section class="panel-bg mission-brief">
+                <section class="panel-bg mission-brief" style="display:none;">
                     <div class="mission-brief-grid">
                         <div>
                             <h2 class="mission-title">皆既月食🌕2026/3/3</h2>
@@ -2610,7 +2649,7 @@
                         </div>
                     </aside>
                 </div>
-                <div class="panel-bg live-panel mission-timeline mission-timeline-panel">
+                <div class="panel-bg live-panel mission-timeline mission-timeline-panel" style="display:none;">
                     <h3 class="live-panel-title">TIMELINE(JST)</h3>
                     <div id="mission-timeline-track" class="mission-timeline-track">
                         <div class="mission-timeline-line" aria-hidden="true"></div>
@@ -2656,7 +2695,7 @@
                     <p id="mission-timeline-status" class="mission-timeline-status">現在位置 <b>0.0%</b> / 待機中</p>
                 </div>
 
-                <div id="eclipse-sim-panel" class="panel-bg live-panel eclipse-panel">
+                <div id="eclipse-sim-panel" class="panel-bg live-panel eclipse-panel" style="display:none;">
                     <h3 class="live-panel-title">2026/03/03 皆既月食シミュレーション</h3>
                     <p class="eclipse-disclaimer">※ このシミュレーションは参考表示です。実際の見え方や時刻と完全には一致しない場合があります。</p>
 
@@ -2821,7 +2860,6 @@
     </div>
 
     <script src="assets/js/script.js"></script>
-    <script src="assets/js/eclipse-sim.js"></script>
     <script>
         const GET_URL = "https://jjrfmiwd63rogmf7ockaffndty0ddhly.lambda-url.ap-northeast-1.on.aws/";
         const POST_URL = "https://3vtporkgipspcqyo3frdeesdu40gkmqw.lambda-url.ap-northeast-1.on.aws/";
@@ -3075,12 +3113,9 @@
         }
 
         function onLiveTabActivated() {
-            // タブを開いた瞬間に最新化（配信開始直後に気づきやすい）
+            // Refresh stream state when the live tab is opened.
             fetchLiveStatusOnce();
             syncLiveCommentUI(true);
-            if (typeof initLunarEclipseSim === 'function') {
-                initLunarEclipseSim();
-            }
         }
 
 
@@ -3474,8 +3509,6 @@ function initEclipseCenterSwitchUI() {
 
         document.addEventListener('DOMContentLoaded', () => {
             checkAuthStatus();
-            startMissionClock();
-            initEclipseCenterSwitchUI();
 
             document.addEventListener('keydown', (e) => {
                 const t = e.target;
