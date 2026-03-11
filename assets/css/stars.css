@@ -348,6 +348,43 @@ input[type="range"]::-webkit-slider-thumb {
     border-color: var(--accent-gold); 
 }
 
+.mobile-time-quick-row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+    margin-top: 1px;
+}
+
+.mobile-btn-quick {
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+    padding: 5px 1px;
+    font-size: clamp(0.58rem, 2.25vw, 0.72rem);
+    font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Kaku Gothic ProN", sans-serif;
+    font-weight: 700;
+    color: #fff7da;
+    border-color: rgba(255, 220, 140, 0.75);
+    background: linear-gradient(180deg, rgba(33, 42, 58, 0.9), rgba(18, 25, 39, 0.9));
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.75);
+    letter-spacing: 0.01em;
+}
+
+.mobile-btn-quick:hover {
+    background: linear-gradient(180deg, rgba(46, 60, 82, 0.92), rgba(24, 33, 50, 0.92));
+}
+
+.mobile-btn-quick-primary {
+    color: #ffeeb8;
+    border-color: rgba(255, 214, 120, 0.88);
+    background: linear-gradient(180deg, rgba(56, 48, 30, 0.95), rgba(36, 31, 20, 0.95));
+}
+
+.mobile-btn-quick-step {
+    letter-spacing: 0.02em;
+}
+
 /* スライダーラッパー */
 .mobile-slider-wrapper {
     display: flex; align-items: center; gap: 4px; flex-grow: 1;
@@ -402,6 +439,16 @@ input[type="range"]::-webkit-slider-thumb {
     box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
 }
 #mobile-controls input[type="range"] { flex: 1; width: auto; }
+
+@media (max-width: 360px) {
+    .mobile-time-quick-row {
+        gap: 3px;
+    }
+    .mobile-btn-quick {
+        padding: 4px 1px;
+        font-size: 0.54rem;
+    }
+}
 
 /* --- Responsive Adjustments --- */
 @media (max-width: 900px) {

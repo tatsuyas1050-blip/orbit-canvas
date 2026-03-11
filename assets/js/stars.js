@@ -1896,6 +1896,10 @@ function setupUI() {
     const btnMobileMeteors = document.getElementById('btn-mobile-meteors');
     const btnMobileNow = document.getElementById('btn-mobile-now');
     const btnMobileTonight = document.getElementById('btn-mobile-tonight');
+    const btnMobilePrevHour = document.getElementById('btn-mobile-prev-h');
+    const btnMobileNextHour = document.getElementById('btn-mobile-next-h');
+    const btnMobilePrevDay = document.getElementById('btn-mobile-prev-d');
+    const btnMobileNextDay = document.getElementById('btn-mobile-next-d');
     const btnMobileLocation = document.getElementById('btn-mobile-location'); 
 
     const btnMobileGyro = document.getElementById('btn-mobile-gyro');
@@ -2066,6 +2070,10 @@ const updateDateInput = () => {
     document.getElementById('btn-next-h').addEventListener('click', () => addTime(1));
     document.getElementById('btn-prev-d').addEventListener('click', () => addTime(-24));
     document.getElementById('btn-next-d').addEventListener('click', () => addTime(24));
+    if (btnMobilePrevHour) btnMobilePrevHour.addEventListener('click', () => addTime(-1));
+    if (btnMobileNextHour) btnMobileNextHour.addEventListener('click', () => addTime(1));
+    if (btnMobilePrevDay) btnMobilePrevDay.addEventListener('click', () => addTime(-24));
+    if (btnMobileNextDay) btnMobileNextDay.addEventListener('click', () => addTime(24));
 
     const setTonight = () => {
         const d = new Date(); d.setHours(21, 0, 0, 0); state.date = d; 
