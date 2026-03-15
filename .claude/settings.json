@@ -6,7 +6,8 @@
       "Read(//c/Users/Owner/Downloads//**)",
       "Read(//c/Users/Owner/Downloads/**)",
       "Bash(git log:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(python3 -c \":*)"
     ]
   }
 }

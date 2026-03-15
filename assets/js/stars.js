@@ -737,7 +737,7 @@ function injectCustomStyles() {
             position: fixed;
             z-index: 6000;
             left: 16px;
-            top: calc(env(safe-area-inset-top, 0px) + 60px);
+            top: calc(env(safe-area-inset-top, 0px) + 112px);
             width: 46px;
             height: 46px;
             padding: 0;
@@ -5492,7 +5492,7 @@ function updateMeteorButtonPosition() {
     if (!btn) return;
 
     const fallbackLeft = 14;
-    const fallbackTop = 14;
+    const fallbackTop = 112;
 
     const gyroBtn = document.getElementById('gyro-icon-btn');
 
@@ -5559,7 +5559,7 @@ function updateLifelogCaptureButtonPosition() {
     if (!btn) return;
 
     const fallbackLeft = 14;
-    const fallbackTop = 124;
+    const fallbackTop = 14;
     let left = fallbackLeft;
     let top = fallbackTop;
 
@@ -5571,7 +5571,8 @@ function updateLifelogCaptureButtonPosition() {
         if (visible) {
             const btnH = Math.max(36, Math.round(btn.getBoundingClientRect().height || 42));
             left = Math.round(rect.left);
-            top = Math.max(8, Math.round(rect.top - btnH - 10));
+            // badge(34px) + gap(10px) + gap(10px) = 54px above gyro
+            top = Math.max(8, Math.round(rect.top - btnH - 54));
         }
     }
 
@@ -6401,7 +6402,7 @@ async function fetchPresenceCount() {
         const res = await fetch(`${PRESENCE_API_BASE}/presence`);
         if (!res.ok) return;
         const json = await res.json();
-        const count = json.count ?? json.total ?? 0;
+        const count = Math.max(1, json.count ?? json.total ?? 1);
         const countEl = document.getElementById('realtime-viewer-count');
         if (countEl) countEl.textContent = count;
     } catch (e) { /* ignore */ }
@@ -6426,7 +6427,7 @@ function enableRealtimeMode() {
     }, 30000);
 
     const badge = document.getElementById('realtime-viewer-badge');
-    if (badge) badge.style.display = '';
+    if (badge) badge.classList.add('active');
     document.getElementById('btn-realtime')?.classList.add('active');
     document.getElementById('btn-mobile-realtime')?.classList.add('active');
 }
@@ -6439,7 +6440,7 @@ function disableRealtimeMode() {
     presenceInterval = null;
 
     const badge = document.getElementById('realtime-viewer-badge');
-    if (badge) badge.style.display = 'none';
+    if (badge) { badge.classList.remove('active'); document.getElementById('realtime-viewer-count').textContent = '--'; }
     document.getElementById('btn-realtime')?.classList.remove('active');
     document.getElementById('btn-mobile-realtime')?.classList.remove('active');
 
@@ -6461,6 +6462,7 @@ function initRealtimeMode() {
     };
     document.getElementById('btn-realtime')?.addEventListener('click', toggle);
     document.getElementById('btn-mobile-realtime')?.addEventListener('click', toggle);
+    document.getElementById('realtime-viewer-badge')?.addEventListener('click', toggle);
 
     window.addEventListener('beforeunload', () => {
         if (state.realtimeMode) {
