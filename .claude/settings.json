@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"execute-api\\\\|ypvqc7yisg\\\\|cuuamhoyy5\\\\|erd043r1x3\" /c/my_program/orbit-canvas/*.html)",
+      "Bash(grep -n \"execute-api\\\\|ypvqc7yisg\\\\|cuuamhoyy5\\\\|erd043r1x3\" /c/my_program/orbit-canvas/assets/js/*.js)",
+      "Read(//c/Users/Owner/Downloads//**)",
+      "Read(//c/Users/Owner/Downloads/**)",
+      "Bash(git log:*)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}
