@@ -44,6 +44,7 @@
         </button>
         
         <div id="screen-clock" class="pc-only-clock">----/--/-- --:--</div>
+        <div id="realtime-viewer-badge" class="realtime-viewer-badge" style="display:none;"><span class="rt-dot"></span>リアルタイム &nbsp;👁 <span id="realtime-viewer-count">0</span>人が観測中</div>
 
         <div id="side-dock">
             <div class="dock-strip">
@@ -101,6 +102,7 @@
                             <button id="btn-tonight" class="btn-gold" style="flex:1;">今夜 21時</button>
                             <button id="btn-now" class="btn-gold" style="flex:1;">現在時刻</button>
                         </div>
+                        <button id="btn-realtime" class="btn-gold btn-realtime" style="width:100%; margin-top:5px;">● リアルタイム追従</button>
                     </div>
 
                     <div class="panel-section">
@@ -194,6 +196,7 @@
                 <button class="mobile-btn mobile-btn--celestial" id="btn-mobile-labels">天体</button>
                 <button class="mobile-btn mobile-btn--meteors" id="btn-mobile-meteors">流星</button>
                 <button class="mobile-btn mobile-btn--sun" id="btn-mobile-sunlight">太陽光</button>
+                <button class="mobile-btn mobile-btn--realtime" id="btn-mobile-realtime">RT</button>
             </div>
         </div>
     </div>

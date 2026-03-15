@@ -1,6 +1,9 @@
 
 const METEOR_API_BASE = "https://ypvqc7yisg.execute-api.ap-northeast-1.amazonaws.com";
 
+// --- プレゼンス（観測人数）API ---
+const PRESENCE_API_BASE = "https://5i085eho96.execute-api.ap-northeast-1.amazonaws.com";
+
 const SHOW_METEOR_TIME_LABELS = true;
 const MAX_METEOR_TIME_LABELS = 80;
 // --- Meteor marker icon assets (relative paths for web) ---
@@ -173,14 +176,27 @@ let lifelogBridgeUi = {
     draftDelivered: false,
 };
 
+// --- リアルタイムモード ---
+let realtimeTickInterval = null;
+let presenceInterval = null;
+const PRESENCE_SESSION_ID = (() => {
+    let id = sessionStorage.getItem('starPresenceId');
+    if (!id) {
+        id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        sessionStorage.setItem('starPresenceId', id);
+    }
+    return id;
+})();
+
 const state = {
-    lat: 35.6895, 
+    lat: 35.6895,
     lon: 139.6917,
     date: new Date(),
     gridVisible: true,
     sunlightVisible: true,
     magLimit: 4.5,
     shuttleValue: 0,
+    realtimeMode: false,
     selectedStarIndex: -1,
     selectedObject: null, 
     isDragging: false,
@@ -256,6 +272,7 @@ function init() {
     // 流星記録UI（scene生成後に初期化）
     initMeteorUi();
     initLifelogBridgeUi();
+    initRealtimeMode();
  
 
     // ---- Comets layer (added) ----
@@ -3814,10 +3831,10 @@ function animate() {
     
     updateLabelSizes();
 
-    if (state.shuttleValue !== 0) {
-        const speed = Math.pow(state.shuttleValue, 3) * 0.2; 
+    if (state.shuttleValue !== 0 && !state.realtimeMode) {
+        const speed = Math.pow(state.shuttleValue, 3) * 0.2;
         state.date.setTime(state.date.getTime() + speed);
-        updatePositions(); 
+        updatePositions();
         const d = state.date;
         const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
         document.getElementById('date-picker').value = local.toISOString().slice(0, 16);
@@ -6342,4 +6359,117 @@ function handleMeteorPointerUp(event) {
     setMeteorActionsVisible(true);
 
     return true;
+}
+
+// ============================================================
+// リアルタイムモード
+// ============================================================
+
+function updateRealtimeClock() {
+    state.date = new Date();
+    updatePositions();
+    const d = state.date;
+    const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
+    const pickerEl = document.getElementById('date-picker');
+    if (pickerEl) pickerEl.value = local.toISOString().slice(0, 16);
+    const screenClock = document.getElementById('screen-clock');
+    const mobileClockDisplay = document.getElementById('mobile-clock-display');
+    if (screenClock || mobileClockDisplay) {
+        const year = d.getFullYear();
+        const month = (d.getMonth() + 1).toString().padStart(2, '0');
+        const day = d.getDate().toString().padStart(2, '0');
+        const hour = d.getHours().toString().padStart(2, '0');
+        const min = d.getMinutes().toString().padStart(2, '0');
+        const dateStr = `${year}/${month}/${day} ${hour}:${min} (日本時間)`;
+        if (screenClock) screenClock.textContent = dateStr;
+        if (mobileClockDisplay) mobileClockDisplay.textContent = dateStr;
+    }
+}
+
+async function sendPresenceHeartbeat() {
+    try {
+        await fetch(`${PRESENCE_API_BASE}/presence`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ sessionId: PRESENCE_SESSION_ID }),
+        });
+    } catch (e) { /* ignore */ }
+}
+
+async function fetchPresenceCount() {
+    try {
+        const res = await fetch(`${PRESENCE_API_BASE}/presence`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const count = json.count ?? json.total ?? 0;
+        const countEl = document.getElementById('realtime-viewer-count');
+        if (countEl) countEl.textContent = count;
+    } catch (e) { /* ignore */ }
+}
+
+function enableRealtimeMode() {
+    state.realtimeMode = true;
+    state.shuttleValue = 0;
+    const timeShuttle = document.getElementById('time-shuttle');
+    const mobileTimeShuttle = document.getElementById('mobile-time-shuttle');
+    if (timeShuttle) timeShuttle.value = 0;
+    if (mobileTimeShuttle) mobileTimeShuttle.value = 0;
+
+    updateRealtimeClock();
+    realtimeTickInterval = setInterval(updateRealtimeClock, 1000);
+
+    sendPresenceHeartbeat();
+    fetchPresenceCount();
+    presenceInterval = setInterval(() => {
+        sendPresenceHeartbeat();
+        fetchPresenceCount();
+    }, 30000);
+
+    const badge = document.getElementById('realtime-viewer-badge');
+    if (badge) badge.style.display = '';
+    document.getElementById('btn-realtime')?.classList.add('active');
+    document.getElementById('btn-mobile-realtime')?.classList.add('active');
+}
+
+function disableRealtimeMode() {
+    state.realtimeMode = false;
+    clearInterval(realtimeTickInterval);
+    realtimeTickInterval = null;
+    clearInterval(presenceInterval);
+    presenceInterval = null;
+
+    const badge = document.getElementById('realtime-viewer-badge');
+    if (badge) badge.style.display = 'none';
+    document.getElementById('btn-realtime')?.classList.remove('active');
+    document.getElementById('btn-mobile-realtime')?.classList.remove('active');
+
+    try {
+        navigator.sendBeacon(
+            `${PRESENCE_API_BASE}/presence/leave`,
+            JSON.stringify({ sessionId: PRESENCE_SESSION_ID })
+        );
+    } catch (e) { /* ignore */ }
+}
+
+function initRealtimeMode() {
+    const toggle = () => {
+        if (state.realtimeMode) {
+            disableRealtimeMode();
+        } else {
+            enableRealtimeMode();
+        }
+    };
+    document.getElementById('btn-realtime')?.addEventListener('click', toggle);
+    document.getElementById('btn-mobile-realtime')?.addEventListener('click', toggle);
+
+    window.addEventListener('beforeunload', () => {
+        if (state.realtimeMode) {
+            try {
+                navigator.sendBeacon(
+                    `${PRESENCE_API_BASE}/presence/leave`,
+                    JSON.stringify({ sessionId: PRESENCE_SESSION_ID })
+                );
+            } catch (e) { /* ignore */ }
+        }
+    });
 }

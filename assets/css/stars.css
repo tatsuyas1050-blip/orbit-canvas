@@ -591,6 +591,72 @@ body.dock-open .menu-toggle {
   color: #e4fff4;
 }
 
+/* Realtime mode button (PC) */
+.btn-realtime {
+    position: relative;
+    overflow: hidden;
+}
+.btn-realtime.active {
+    background: rgba(255, 60, 60, 0.15) !important;
+    border-color: #ff4444 !important;
+    color: #ff8888 !important;
+    box-shadow: 0 0 10px rgba(255, 60, 60, 0.3) !important;
+}
+
+/* Realtime mode button (mobile) */
+.mobile-btn--realtime {
+    border-color: #7a2020;
+    color: #ffaaaa;
+    font-size: 0.85rem;
+    font-family: var(--font-main), 'Noto Sans JP', sans-serif;
+}
+.mobile-btn--realtime.active {
+    background-color: rgba(255, 80, 80, 0.25);
+    border-color: #ff5555;
+    color: #ffcccc;
+    box-shadow: 0 0 8px rgba(255, 60, 60, 0.4);
+}
+
+/* Pulsing dot for active realtime */
+@keyframes rt-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+.rt-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: #ff4444;
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: rt-pulse 1.2s ease-in-out infinite;
+    vertical-align: middle;
+}
+
+/* Viewer count badge */
+.realtime-viewer-badge {
+    position: absolute;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(5, 10, 20, 0.75);
+    border: 1px solid rgba(255, 80, 80, 0.5);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.82rem;
+    color: #ffaaaa;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+    white-space: nowrap;
+    z-index: 50;
+}
+@media (max-width: 768px) {
+    .realtime-viewer-badge {
+        bottom: 210px;
+        font-size: 0.75rem;
+    }
+}
+
 /* Sunlight (yellow) */
 .mobile-btn--sun {
   border-color: #8c7a1f;
