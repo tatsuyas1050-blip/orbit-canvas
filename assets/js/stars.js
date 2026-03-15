@@ -2,7 +2,7 @@
 const METEOR_API_BASE = "https://ypvqc7yisg.execute-api.ap-northeast-1.amazonaws.com";
 
 // --- プレゼンス（観測人数）API ---
-const PRESENCE_API_BASE = "https://cuuamhoyy5.execute-api.ap-northeast-1.amazonaws.com/";
+const PRESENCE_API_BASE = "https://cuuamhoyy5.execute-api.ap-northeast-1.amazonaws.com";
 
 const SHOW_METEOR_TIME_LABELS = true;
 const MAX_METEOR_TIME_LABELS = 80;
