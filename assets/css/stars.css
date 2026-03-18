@@ -290,14 +290,14 @@ input[type="range"]::-webkit-slider-thumb {
     transform: translateY(0);
 }
 #mobile-controls.collapsed {
-    /* 上padding(6px) + 時間表示(~30px) だけ残して折り畳む */
-    transform: translateY(calc(100% - 36px));
+    /* 上padding(6px) + 時間表示(~23px) + padding/border(3px) + margin(12px) = 44px, reveal=42px でスライダーは確実に隠れる */
+    transform: translateY(calc(100% - 42px));
 }
 
 
 .mobile-info-header {
     display: flex; justify-content: center; align-items: center;
-    margin-bottom: 0px; 
+    margin-bottom: 12px;
     padding-bottom: 2px;
     border-bottom: 1px solid rgba(212, 175, 55, 0.1);
 }
@@ -699,7 +699,7 @@ body.dock-open .menu-toggle {
         bottom: calc(env(safe-area-inset-bottom) + 235px);
     }
     body.mobile-panel-collapsed #btn-row {
-        bottom: calc(env(safe-area-inset-bottom) + 46px);
+        bottom: calc(env(safe-area-inset-bottom) + 52px);
     }
     /* 閉じているとき画像を上下反転 */
     body.mobile-panel-collapsed #mobile-panel-toggle-btn img {
