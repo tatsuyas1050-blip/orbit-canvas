@@ -3088,8 +3088,8 @@ function createStarPoints(type, data, parentGroup) {
     const sizes = new Float32Array(count);
     const magnitudes = new Float32Array(count);
     const isMobile = window.innerWidth <= 900;
-    const sizeBase = isMobile ? 6.0 : 3.5; 
-    const minSize = isMobile ? 12.0 : 6.0; 
+    const sizeBase = isMobile ? 7.5 : 4.5;
+    const minSize = isMobile ? 15.0 : 8.0;
 
     data.forEach((obj, i) => {
         const spectFirst = obj.spect_type ? obj.spect_type.charAt(0).toUpperCase() : 'A';
@@ -3097,7 +3097,7 @@ function createStarPoints(type, data, parentGroup) {
         colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
         let mag = parseFloat(obj.vmag || obj.mag || 6.0); if (isNaN(mag)) mag = 6.0;
         let rawSize = Math.max(minSize, (8.0 - mag) * sizeBase);
-        sizes[i] = Math.min(rawSize, isMobile ? 40.0 : 25.0); 
+        sizes[i] = Math.min(rawSize, isMobile ? 50.0 : 32.0);
         magnitudes[i] = mag;
     });
 
@@ -3115,34 +3115,101 @@ function createStarPoints(type, data, parentGroup) {
         vertexShader: `
             attribute float size; attribute vec3 color; attribute float aMagnitude;
             varying vec3 vColor; varying float vMag;
-            uniform float magLimit; uniform float uTime; uniform float uFov; 
+            uniform float magLimit; uniform float uTime; uniform float uFov;
             float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
             void main() {
-                vMag = aMagnitude; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                float seed = random(position.xy); float speed = 2.0 + seed * 3.0; 
-                float twinkle = 1.0 + 0.3 * sin(uTime * speed + seed * 100.0);
+                vMag = aMagnitude;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                float seed = random(position.xy);
+                float speed = 5.0 + seed * 9.0;
+                float twinkle = 1.0 + 0.06 * sin(uTime * speed + seed * 100.0);
                 float altitudeFactor = 1.0 - smoothstep(0.0, 500.0, abs(position.y));
-                twinkle += altitudeFactor * 0.2 * sin(uTime * speed * 2.0);
+                twinkle += altitudeFactor * 0.04 * sin(uTime * speed * 2.0);
                 vColor = color * twinkle;
-                float exposureScale = 0.5 + max(0.0, magLimit) * 0.15; 
+                float exposureScale = 0.5 + max(0.0, magLimit) * 0.15;
                 float fovFactor = 50.0 / uFov;
-                gl_PointSize = size * exposureScale * fovFactor * (300.0 / -mvPosition.z);
+                float contrastBoost = 1.0 + max(0.0, magLimit - aMagnitude - 2.0) * 0.06;
+                // 明るい星のみ描画領域をわずかに広げる（スパイクが収まる最小限）
+                float brightBoost = 1.0 + max(0.0, 2.0 - aMagnitude) * 0.30;
+                gl_PointSize = size * exposureScale * fovFactor * contrastBoost * brightBoost * (300.0 / -mvPosition.z);
                 gl_Position = projectionMatrix * mvPosition;
             }
         `,
         fragmentShader: `
-            varying vec3 vColor; varying float vMag; uniform float magLimit;
+            varying vec3 vColor; varying float vMag;
+            uniform float magLimit;
+
             void main() {
-                float fadeRange = 1.0; float delta = magLimit - vMag;
-                float opacity = clamp(delta / fadeRange, 0.0, 1.0);
-                if (opacity <= 0.0) discard;
-                vec2 coord = gl_PointCoord - vec2(0.5);
-                float dist = length(coord) * 2.0; 
-                if (dist > 1.0) discard;
-                float core = exp(-dist * dist * 10.0);
-                float glow = exp(-dist * 2.5);
-                float intensity = core * 1.8 + glow * 0.4;
-                gl_FragColor = vec4(vColor, intensity * opacity);
+                if (magLimit <= vMag) discard;
+
+                vec2 c = gl_PointCoord - vec2(0.5); // [-0.5, 0.5]
+                float r = length(c);
+                float d = r * 2.0; // [0, 1]
+
+                // ---- スパイク強度：2等以下でのみ有効 ----
+                float spikeStr = clamp((2.5 - vMag) / 2.0, 0.0, 1.0);
+                spikeStr = spikeStr * spikeStr * spikeStr;
+
+                float ax = abs(c.x);
+                float ay = abs(c.y);
+
+                // ---- 長いスパイク2本（斜め45°方向: ↗↙） ----
+                // |x| ≈ |y| の部分を通す、減衰は緩やか（長く伸びる）
+                float longSpike = exp(-(ax - ay) * (ax - ay) * 2500.0) * exp(-r * 3.2);
+
+                // ---- 短いスパイク2本（斜め135°方向: ↖↘） ----
+                // x+y ≈ 0 の部分を通す、減衰は強め（短く止まる）
+                float shortSpike = exp(-(ax + ay - sqrt(ax*ax + ay*ay)) * (ax + ay - sqrt(ax*ax + ay*ay)) * 100.0)
+                                   * exp(-(ax - ay) * (ax - ay) * 2500.0);
+                // 別アプローチ：c.x ≈ -c.y の部分（符号が逆の対角）
+                float ds = c.x + c.y; // ↖↘方向はx+y≈0
+                float dl = c.x - c.y; // ↗↙方向はx-y≈0
+                longSpike  = exp(-dl * dl * 2500.0) * exp(-r * 3.0);   // 長い（減衰3.0）
+                shortSpike = exp(-ds * ds * 2500.0) * exp(-r * 5.5);   // 短い（減衰5.5）
+
+                float spikes = (longSpike * 1.0 + shortSpike * 0.6) * spikeStr;
+
+                // ---- 二重グロー構造 ----
+                // 芯：極めて鋭い白いピーク
+                float core   = exp(-d * d * 100.0) * 4.0;
+                // 内ハロー：小さく明るい（白〜淡青白）
+                float halo1  = exp(-d * d * 22.0)  * 1.4;
+                // 中ハロー：内と外の間をつなぐ
+                float halo2  = exp(-d * d * 7.0)   * 0.40;
+                // 外ハロー：大きくふわっと広がる（目標画像の二重グローの外側）
+                // 明るい星のみ、かつ非常に薄く青みがかる
+                float outerHalo = exp(-d * d * 1.5) * 0.22 * spikeStr;
+
+                float glow = core + halo1 + halo2 + outerHalo;
+
+                // ---- 円形マスク ----
+                float circleMask = 1.0 - smoothstep(0.44, 0.50, r);
+
+                // スパイクは斜め軸上のみ円外へ延長可
+                float spikeAxis = max(
+                    exp(-dl * dl * 2500.0),
+                    exp(-ds * ds * 2500.0)
+                );
+                float outsideCircle = step(0.44, r);
+                float spikeMask = max(circleMask, spikeAxis * spikeStr * outsideCircle);
+
+                float intensity = glow * circleMask + spikes * spikeMask * 1.6;
+                if (intensity < 0.004) discard;
+
+                // ---- 色処理 ----
+                // 芯：白く飛ばす
+                float whitenCore  = clamp(core * 0.28, 0.0, 1.0);
+                // スパイク：やや白く
+                float whitenSpike = clamp(spikes * 0.40, 0.0, 0.75);
+                // 外ハロー：青みを加える（目標画像の青白いグロー）
+                float blueTint = clamp(outerHalo * 1.8, 0.0, 1.0) * spikeStr;
+
+                vec3 finalColor = mix(vColor, vec3(1.0), whitenCore);
+                finalColor      = mix(finalColor, vec3(1.0), whitenSpike);
+                // 外ハロー部分に青白い色を加算
+                finalColor      = mix(finalColor, vec3(0.75, 0.88, 1.0), blueTint * (1.0 - whitenCore) * 0.5);
+
+                gl_FragColor = vec4(finalColor, min(intensity, 1.0));
             }
         `,
         transparent: true, depthTest: false, blending: THREE.AdditiveBlending
