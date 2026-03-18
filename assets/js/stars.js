@@ -273,6 +273,7 @@ function init() {
     initMeteorUi();
     initLifelogBridgeUi();
     initRealtimeMode();
+    initMobilePanelToggle();
  
 
     // ---- Comets layer (added) ----
@@ -734,18 +735,16 @@ function injectCustomStyles() {
 
         /* --- ジャイロ切替アイコン（上部） --- */
         #gyro-icon-btn {
-            position: fixed;
+            position: relative;
             z-index: 6000;
-            left: 16px;
-            top: calc(env(safe-area-inset-top, 0px) + 112px);
             width: 46px;
             height: 46px;
             padding: 0;
             border: 1px solid rgba(255,255,255,0.18);
             border-radius: 999px;
-            background: rgba(5, 10, 20, 0.55);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+            background: rgba(40, 40, 45, 0.45);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: none; /* PCは非表示、スマホのみ */
             align-items: center;
             justify-content: center;
@@ -764,7 +763,7 @@ function injectCustomStyles() {
         }
         #gyro-icon-btn::before {
             content: "";
-            position: fixed;
+            position: absolute;
             inset: -10px;
             border-radius: 999px;
             opacity: 0;
@@ -795,11 +794,9 @@ function injectCustomStyles() {
     
         /* ---- 流星記録 UI（追加） ---- */
         #meteor-icon-btn {
-            position: fixed;
-            width: 44px;
-            height: 44px;
-            top: 14px;
-            left: 14px;
+            position: relative;
+            width: 46px;
+            height: 46px;
             z-index: 30000;
             pointer-events: auto;
             border: 1px solid rgba(255,255,255,0.25);
@@ -1676,39 +1673,43 @@ function injectLifelogBridgeStyles() {
     style.id = 'lifelog-bridge-style';
     style.textContent = `
 #lifelog-capture-btn {
-    position: fixed;
-    left: 14px;
-    top: 124px;
+    position: relative;
     z-index: 29940;
-    display: inline-flex;
+    width: 46px;
+    height: 46px;
+    display: flex;
     align-items: center;
-    gap: 8px;
-    border: 1px solid rgba(212, 175, 55, 0.7);
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 999px;
-    padding: 10px 14px;
-    background: rgba(5, 12, 22, 0.82);
-    color: #fff;
-    font-family: 'Shippori Mincho', serif;
-    font-size: 0.86rem;
-    line-height: 1;
+    background: rgba(40, 40, 45, 0.45);
     cursor: pointer;
     pointer-events: auto;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: transform 0.12s ease, opacity 0.2s ease;
 }
 #lifelog-capture-btn:hover {
-    border-color: rgba(212, 175, 55, 0.95);
-    background: rgba(12, 20, 34, 0.92);
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(60, 60, 65, 0.55);
+}
+#lifelog-capture-btn:active {
+    transform: scale(0.94);
 }
 #lifelog-capture-btn:disabled {
     opacity: 0.55;
     cursor: wait;
 }
 #lifelog-capture-btn .lifelog-capture-icon {
-    width: 18px;
-    height: 18px;
+    width: 28px;
+    height: 28px;
     object-fit: contain;
+    pointer-events: none;
+    display: block;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.25));
 }
 #lifelog-bridge-overlay {
     position: fixed;
@@ -2111,7 +2112,7 @@ const updateDateInput = () => {
     document.getElementById('btn-tonight').addEventListener('click', setTonight);
     document.getElementById('btn-now').addEventListener('click', setNow);
     btnMobileTonight.addEventListener('click', setTonight);
-    btnMobileNow.addEventListener('click', setNow);
+    btnMobileNow?.addEventListener('click', setNow);
 
     const btnMeteors = document.getElementById('btn-meteors');
 
@@ -4171,8 +4172,7 @@ function initLifelogBridgeUi() {
     btn.type = 'button';
     btn.setAttribute('aria-label', '星空ライフログへ記録');
     btn.innerHTML = `
-        <img class="lifelog-capture-icon" src="assets/img/lifelog_mark.png" alt="">
-        <span>ライフログ記録</span>
+        <img class="lifelog-capture-icon" src="assets/img/log_icon_white.png" alt="">
     `;
     btn.addEventListener('pointerdown', (e) => { e.stopPropagation(); }, { passive: true });
     btn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
@@ -4181,10 +4181,13 @@ function initLifelogBridgeUi() {
         e.stopPropagation();
         handleLifelogCaptureClick();
     });
-    document.body.appendChild(btn);
+    const btnRow = document.getElementById('btn-row');
+    if (btnRow) {
+        btnRow.appendChild(btn);
+    } else {
+        document.body.appendChild(btn);
+    }
     lifelogBridgeUi.button = btn;
-    updateLifelogCaptureButtonPosition();
-    window.addEventListener('resize', updateLifelogCaptureButtonPosition);
 }
 
 async function handleLifelogCaptureClick() {
@@ -5337,10 +5340,10 @@ function initMeteorUi() {
         <button id="meteor-reset-btn">やり直し</button>
     `;
 
-    // 追加先：ジャイロボタンが居ればその直後。居なければ body。
-    const gyroBtn = document.getElementById('gyro-icon-btn');
-    if (gyroBtn && gyroBtn.parentNode) {
-        gyroBtn.parentNode.insertBefore(btn, gyroBtn.nextSibling);
+    // 追加先：#btn-row があればその末尾、なければ body。
+    const btnRow = document.getElementById('btn-row');
+    if (btnRow) {
+        btnRow.appendChild(btn);
     } else {
         document.body.appendChild(btn);
     }
@@ -5491,95 +5494,50 @@ function updateMeteorButtonPosition() {
     const btn = document.getElementById('meteor-icon-btn');
     if (!btn) return;
 
-    const fallbackLeft = 14;
-    const fallbackTop = 112;
-
+    // サイズをジャイロと揃える
     const gyroBtn = document.getElementById('gyro-icon-btn');
-
-    // サイズはジャイロと揃える（取れなければ44px）
-    let size = 44;
-    let left = fallbackLeft;
-    let top = fallbackTop;
-
+    let size = 46;
     if (gyroBtn) {
-        const rect = gyroBtn.getBoundingClientRect();
-        const visible = rect.width > 0 && rect.height > 0 && window.getComputedStyle(gyroBtn).display !== 'none' && window.getComputedStyle(gyroBtn).visibility !== 'hidden';
-        if (visible) {
-            size = Math.round(Math.max(rect.width, rect.height)) || size;
-            left = Math.round(rect.left);
-            top = Math.round(rect.bottom + 10); // 下に並べる
-        }
+        const r = gyroBtn.getBoundingClientRect();
+        if (r.width > 0) size = Math.round(Math.max(r.width, r.height)) || size;
     }
 
-    // CSSで丸ボタンにする（gyroと似た感じ）
-    btn.style.position = 'fixed';
-    btn.style.left = `${left}px`;
-    btn.style.top = `${top}px`;
     btn.style.width = `${size}px`;
     btn.style.height = `${size}px`;
-    btn.style.borderRadius = '999px';
-    btn.style.display = 'flex';
-    btn.style.alignItems = 'center';
-    btn.style.justifyContent = 'center';
-    btn.style.zIndex = '30000';
-    btn.style.background = 'rgba(10, 14, 20, 0.55)';
-    btn.style.border = '1px solid rgba(255,255,255,0.25)';
-    btn.style.backdropFilter = 'blur(8px)';
-    btn.style.webkitBackdropFilter = 'blur(8px)';
 
     const img = btn.querySelector('img');
     if (img) {
-        img.style.width = '68%';
-        img.style.height = '68%';
+        img.style.width = '28px';
+        img.style.height = '28px';
         img.style.objectFit = 'contain';
         img.style.pointerEvents = 'none';
         img.style.display = 'block';
         img.style.filter = 'drop-shadow(0 0 6px rgba(255,255,255,0.25))';
     }
 
-    // ヒントの位置も追従
-    const hint = document.getElementById('meteor-hint');
-    if (hint) {
-        hint.style.left = `${left}px`;
-        hint.style.top = `${top + size + 8}px`;
-    }
+    // ヒント・アクションをボタン行の上に配置
+    const btnRect = btn.getBoundingClientRect();
+    if (btnRect.width > 0) {
+        const aboveBottom = Math.round(window.innerHeight - btnRect.top) + 8;
 
-    const actions = document.getElementById('meteor-actions');
-    if (actions) {
-        actions.style.left = `${left}px`;
-        actions.style.top = `${top + size + 64}px`;
-    }
+        const hint = document.getElementById('meteor-hint');
+        if (hint) {
+            hint.style.left = `${Math.round(btnRect.left)}px`;
+            hint.style.top = 'auto';
+            hint.style.bottom = `${aboveBottom}px`;
+        }
 
-    // ライフログ記録ボタンは流星記録ボタンの直下に追従させる
-    try { updateLifelogCaptureButtonPosition(); } catch (e) {}
+        const actions = document.getElementById('meteor-actions');
+        if (actions) {
+            actions.style.left = `${Math.round(btnRect.left)}px`;
+            actions.style.top = 'auto';
+            actions.style.bottom = `${aboveBottom}px`;
+        }
+    }
 }
 
 function updateLifelogCaptureButtonPosition() {
-    const btn = lifelogBridgeUi.button || document.getElementById('lifelog-capture-btn');
-    if (!btn) return;
-
-    const fallbackLeft = 14;
-    const fallbackTop = 14;
-    let left = fallbackLeft;
-    let top = fallbackTop;
-
-    const gyroBtn = document.getElementById('gyro-icon-btn');
-    if (gyroBtn) {
-        const rect = gyroBtn.getBoundingClientRect();
-        const style = window.getComputedStyle(gyroBtn);
-        const visible = rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
-        if (visible) {
-            const btnH = Math.max(36, Math.round(btn.getBoundingClientRect().height || 42));
-            left = Math.round(rect.left);
-            // badge(34px) + gap(10px) + gap(10px) = 54px above gyro
-            top = Math.max(8, Math.round(rect.top - btnH - 54));
-        }
-    }
-
-    btn.style.left = `${left}px`;
-    btn.style.top = `${top}px`;
-    btn.style.right = 'auto';
-    btn.style.bottom = 'auto';
+    // ボタンは#btn-row内のflexアイテムとして自動配置されるため位置調整不要
 }
 
 
@@ -6474,4 +6432,16 @@ function initRealtimeMode() {
             } catch (e) { /* ignore */ }
         }
     });
+}
+
+function initMobilePanelToggle() {
+    const panel  = document.getElementById('mobile-controls');
+    if (!panel) return;
+
+    function togglePanel() {
+        const collapsed = panel.classList.toggle('collapsed');
+        document.body.classList.toggle('mobile-panel-collapsed', collapsed);
+    }
+
+    document.getElementById('mobile-panel-toggle-btn')?.addEventListener('click', togglePanel);
 }

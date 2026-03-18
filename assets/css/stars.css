@@ -280,14 +280,20 @@ input[type="range"]::-webkit-slider-thumb {
     position: absolute;
     bottom: 0; left: 0; width: 100%;
     background: linear-gradient(to top, rgba(5, 10, 20, 0.98), rgba(5, 10, 20, 0.9) 85%, transparent);
-    
-    padding: 10px 16px calc(5px + env(safe-area-inset-bottom));
-    z-index: 140; 
+    padding: 6px 16px calc(5px + env(safe-area-inset-bottom));
+    z-index: 140;
     box-sizing: border-box;
     pointer-events: auto;
     flex-direction: column;
-    gap: 5px; 
+    gap: 5px;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: translateY(0);
 }
+#mobile-controls.collapsed {
+    /* 上padding(6px) + 時間表示(~30px) だけ残して折り畳む */
+    transform: translateY(calc(100% - 36px));
+}
+
 
 .mobile-info-header {
     display: flex; justify-content: center; align-items: center;
@@ -350,7 +356,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .mobile-time-quick-row {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
     width: 100%;
     margin-top: 1px;
@@ -360,8 +366,8 @@ input[type="range"]::-webkit-slider-thumb {
     width: 100%;
     min-width: 0;
     text-align: center;
-    padding: 5px 1px;
-    font-size: clamp(0.58rem, 2.25vw, 0.72rem);
+    padding: 9px 1px;
+    font-size: clamp(0.7rem, 2.7vw, 0.85rem);
     font-family: "Segoe UI", "Yu Gothic UI", "Hiragino Kaku Gothic ProN", sans-serif;
     font-weight: 700;
     color: #fff7da;
@@ -431,8 +437,8 @@ input[type="range"]::-webkit-slider-thumb {
 .mobile-toggles { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; width: 100%; margin-top: 4px; }
 .mobile-btn {
     background: rgba(255,255,255,0.05); border: 1px solid rgba(212, 175, 55, 0.4); color: rgba(255,255,255,0.8);
-    border-radius: 8px; padding: 8px 0; font-size: 0.75rem; cursor: pointer; transition: all 0.3s;
-    font-family: var(--font-main); text-align: center;
+    border-radius: 8px; padding: 9px 0; font-size: 0.75rem; cursor: pointer; transition: all 0.3s;
+    font-family: var(--font-main); text-align: center; line-height: 1;
 }
 .mobile-btn.active {
     background: rgba(212, 175, 55, 0.25); border-color: var(--accent-gold); color: var(--accent-gold);
@@ -445,8 +451,8 @@ input[type="range"]::-webkit-slider-thumb {
         gap: 3px;
     }
     .mobile-btn-quick {
-        padding: 4px 1px;
-        font-size: 0.54rem;
+        padding: 7px 1px;
+        font-size: 0.64rem;
     }
 }
 
@@ -633,47 +639,125 @@ body.dock-open .menu-toggle {
 }
 
 /* Viewer count badge */
-.realtime-viewer-badge {
+/* ボタン横1列コンテナ */
+#btn-row {
     position: fixed;
-    top: 68px;
-    left: 14px;
-    height: 44px;
+    bottom: 85px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    z-index: 145;
+    pointer-events: none;
+    transition: bottom 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#btn-row > * {
+    pointer-events: auto;
+    flex-shrink: 0;
+}
+/* パネル開閉ボタン（PCは非表示・btn-row右外に絶対配置・横長） */
+#mobile-panel-toggle-btn {
+    display: none;
+    position: absolute;
+    left: calc(100% + 10px);
+    bottom: 0;
+    top: auto;
+    width: 64px;
+    height: 23px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(40, 40, 45, 0.45);
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    pointer-events: auto;
+}
+#mobile-panel-toggle-btn img {
+    width: 28px;
+    height: 16px;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#mobile-panel-toggle-btn:active {
+    transform: scale(0.94);
+}
+
+@media (max-width: 900px) {
+    #mobile-panel-toggle-btn {
+        display: flex;
+    }
+    #btn-row {
+        bottom: calc(env(safe-area-inset-bottom) + 235px);
+    }
+    body.mobile-panel-collapsed #btn-row {
+        bottom: calc(env(safe-area-inset-bottom) + 46px);
+    }
+    /* 閉じているとき画像を上下反転 */
+    body.mobile-panel-collapsed #mobile-panel-toggle-btn img {
+        transform: rotate(180deg);
+    }
+}
+
+/* ラッパー: flex行の幅は常に 46px に固定 */
+.live-btn-wrapper {
+    width: 46px;
+    height: 46px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.realtime-viewer-badge {
+    position: absolute;
+    right: 0;          /* 右端固定 → 展開は左方向へ */
+    top: 0;
+    height: 46px;
+    width: 46px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    background: rgba(5, 10, 20, 0.55);
+    background: rgba(40, 40, 45, 0.45);
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 999px;
-    padding: 6px 10px;
+    padding: 0;
     font-size: 0.82rem;
     font-family: inherit;
     color: rgba(255, 255, 255, 0.45);
     letter-spacing: 0.05em;
-    pointer-events: auto;
     cursor: pointer;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     white-space: nowrap;
-    z-index: 5999;
-    transition: border-color 0.25s, color 0.25s, background 0.25s;
+    transition: border-color 0.25s, color 0.25s, background 0.25s, width 0.25s, padding 0.25s;
     -webkit-tap-highlight-color: transparent;
 }
 .realtime-viewer-badge:active {
     transform: scale(0.97);
 }
-/* ON state */
+/* ON state: 左方向に展開 */
 .realtime-viewer-badge.active {
+    width: auto;
     border-color: rgba(255, 80, 80, 0.6);
     color: #ffaaaa;
     background: rgba(5, 10, 20, 0.72);
-    padding: 6px 14px 6px 10px;
+    padding: 0 14px 0 10px;
 }
 .realtime-viewer-badge .live-icon {
     width: 22px;
     height: 22px;
     object-fit: contain;
     opacity: 0.4;
+    flex-shrink: 0;
     transition: opacity 0.25s;
 }
 .realtime-viewer-badge.active .live-icon {
@@ -696,13 +780,6 @@ body.dock-open .menu-toggle {
 .realtime-viewer-badge .rt-watching {
     font-size: 0.78rem;
     opacity: 0.85;
-}
-@media (max-width: 900px) {
-    .realtime-viewer-badge {
-        top: calc(env(safe-area-inset-top, 0px) + 68px);
-        left: 14px;
-        font-size: 0.75rem;
-    }
 }
 
 /* Sunlight (yellow) */

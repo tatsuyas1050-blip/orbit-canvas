@@ -37,18 +37,24 @@
 
     <div class="ui-layer">
 
-        <!-- ★ 追加：上部ジャイロ切替アイコン（スマホのみ表示：CSS側で制御） -->
-        <button id="gyro-icon-btn" style="margin-top:2px;" class="gyro-icon-btn off" aria-label="ジャイロ切替">
-            <!-- ※ このパスは運用側に合わせてください（例：assets/img/on_icon.png / off_icon.png） -->
-            <img id="gyro-icon-img" src="assets/img/off_icon.png" alt="gyro toggle">
-        </button>
-        
         <div id="screen-clock" class="pc-only-clock">----/--/-- --:--</div>
-        <button id="realtime-viewer-badge" class="realtime-viewer-badge">
-            <img src="/assets/img/live_icon.png" alt="LIVE" class="live-icon">
-            <span id="realtime-viewer-count">--</span>
-            <span class="rt-watching">人が観測中</span>
-        </button>
+
+        <!-- ボタン横1列 -->
+        <div id="btn-row">
+            <div class="live-btn-wrapper">
+                <button id="realtime-viewer-badge" class="realtime-viewer-badge">
+                    <img src="/assets/img/live_icon.png" alt="LIVE" class="live-icon">
+                    <span id="realtime-viewer-count">--</span>
+                    <span class="rt-watching">人が観測中</span>
+                </button>
+            </div>
+            <button id="gyro-icon-btn" class="gyro-icon-btn off" aria-label="ジャイロ切替">
+                <img id="gyro-icon-img" src="assets/img/off_icon.png" alt="gyro toggle">
+            </button>
+            <button id="mobile-panel-toggle-btn" aria-label="コントロールパネルを開閉">
+                <img src="assets/img/drop_down.png" alt="toggle panel">
+            </button>
+        </div>
 
         <div id="side-dock">
             <div class="dock-strip">
@@ -155,7 +161,7 @@
         </div>
 
         <div id="mobile-controls">
-            
+
             <div class="mobile-info-header">
                 <span id="mobile-clock-display" class="mobile-clock-value">----/--/-- --:--</span>
             </div>
@@ -171,12 +177,11 @@
             </div>
 
             <div class="mobile-time-quick-row" aria-label="時間クイック操作">
-                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-primary" id="btn-mobile-now" aria-label="現在時刻に戻す" title="現在時刻に戻す">現在</button>
-                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-primary" id="btn-mobile-tonight" aria-label="今夜21時に設定" title="今夜21時に設定">今夜21</button>
-                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-step" id="btn-mobile-prev-h" aria-label="1時間戻す" title="1時間戻す">-1H</button>
-                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-step" id="btn-mobile-next-h" aria-label="1時間進める" title="1時間進める">+1H</button>
-                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-step" id="btn-mobile-prev-d" aria-label="1日戻す" title="1日戻す">-1D</button>
-                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-step" id="btn-mobile-next-d" aria-label="1日進める" title="1日進める">+1D</button>
+                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-step" id="btn-mobile-prev-d" aria-label="1日戻す" title="1日戻す">-1日</button>
+                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-step" id="btn-mobile-prev-h" aria-label="1時間戻す" title="1時間戻す">-1時間</button>
+                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-primary" id="btn-mobile-tonight" aria-label="今夜21時に設定" title="今夜21時に設定">今夜21時</button>
+                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-step" id="btn-mobile-next-h" aria-label="1時間進める" title="1時間進める">+1時間</button>
+                <button class="mobile-btn-compact mobile-btn-quick mobile-btn-quick-step" id="btn-mobile-next-d" aria-label="1日進める" title="1日進める">+1日</button>
             </div>
             
             <div class="mobile-location-row-compact">
