@@ -249,27 +249,45 @@ input[type="range"]::-webkit-slider-thumb {
 .reticle-line.right { top: 50%; right: 0; width: 10px; height: 1px; transform: translateY(-50%); }
 
 /* Reticle Info Positioning */
-.reticle-info { 
-    position: absolute; top: 50%; transform: translateY(-50%); 
-    display: flex; align-items: center; gap: 10px; white-space: nowrap; 
+.reticle-info {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    display: flex; align-items: center; gap: 10px; white-space: nowrap;
     transition: all 0.1s ease;
 }
 
 /* 右側に表示（デフォルト） */
 .reticle-info.style-right {
-    left: 30px; right: auto; 
-    flex-direction: row; 
+    left: 30px; right: auto;
+    flex-direction: row;
     text-align: left;
 }
 
 /* 左側に表示（画面右端に星があるとき） */
 .reticle-info.style-left {
-    left: auto; right: 30px; 
-    flex-direction: row-reverse; 
+    left: auto; right: 30px;
+    flex-direction: row-reverse;
     text-align: right;
 }
 
-.reticle-name-text { font-size: 0.9rem; color: var(--text-white); text-shadow: 0 0 5px #000; font-weight: 500; }
+/* 天体名は画面上部中央に固定 */
+.reticle-name-text {
+    position: fixed;
+    top: 1.2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(5, 10, 20, 0.65);
+    padding: 4px 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    backdrop-filter: blur(6px);
+    z-index: 200;
+    white-space: nowrap;
+    pointer-events: none;
+    font-size: 0.9rem;
+    color: var(--text-white);
+    text-shadow: 0 0 5px #000;
+    font-weight: 500;
+}
 .btn-more { background: transparent; border: 1px solid var(--accent-gold); color: var(--accent-gold); font-size: 0.7rem; padding: 2px 8px; cursor: pointer; pointer-events: auto; opacity: 0.8; transition: all 0.2s; }
 .btn-more:hover { background: var(--accent-gold); color: var(--bg-dark); opacity: 1; }
 #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--accent-gold); font-size: 1.2rem; letter-spacing: 0.2em; text-align: center; }

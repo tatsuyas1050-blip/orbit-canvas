@@ -726,8 +726,8 @@ function injectCustomStyles() {
         #side-dock { z-index: 5000 !important; }
         @media (max-width: 900px) {
             #selected-star-name-display {
-                /* JS制御になるためCSSでの固定値は補助的なもの */
-                bottom: 200px; 
+                top: 1.2rem;
+                bottom: auto;
                 font-size: 1.0rem; padding: 10px 40px;
                 background: radial-gradient(ellipse at center, rgba(5, 10, 20, 0.95) 0%, rgba(5, 10, 20, 0.6) 30%, rgba(5, 10, 20, 0) 70%);
             }
@@ -900,6 +900,24 @@ function injectCustomStyles() {
         #meteor-hint.visible {
             opacity: 1;
             transform: translateY(0px);
+        }
+        #meteor-hint-exit {
+            pointer-events: auto;
+            display: block;
+            margin: 10px auto 0;
+            padding: 4px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.30);
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.80);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        #meteor-hint-exit:hover {
+            background: rgba(255,255,255,0.18);
         }
 
 
@@ -3805,17 +3823,15 @@ function updateLabelSizes() {
 // 天体名表示の位置をコントロールパネルの高さに合わせて調整する関数
 function updateStarNameLayout() {
     const display = document.getElementById('selected-star-name-display');
-    const controls = document.getElementById('mobile-controls');
-    
     if (!display) return;
 
-    // モバイル表示（幅900px以下）かつコントロールパネルが存在する場合
-    if (window.innerWidth <= 900 && controls) {
-        const panelHeight = controls.offsetHeight;
-        // パネルの高さ + 10px の位置に設定
-        display.style.bottom = (panelHeight + 10) + 'px';
+    // モバイル表示（幅900px以下）の場合は画面上部に固定
+    if (window.innerWidth <= 900) {
+        display.style.top = '1.2rem';
+        display.style.bottom = 'auto';
     } else {
         // PCの場合は元の位置（70px）に戻す
+        display.style.top = '';
         display.style.bottom = '70px';
     }
 }
@@ -5263,7 +5279,11 @@ function initMeteorUi() {
     // ヒント
     const hint = document.createElement('div');
     hint.id = 'meteor-hint';
-    hint.innerHTML = `<div id="meteor-hint-text"></div>`;
+    hint.innerHTML = `<div id="meteor-hint-text"></div><button id="meteor-hint-exit" type="button">終了</button>`;
+    hint.querySelector('#meteor-hint-exit').addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetMeteorSelection(true);
+    });
 
 
 
