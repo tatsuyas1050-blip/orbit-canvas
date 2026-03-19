@@ -3444,7 +3444,7 @@ function createMilkyWay() {
 
     const loader = new THREE.TextureLoader();
     // ユーザー指定のパスから画像をロード
-    const texture = loader.load('assets/img/equirectangular.jpg');
+    const texture = loader.load('assets/img/equirectangular.png');
     
     // 星(500)より遠く、空(900)より手前
     const geometry = new THREE.SphereGeometry(850, 64, 64); 
