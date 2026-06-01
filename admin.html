@@ -1220,14 +1220,37 @@
 
             try {
                 const todayStr = new Date().toISOString().slice(0, 10);
-                const prompt = `以下のテキストから天文・宇宙イベント情報を抽出し、JSONの配列として返してください。
 
+                // 既存データから最新4件をfew-shot例として抽出
+                const skyExamples = [];
+                Object.keys(allData || {}).sort().reverse().forEach(dateKey => {
+                    (allData[dateKey] || [])
+                        .filter(e => (!e.category || e.category === 'sky_event') && e.title && e.desc)
+                        .forEach(e => {
+                            if (skyExamples.length < 4) {
+                                skyExamples.push({
+                                    date: dateKey,
+                                    title: e.title,
+                                    type: e.type || 'other',
+                                    time: e.time || '',
+                                    desc: e.desc
+                                });
+                            }
+                        });
+                });
+
+                const examplesSection = skyExamples.length > 0
+                    ? `\n【登録済みデータの例 — タイトルの書き方・説明文のトーン・文字数・時間の表記をこれに完全に合わせること】\n${JSON.stringify(skyExamples, null, 2)}\n`
+                    : '';
+
+                const prompt = `以下のテキストから天文・宇宙イベント情報を抽出し、JSONの配列として返してください。
+${examplesSection}
 各イベントのフィールド:
 - "date": "YYYY-MM-DD"形式。年が書かれていない場合は最も近い未来の日付で補完。今日は${todayStr}。
-- "title": 簡潔なタイトル（例:「しぶんぎ座流星群 極大」）
+- "title": 簡潔なタイトル（登録済みデータの例に倣った表記で）
 - "type": 次のいずれか → "meteor"(流星群)/"eclipse"(月食・日食・月の特別イベント)/"phenomenon"(惑星現象・接近・合など)/"rocket"(ロケット打上)/"other"(その他)
-- "time": 時間文字列（例:"22:00頃"、"深夜"）。不明なら""
-- "desc": 詳細説明（200字程度、テキストから抜粋・整理）
+- "time": 時間文字列（登録済みデータと同じ形式で。不明なら""）
+- "desc": 詳細説明（登録済みデータと同じトーン・文字数で）
 
 JSONの配列のみ返してください。コードブロック・マークダウン不要。
 
