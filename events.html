@@ -1079,7 +1079,7 @@
             const filtered = {};
             Object.keys(raw || {}).forEach(dateKey => {
                 const arr = Array.isArray(raw[dateKey]) ? raw[dateKey] : [];
-                const skyOnly = arr.filter(evt => evt.category === 'sky_event');
+                const skyOnly = arr.filter(evt => !evt.category || evt.category === 'sky_event');
                 if (skyOnly.length > 0) filtered[dateKey] = skyOnly;
             });
             eventsData = filtered;
