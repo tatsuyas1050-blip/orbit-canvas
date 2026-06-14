@@ -72,14 +72,14 @@ function recentTitles(allData, cat, n = 5) {
   return items.slice(0, n).map((i) => i.title);
 }
 
-function buildMessage({ astroAdded, devlogAdded, freshness, stalest, ideas }) {
+function buildMessage({ devlogAdded, freshness, stalest, ideas }) {
   const lines = [];
   lines.push('🌌 今週の orbit-canvas 運用');
   lines.push('');
-  lines.push('📥 自動下書きを追加しました');
-  lines.push(`・天文現象: ${astroAdded}件`);
-  lines.push(`・開発日誌: ${devlogAdded}件`);
-  lines.push('');
+  if (devlogAdded > 0) {
+    lines.push('📥 開発日誌の下書きを追加しました（管理画面で確認・公開を）');
+    lines.push('');
+  }
 
   // 今週の一手 + ネタ提案
   if (stalest) {
@@ -113,30 +113,11 @@ export const handler = async () => {
   const log = [];
   const allData = await fetchAllData();
 
-  // --- 1) 天文現象の下書き投入（重複はスキップ） ---
+  // --- 1) 今後の天文現象を計算（※カレンダーへの自動投入はしない／手動AIインポートで運用）---
+  //   ここで得た現象は「ネタ提案」のタイムリーな種としてのみ使う。
   const now = new Date();
   const end = new Date(now.getTime() + WEEKS_AHEAD * 7 * DAY);
   const astro = computeAstroEvents(now, end);
-  let astroAdded = 0;
-  for (const ev of astro) {
-    const existing = allData[ev.date] || [];
-    const dup = existing.some(
-      (it) => (it.category || 'sky_event') === 'sky_event' && it.title === ev.title,
-    );
-    if (dup) continue;
-    try {
-      await addDraft(ev.date, {
-        title: ev.title,
-        type: ev.type,
-        time: ev.time,
-        desc: ev.desc,
-        category: 'sky_event',
-      });
-      astroAdded++;
-    } catch (e) {
-      log.push(`astro add失敗(${ev.date} ${ev.title}): ${e.message}`);
-    }
-  }
 
   // --- 2) 開発日誌のAI下書き ---
   let devlogAdded = 0;
@@ -182,12 +163,12 @@ export const handler = async () => {
   }
 
   try {
-    await sendLine(buildMessage({ astroAdded, devlogAdded, freshness, stalest, ideas }));
+    await sendLine(buildMessage({ devlogAdded, freshness, stalest, ideas }));
   } catch (e) {
     log.push(`LINE通知失敗: ${e.message}`);
   }
 
-  const result = { ok: true, astroAdded, devlogAdded, log };
+  const result = { ok: true, devlogAdded, log };
   console.log(JSON.stringify(result));
   return result;
 };
