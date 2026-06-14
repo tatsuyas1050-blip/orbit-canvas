@@ -615,21 +615,25 @@
 
             const daysAgo = (cat) => lastByCat[cat] === undefined ? null : Math.floor((now - lastByCat[cat]) / DAY);
 
-            // --- 今週の一手 ---
-            const humanCats = COCKPIT_CATS.filter(c => c.human);
-            let stalest = null;
-            humanCats.forEach(c => {
-                const last = lastByCat[c.key] === undefined ? 0 : lastByCat[c.key];
-                if (stalest === null || last < (lastByCat[stalest.key] === undefined ? 0 : lastByCat[stalest.key])) stalest = c;
-            });
+            // --- 今週の一手（週に WEEKLY_TARGET 本：放置が長い創作タブから選ぶ）---
+            const WEEKLY_TARGET = 2;
+            const picks = COCKPIT_CATS.filter(c => c.human).slice().sort((a, b) => {
+                const av = lastByCat[a.key] === undefined ? 0 : lastByCat[a.key]; // 未投稿(0=最古扱い)を最優先
+                const bv = lastByCat[b.key] === undefined ? 0 : lastByCat[b.key];
+                return av - bv;
+            }).slice(0, WEEKLY_TARGET);
 
             let actionHtml = '';
             if (drafts.length > 0) {
                 actionHtml += `<div style="background:rgba(80,160,255,0.12); border:1px solid rgba(80,160,255,0.4); border-radius:8px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">📥 確認待ちの下書きが <b>${drafts.length}</b> 件あります。まず公開判断を。</div>`;
             }
-            if (stalest) {
-                const d = daysAgo(stalest.key);
-                actionHtml += `<div>✍️ <b>今週の一手：${stalest.label}</b> を1本更新しましょう（${d === null ? 'まだ未投稿' : d + '日前が最終更新'}）。</div>`;
+            if (picks.length) {
+                actionHtml += `<div>✍️ <b>今週の${picks.length}本：</b></div>`;
+                picks.forEach(c => {
+                    const d = daysAgo(c.key);
+                    actionHtml += `<div style="margin-left:1rem;">・<b>${c.label}</b>（${d === null ? 'まだ未投稿' : d + '日前が最終更新'}）</div>`;
+                });
+                actionHtml += `<div style="margin-top:0.3rem; font-size:0.9rem; opacity:0.8;">下の「💡 今週のネタを提案」でネタ出しできます。</div>`;
             }
             document.getElementById('cockpit-action').innerHTML = actionHtml || '✅ いまは特に対応待ちはありません。';
 

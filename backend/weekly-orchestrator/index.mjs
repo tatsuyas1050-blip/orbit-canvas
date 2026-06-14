@@ -10,6 +10,7 @@ import { sendLine } from './line.mjs';
 
 const WEEKS_AHEAD = Number(process.env.WEEKS_AHEAD || 8);
 const ADMIN_URL = process.env.ADMIN_URL || '';
+const WEEKLY_PICKS = Number(process.env.WEEKLY_PICKS || 2); // 週に提案する本数
 
 // 鮮度監視の対象カテゴリ（admin の週次コックピットと対応）
 const CATS = [
@@ -47,15 +48,15 @@ function computeFreshness(allData) {
   });
 }
 
-// 人が作るタブで一番放置されているものを返す
-function pickStalest(freshness) {
+// 人が作るタブを「放置が長い順」に並べ、上位 n 件を返す（週に複数本提案するため）
+function pickStalestTabs(freshness, n) {
   const human = freshness.filter((f) => f.human);
   human.sort((a, b) => {
     const av = a.days === null ? Infinity : a.days;
     const bv = b.days === null ? Infinity : b.days;
     return bv - av; // 放置日数が大きい順
   });
-  return human[0] || null;
+  return human.slice(0, n);
 }
 
 // 最近の同カテゴリ投稿タイトル（重複回避用）
@@ -72,7 +73,7 @@ function recentTitles(allData, cat, n = 5) {
   return items.slice(0, n).map((i) => i.title);
 }
 
-function buildMessage({ devlogAdded, freshness, stalest, ideas }) {
+function buildMessage({ devlogAdded, freshness, suggestions }) {
   const lines = [];
   lines.push('🌌 今週の orbit-canvas 運用');
   lines.push('');
@@ -81,17 +82,17 @@ function buildMessage({ devlogAdded, freshness, stalest, ideas }) {
     lines.push('');
   }
 
-  // 今週の一手 + ネタ提案
-  if (stalest) {
-    const since = stalest.days === null ? 'まだ未投稿' : `${stalest.days}日前が最終更新`;
-    lines.push(`✍️ 今週の一手: 「${stalest.label}」を1本（${since}）`);
-    if (ideas && ideas.length) {
-      lines.push('💡 ネタ案:');
-      ideas.slice(0, 3).forEach((idea) => {
+  // 今週の一手（複数本）+ それぞれのネタ提案
+  if (suggestions && suggestions.length) {
+    lines.push(`✍️ 今週の${suggestions.length}本:`);
+    suggestions.forEach((s, i) => {
+      const since = s.tab.days === null ? 'まだ未投稿' : `${s.tab.days}日前が最終更新`;
+      lines.push(`${i + 1}. 「${s.tab.label}」（${since}）`);
+      (s.ideas || []).slice(0, 2).forEach((idea) => {
         const angle = idea.angle ? ` — ${idea.angle}` : '';
-        lines.push(`・${idea.title}${angle}`);
+        lines.push(`　・${idea.title}${angle}`);
       });
-    }
+    });
     lines.push('');
   }
 
@@ -148,22 +149,24 @@ export const handler = async () => {
     log.push(`鮮度用の再取得失敗: ${e.message}`);
   }
   const freshness = computeFreshness(dataForFreshness);
-  const stalest = pickStalest(freshness);
+  const picks = pickStalestTabs(freshness, WEEKLY_PICKS);
 
-  // 「今週の一手」タブのネタをAIで提案（直近の天文現象を種に）
-  let ideas = [];
-  if (stalest) {
+  // 「今週の◯本」各タブのネタをAIで提案（直近の天文現象を種に）
+  const upcoming = astro.slice(0, 10).map((e) => ({ date: e.date, title: e.title }));
+  const suggestions = [];
+  for (const tab of picks) {
+    let ideas = [];
     try {
-      const recent = recentTitles(dataForFreshness, stalest.key);
-      const upcoming = astro.slice(0, 10).map((e) => ({ date: e.date, title: e.title }));
-      ideas = await proposeIdeasForTab({ tabLabel: stalest.label, upcoming, recent });
+      const recent = recentTitles(dataForFreshness, tab.key);
+      ideas = await proposeIdeasForTab({ tabLabel: tab.label, upcoming, recent });
     } catch (e) {
-      log.push(`ネタ提案失敗: ${e.message}`);
+      log.push(`ネタ提案失敗(${tab.label}): ${e.message}`);
     }
+    suggestions.push({ tab, ideas });
   }
 
   try {
-    await sendLine(buildMessage({ devlogAdded, freshness, stalest, ideas }));
+    await sendLine(buildMessage({ devlogAdded, freshness, suggestions }));
   } catch (e) {
     log.push(`LINE通知失敗: ${e.message}`);
   }
