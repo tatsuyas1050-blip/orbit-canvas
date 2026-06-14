@@ -653,7 +653,7 @@
                                 <div class="content-title">${aiEscHtml(item.title || '(無題)')}</div>
                             </div>
                             <button class="btn-submit" style="width:auto; padding:5px 12px; background:#4CAF50;" onclick='publishDraft("${aiEscAttr(item.date)}", "${aiEscAttr(String(item.id || ''))}")'>公開</button>
-                            <button class="btn-submit" style="width:auto; padding:5px 12px;" onclick='editDraft(${JSON.stringify(item).replace(/'/g, "&#39;")})'>編集</button>
+                            <button class="btn-submit" style="width:auto; padding:5px 12px;" onclick='editDraft("${aiEscAttr(item.date)}", "${aiEscAttr(String(item.id || ''))}")'>編集</button>
                             <button class="btn-delete" onclick='deleteContent("${aiEscAttr(item.date)}", "${aiEscAttr(String(item.id || ''))}")'>削除</button>
                         </div>`;
                 }).join('');
@@ -702,16 +702,21 @@
         };
 
         // 下書きを「編集」：該当フォームに読み込む（保存すると status='published' になり公開される）
-        window.editDraft = (item) => {
+        // 下書きを「編集」：date+id で本体を引き当て、該当フォームに読み込む
+        // （中身を onclick に埋め込むと本文の引用符・改行でJSが壊れるため、IDで参照する）
+        window.editDraft = (dateStr, id) => {
+            const arr = allData[dateStr] || [];
+            const item = arr.find(x => String(x.id) === String(id));
+            if (!item) { alert('対象の下書きが見つかりません'); return; }
             const cat = item.category || 'sky_event';
             if (cat === 'sky_event') {
                 switchMainTab('events');
-                selectDate(item.date);
+                selectDate(dateStr);
                 loadEventToForm(item);
             } else {
                 switchMainTab('theater');
                 switchTheaterSub(cat);
-                loadTheaterToForm(item);
+                loadTheaterToForm({ ...item, date: dateStr });
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
