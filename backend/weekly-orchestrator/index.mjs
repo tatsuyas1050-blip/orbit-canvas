@@ -120,12 +120,30 @@ export const handler = async () => {
   const end = new Date(now.getTime() + WEEKS_AHEAD * 7 * DAY);
   const astro = computeAstroEvents(now, end);
 
-  // --- 2) 開発日誌のAI下書き ---
+  // --- 2) 開発日誌のAI下書き（連番＋既存スタイルに揃える）---
   let devlogAdded = 0;
   try {
     const commits = await fetchRecentCommits();
     if (commits.length > 0) {
-      const draft = await draftDevlog(commits);
+      // 既存の開発日誌から「次の番号」と「文体の手本(直近3件)」を用意
+      const devlogs = [];
+      Object.keys(allData).forEach((date) => {
+        (allData[date] || []).forEach((it) => {
+          if (it.category === 'devlog') devlogs.push({ date, title: it.title || '', body: it.desc || '' });
+        });
+      });
+      let maxNum = 0;
+      devlogs.forEach((d) => {
+        const m = d.title.match(/#\s*(\d+)/);
+        if (m) maxNum = Math.max(maxNum, Number(m[1]));
+      });
+      const nextNum = maxNum + 1;
+      const examples = devlogs
+        .filter((d) => /#\s*\d+/.test(d.title))
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(-3);
+
+      const draft = await draftDevlog(commits, { nextNum, examples });
       await addDraft(toJstDateStr(now), {
         title: draft.title,
         desc: draft.body,
