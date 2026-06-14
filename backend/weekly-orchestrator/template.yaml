@@ -53,7 +53,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: orbit-canvas-weekly-orchestrator
-      Runtime: nodejs20.x
+      Runtime: nodejs24.x
       Handler: index.handler
       CodeUri: ./
       Timeout: 120

@@ -1,7 +1,12 @@
 // 天文現象を計算で生成する。星空情報局(events.html)の「手入力ゼロ化」の中核。
 // 計算で確定できる現象（新月・満月・二至二分・主要流星群）を対象にする。
 // すべて日本時間(JST = UTC+9)の日付キー(YYYY-MM-DD)で返す。
-import * as Astronomy from 'astronomy-engine';
+//
+// astronomy-engine は ESM入口(esm/astronomy.js)が "type":"module" 指定なしのため
+// Lambda(node)がCJSとして誤読し構文エラーになる。確実に動くCommonJS版を読み込む。
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const Astronomy = require('astronomy-engine');
 
 // 主要流星群の年間ピーク日（JSTの日付。年によって±1日ずれるが、下書きとして十分）
 const METEOR_SHOWERS = [
