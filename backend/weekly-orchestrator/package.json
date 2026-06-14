@@ -1,0 +1,11 @@
+{
+  "name": "orbit-canvas-weekly-orchestrator",
+  "version": "1.0.0",
+  "description": "星空アプリ orbit-canvas の週次自動化Lambda（天文現象の自動生成・開発日誌のAI下書き・LINEリマインド）",
+  "type": "module",
+  "main": "index.mjs",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
+    "astronomy-engine": "^2.1.19"
+  }
+}

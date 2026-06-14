@@ -1079,7 +1079,8 @@
             const filtered = {};
             Object.keys(raw || {}).forEach(dateKey => {
                 const arr = Array.isArray(raw[dateKey]) ? raw[dateKey] : [];
-                const skyOnly = arr.filter(evt => !evt.category || evt.category === 'sky_event');
+                // status==='draft' は承認前の下書きなので公開ページでは隠す（status未設定は従来通り表示）
+                const skyOnly = arr.filter(evt => (!evt.category || evt.category === 'sky_event') && evt.status !== 'draft');
                 if (skyOnly.length > 0) filtered[dateKey] = skyOnly;
             });
             eventsData = filtered;

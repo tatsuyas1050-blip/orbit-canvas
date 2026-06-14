@@ -193,6 +193,20 @@
     </header>
 
     <div class="container">
+        <!-- 週次コックピット：開いた瞬間に「今週の一手」「下書き確認」「鮮度」が分かる -->
+        <section id="cockpit" class="panel-box" style="margin-bottom:1.5rem; border:1px solid rgba(212,175,55,0.4); background:rgba(212,175,55,0.04);">
+            <h2 class="section-header" style="color:var(--accent-gold); margin-top:0;">🗓 週次コックピット</h2>
+            <div id="cockpit-action" style="font-size:1rem; line-height:1.9;">読み込み中...</div>
+            <div id="cockpit-propose-bar" style="margin-top:0.6rem;">
+                <button class="btn-submit" id="btn-propose" style="width:auto; padding:6px 14px;" onclick="proposeIdeas()">💡 今週のネタを提案</button>
+                <span id="propose-status" style="margin-left:0.6rem; color:var(--accent-gold); font-size:0.9rem;"></span>
+            </div>
+            <div id="cockpit-ideas" style="margin-top:0.6rem;"></div>
+            <div id="cockpit-drafts" style="margin-top:1rem;"></div>
+            <h3 class="section-header" style="margin-top:1.5rem;">📊 コンテンツ鮮度</h3>
+            <div id="cockpit-freshness"></div>
+        </section>
+
         <nav class="admin-nav">
             <button class="nav-btn active" onclick="switchMainTab('events')">📅 星空イベント</button>
             <button class="nav-btn" onclick="switchMainTab('theater')">📻 ソノッキーの部屋</button>
@@ -550,11 +564,282 @@
                 const res = await fetch(GET_URL);
                 if(!res.ok) throw new Error("Fetch failed");
                 allData = await res.json();
+                renderCockpit();
             } catch (e) {
                 console.error(e);
                 alert("データの読み込みに失敗しました。");
             }
         }
+
+        // =========================
+        // 週次コックピット
+        //   - 今週の一手（一番放置されている創作タブを提案）
+        //   - 下書き受信箱（status==='draft' を確認 → 公開/編集/削除）
+        //   - コンテンツ鮮度（カテゴリごとの最終更新と 🟢🟡🔴）
+        // =========================
+        const COCKPIT_CATS = [
+            { key:'column',    label:'星空コラム',   target:21, human:true },
+            { key:'gallery',   label:'ギャラリー',   target:30, human:true },
+            { key:'radio',     label:'ヨゾラジ',     target:30, human:true },
+            { key:'devlog',    label:'開発日誌',     target:14, human:false },
+            { key:'sky_event', label:'星空イベント', target:30, human:false },
+        ];
+
+        function freshnessOf(days, target) {
+            if (days === null) return { dot:'🔴', text:'未投稿' };
+            if (days < 0) return { dot:'🟢', text:'先の予定あり' };  // 未来日付（イベントが仕込み済み）
+            if (days < target) return { dot:'🟢', text:`${days}日前` };
+            if (days < target * 2) return { dot:'🟡', text:`${days}日前` };
+            return { dot:'🔴', text:`${days}日前` };
+        }
+
+        function renderCockpit() {
+            const root = document.getElementById('cockpit');
+            if (!root || !allData) return;
+
+            const now = Date.now();
+            const DAY = 86400000;
+
+            // 各カテゴリの最終更新（updatedAt 優先、無ければ日付キー）と下書き収集
+            const lastByCat = {};
+            const drafts = [];
+            Object.keys(allData).forEach(date => {
+                (allData[date] || []).forEach(item => {
+                    const cat = item.category || 'sky_event';
+                    const t = item.updatedAt ? Date.parse(item.updatedAt) : Date.parse(date);
+                    if (!isNaN(t) && (lastByCat[cat] === undefined || t > lastByCat[cat])) lastByCat[cat] = t;
+                    if (item.status === 'draft') drafts.push({ ...item, date });
+                });
+            });
+            drafts.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const daysAgo = (cat) => lastByCat[cat] === undefined ? null : Math.floor((now - lastByCat[cat]) / DAY);
+
+            // --- 今週の一手 ---
+            const humanCats = COCKPIT_CATS.filter(c => c.human);
+            let stalest = null;
+            humanCats.forEach(c => {
+                const last = lastByCat[c.key] === undefined ? 0 : lastByCat[c.key];
+                if (stalest === null || last < (lastByCat[stalest.key] === undefined ? 0 : lastByCat[stalest.key])) stalest = c;
+            });
+
+            let actionHtml = '';
+            if (drafts.length > 0) {
+                actionHtml += `<div style="background:rgba(80,160,255,0.12); border:1px solid rgba(80,160,255,0.4); border-radius:8px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">📥 確認待ちの下書きが <b>${drafts.length}</b> 件あります。まず公開判断を。</div>`;
+            }
+            if (stalest) {
+                const d = daysAgo(stalest.key);
+                actionHtml += `<div>✍️ <b>今週の一手：${stalest.label}</b> を1本更新しましょう（${d === null ? 'まだ未投稿' : d + '日前が最終更新'}）。</div>`;
+            }
+            document.getElementById('cockpit-action').innerHTML = actionHtml || '✅ いまは特に対応待ちはありません。';
+
+            // --- 下書き受信箱 ---
+            const draftsEl = document.getElementById('cockpit-drafts');
+            if (drafts.length === 0) {
+                draftsEl.innerHTML = '';
+            } else {
+                const labelMap = Object.fromEntries(COCKPIT_CATS.map(c => [c.key, c.label]));
+                let rows = drafts.map(item => {
+                    const cat = item.category || 'sky_event';
+                    const catLabel = labelMap[cat] || cat;
+                    return `
+                        <div class="content-item" style="border-left:3px solid rgba(80,160,255,0.7);">
+                            <div class="content-details">
+                                <div class="content-date">📥 下書き ・ ${aiEscHtml(catLabel)} ・ ${aiEscHtml(item.date)}</div>
+                                <div class="content-title">${aiEscHtml(item.title || '(無題)')}</div>
+                            </div>
+                            <button class="btn-submit" style="width:auto; padding:5px 12px; background:#4CAF50;" onclick='publishDraft("${aiEscAttr(item.date)}", "${aiEscAttr(String(item.id || ''))}")'>公開</button>
+                            <button class="btn-submit" style="width:auto; padding:5px 12px;" onclick='editDraft(${JSON.stringify(item).replace(/'/g, "&#39;")})'>編集</button>
+                            <button class="btn-delete" onclick='deleteContent("${aiEscAttr(item.date)}", "${aiEscAttr(String(item.id || ''))}")'>削除</button>
+                        </div>`;
+                }).join('');
+                draftsEl.innerHTML = `<h3 class="section-header" style="margin-top:0;">📥 下書き受信箱 (${drafts.length})</h3><div class="content-list-container">${rows}</div>`;
+            }
+
+            // --- 鮮度ダッシュボード ---
+            const freshEl = document.getElementById('cockpit-freshness');
+            freshEl.innerHTML = COCKPIT_CATS.map(c => {
+                const d = daysAgo(c.key);
+                const f = freshnessOf(d, c.target);
+                return `<div style="display:flex; align-items:center; gap:0.6rem; padding:0.35rem 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <span style="font-size:1.1rem;">${f.dot}</span>
+                    <span style="flex:1;">${c.label}</span>
+                    <span style="opacity:0.7; font-size:0.9rem;">${f.text}</span>
+                </div>`;
+            }).join('');
+        }
+
+        // 下書きを「公開」：フォームを通さず元オブジェクトを丸ごと昇格（comments/contentId 等を保持）
+        window.publishDraft = async (dateStr, id) => {
+            const pass = globalPass.value;
+            if(!pass) { alert("パスワードを入力してください"); return; }
+            const arr = allData[dateStr] || [];
+            const item = arr.find(x => String(x.id) === String(id));
+            if(!item) { alert("対象の下書きが見つかりません"); return; }
+            if(!confirm(`「${item.title || '(無題)'}」を公開しますか？`)) return;
+            const updated = { ...item, status: 'published', updatedAt: new Date().toISOString() };
+            try {
+                const res = await fetch(PUT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pass, date: dateStr, action: 'edit', eventData: updated })
+                });
+                if(res.ok) {
+                    statusMsg.textContent = "✅ 公開しました";
+                    await fetchData();
+                    renderCalendar(currentYear, currentMonth);
+                    selectDate(selectedDateStr);
+                    renderTheaterList();
+                } else {
+                    const r = await res.json().catch(() => ({}));
+                    alert("公開に失敗しました: " + (r.message || res.status));
+                }
+            } catch(e) { alert("通信エラー: " + e.message); }
+        };
+
+        // 下書きを「編集」：該当フォームに読み込む（保存すると status='published' になり公開される）
+        window.editDraft = (item) => {
+            const cat = item.category || 'sky_event';
+            if (cat === 'sky_event') {
+                switchMainTab('events');
+                selectDate(item.date);
+                loadEventToForm(item);
+            } else {
+                switchMainTab('theater');
+                switchTheaterSub(cat);
+                loadTheaterToForm(item);
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        // =========================
+        // ネタ提案（AI）: 期限管理だけでなく「何を書くか」まで提案する。
+        //   直近の天文現象（allData内の今後のsky_event）と最近の投稿を踏まえ、
+        //   星空コラム/ギャラリー/ヨゾラジ のネタを Claude が2〜3案ずつ生成する。
+        //   APIキーは AI一括インポートと同じ localStorage を再利用。
+        // =========================
+        const IDEA_CATS = [
+            { key: 'column',  label: '📰 星空コラム', desc: '星空や天文の読み物・エッセイ' },
+            { key: 'gallery', label: '📷 ギャラリー', desc: '星空・天体写真' },
+            { key: 'radio',   label: '📻 ヨゾラジ',   desc: '音声番組（ラジオ）のテーマ' },
+        ];
+
+        // 今後の天文現象（タイムリーなネタの種）
+        function upcomingSkyEvents(weeks = 5) {
+            const now = new Date();
+            const end = new Date(now.getTime() + weeks * 7 * 86400000);
+            const out = [];
+            Object.keys(allData || {}).forEach((date) => {
+                const d = new Date(`${date}T12:00:00+09:00`);
+                if (isNaN(d) || d < now || d > end) return;
+                (allData[date] || []).forEach((it) => {
+                    if ((it.category || 'sky_event') === 'sky_event') out.push({ date, title: it.title });
+                });
+            });
+            out.sort((a, b) => new Date(a.date) - new Date(b.date));
+            return out;
+        }
+
+        // 最近投稿済みのタイトル（重複回避用）
+        function recentTitles(cat, n = 5) {
+            const items = [];
+            Object.keys(allData || {}).forEach((date) => {
+                (allData[date] || []).forEach((it) => {
+                    if ((it.category || 'sky_event') === cat && it.status !== 'draft') items.push({ date, title: it.title });
+                });
+            });
+            items.sort((a, b) => new Date(b.date) - new Date(a.date));
+            return items.slice(0, n).map((i) => i.title);
+        }
+
+        function renderIdeas(obj) {
+            const labelMap = Object.fromEntries(IDEA_CATS.map((c) => [c.key, c.label]));
+            let html = '';
+            IDEA_CATS.forEach((c) => {
+                const arr = Array.isArray(obj[c.key]) ? obj[c.key] : [];
+                if (!arr.length) return;
+                html += `<div style="margin-top:0.8rem;"><div style="color:var(--accent-gold); font-weight:bold; margin-bottom:0.3rem;">${labelMap[c.key]}</div>`;
+                arr.forEach((idea) => {
+                    html += `<div style="padding:0.4rem 0.6rem; border-left:3px solid rgba(212,175,55,0.5); margin-bottom:0.4rem; background:rgba(255,255,255,0.03);">
+                        <div style="font-weight:bold;">${aiEscHtml(idea.title || '')}</div>
+                        <div style="font-size:0.85rem; opacity:0.8;">${aiEscHtml(idea.angle || '')}</div>
+                    </div>`;
+                });
+                html += `</div>`;
+            });
+            document.getElementById('cockpit-ideas').innerHTML = html || '<p style="opacity:0.6;">提案が得られませんでした。</p>';
+        }
+
+        window.proposeIdeas = async function () {
+            const apiKey = ((document.getElementById('ai-api-key') || {}).value || '').trim()
+                || localStorage.getItem(AI_API_KEY_STORAGE) || '';
+            const statusEl = document.getElementById('propose-status');
+            if (!apiKey) {
+                alert('先に「🤖 AI一括インポート」タブで Claude API Key を保存してください');
+                return;
+            }
+            const btn = document.getElementById('btn-propose');
+            btn.disabled = true;
+            statusEl.textContent = '提案を生成中...';
+            try {
+                const upcoming = upcomingSkyEvents(5);
+                const upcomingTxt = upcoming.length
+                    ? upcoming.map((e) => `- ${e.date} ${e.title}`).join('\n')
+                    : '（特になし）';
+                const recentTxt = IDEA_CATS
+                    .map((c) => `${c.label}: ${recentTitles(c.key).join(' / ') || '（なし）'}`)
+                    .join('\n');
+
+                const prompt = `あなたは星空アプリ「orbit-canvas」の運営アシスタントです。開発者「ソノッキー」が「ソノッキーの部屋」に投稿するコンテンツのネタを提案してください。
+
+# 各タブ
+- column（星空コラム）: 星空や天文の読み物・エッセイ
+- gallery（ギャラリー）: 星空・天体写真
+- radio（ヨゾラジ）: 音声番組（ラジオ）のテーマ
+
+# 今後の天文現象（タイムリーなネタの種に使う）
+${upcomingTxt}
+
+# 最近投稿済みのタイトル（重複を避ける）
+${recentTxt}
+
+# 指示
+- 各タブ2〜3案ずつ
+- 直近の天文現象や季節を絡め、今すぐ書ける/撮れる/話せる具体的なネタにする
+- 過去タイトルと重複しない
+- angle は20〜40字で「どんな切り口か」を一言
+- 出力はJSONのみ（前後に説明文を付けない）: {"column":[{"title":"","angle":""}],"gallery":[{"title":"","angle":""}],"radio":[{"title":"","angle":""}]}`;
+
+                const res = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-6',
+                        max_tokens: 1500,
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+                if (!res.ok) {
+                    const e = await res.json().catch(() => ({}));
+                    throw new Error(e.error?.message || `APIエラー (${res.status})`);
+                }
+                const data = await res.json();
+                let content = (data.content[0].text || '').trim()
+                    .replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+                renderIdeas(JSON.parse(content));
+                statusEl.textContent = '✅ 提案を更新しました';
+            } catch (e) {
+                statusEl.textContent = '⛔ ' + e.message;
+                console.error(e);
+            } finally {
+                btn.disabled = false;
+            }
+        };
 
         // --- Tab Switching Logic ---
         window.switchMainTab = (tabName) => {
@@ -969,7 +1254,9 @@
                 time: document.getElementById('event-time').value,
                 desc: document.getElementById('event-desc').value,
                 image: imgUrl,
-                category: 'sky_event'
+                category: 'sky_event',
+                status: 'published',           // 管理画面からの保存は「公開」扱い
+                updatedAt: new Date().toISOString()  // 鮮度監視用のタイムスタンプ
             };
             saveData(document.getElementById('event-date').value, data, 'btn-save-event');
         });
@@ -996,8 +1283,10 @@
                 id: document.getElementById('theater-id').value,
                 title: document.getElementById('theater-title').value,
                 desc: document.getElementById('theater-desc').value,
-                image: fileUrl, 
-                category: cat
+                image: fileUrl,
+                category: cat,
+                status: 'published',           // 管理画面からの保存は「公開」扱い
+                updatedAt: new Date().toISOString()  // 鮮度監視用のタイムスタンプ
             };
             saveData(document.getElementById('theater-date').value, data, 'btn-save-theater');
         });
@@ -1470,7 +1759,9 @@ ${rawText}`;
                                 time:  item.time,
                                 desc:  item.desc,
                                 image: imgUrl,
-                                category: 'sky_event'
+                                category: 'sky_event',
+                                status: 'published',           // Step2で人が確認済みのため公開扱い
+                                updatedAt: new Date().toISOString()
                             }
                         })
                     });

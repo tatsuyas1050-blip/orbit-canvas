@@ -3575,7 +3575,8 @@ function initEclipseCenterSwitchUI() {
                     const arr = allData[date] || [];
                     for (let i = arr.length - 1; i >= 0; i--) {
                         const item = arr[i];
-                        if (item.category && targets.includes(item.category)) {
+                        // status==='draft' は承認前の下書きなので公開ページでは隠す（status未設定は従来通り表示）
+                        if (item.category && targets.includes(item.category) && item.status !== 'draft') {
                             items.push({ ...item, date: date });
                         }
                     }
@@ -3697,7 +3698,7 @@ function initEclipseCenterSwitchUI() {
                     const arr = allData[date] || [];
                     for (let i = arr.length - 1; i >= 0; i--) {
                         const item = arr[i];
-                        if (!item.category || !targets.includes(item.category)) continue;
+                        if (!item.category || !targets.includes(item.category) || item.status === 'draft') continue;
 
                         const cid = item.contentId || `${item.category}_${date}`;
                         if (cid === contentId) {

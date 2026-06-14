@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  orbit-canvas 週次オーケストレーター。
+  EventBridge(週1) → Lambda が「天文現象の自動下書き / 開発日誌のAI下書き / LINEリマインド」を実行する。
+
+Parameters:
+  GetUrl:
+    Type: String
+    Description: イベント/コンテンツ取得用 Lambda URL（admin の GET_URL と同じ）
+  PutUrl:
+    Type: String
+    Description: 書き込み用 Lambda URL（admin の PUT_URL と同じ）
+  PutPassword:
+    Type: String
+    NoEcho: true
+    Description: 書き込みAPIの合言葉（admin で使うパスワード）
+  AnthropicApiKey:
+    Type: String
+    NoEcho: true
+    Description: Claude APIキー（開発日誌の下書き生成用）
+  GithubRepo:
+    Type: String
+    Description: 'owner/repo 形式（例: tatsuyas1050-blip/orbit-canvas）'
+  GithubToken:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: GitHub Personal Access Token（パブリックなら空でも可。空だとレート制限が低い）
+  LineChannelAccessToken:
+    Type: String
+    NoEcho: true
+    Description: LINE Messaging API のチャネルアクセストークン
+  LineUserId:
+    Type: String
+    Description: 通知先（自分）のLINEユーザーID
+  AdminUrl:
+    Type: String
+    Default: ''
+    Description: 管理画面のURL（LINE通知に載せるリンク）
+  ClaudeModel:
+    Type: String
+    Default: claude-sonnet-4-6
+    Description: 開発日誌生成に使うモデル（高品質を求めるなら claude-opus-4-8）
+  ScheduleExpression:
+    Type: String
+    Default: cron(0 23 ? * SUN *)
+    Description: >
+      実行スケジュール（UTC）。既定は毎週月曜 08:00 JST（=日曜23:00 UTC）。
+
+Resources:
+  WeeklyOrchestratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: orbit-canvas-weekly-orchestrator
+      Runtime: nodejs20.x
+      Handler: index.handler
+      CodeUri: ./
+      Timeout: 120
+      MemorySize: 256
+      Environment:
+        Variables:
+          GET_URL: !Ref GetUrl
+          PUT_URL: !Ref PutUrl
+          PUT_PASSWORD: !Ref PutPassword
+          ANTHROPIC_API_KEY: !Ref AnthropicApiKey
+          CLAUDE_MODEL: !Ref ClaudeModel
+          GITHUB_REPO: !Ref GithubRepo
+          GITHUB_TOKEN: !Ref GithubToken
+          LINE_CHANNEL_ACCESS_TOKEN: !Ref LineChannelAccessToken
+          LINE_USER_ID: !Ref LineUserId
+          ADMIN_URL: !Ref AdminUrl
+          WEEKS_AHEAD: '8'
+          DEVLOG_SINCE_DAYS: '7'
+      Events:
+        WeeklySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref ScheduleExpression
+            Description: orbit-canvas 週次運用ジョブ
+            Enabled: true
+
+Outputs:
+  FunctionName:
+    Value: !Ref WeeklyOrchestratorFunction
+  FunctionArn:
+    Value: !GetAtt WeeklyOrchestratorFunction.Arn
