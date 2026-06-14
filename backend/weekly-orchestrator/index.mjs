@@ -144,13 +144,17 @@ export const handler = async () => {
         .slice(-3);
 
       const draft = await draftDevlog(commits, { nextNum, examples });
-      await addDraft(toJstDateStr(now), {
-        title: draft.title,
-        desc: draft.body,
-        image: '',
-        category: 'devlog',
-      });
-      devlogAdded++;
+      if (draft.skip) {
+        log.push('利用者向けの機能変更なし。開発日誌はスキップ');
+      } else {
+        await addDraft(toJstDateStr(now), {
+          title: draft.title,
+          desc: draft.body,
+          image: '',
+          category: 'devlog',
+        });
+        devlogAdded++;
+      }
     } else {
       log.push('直近コミットなし。開発日誌はスキップ');
     }

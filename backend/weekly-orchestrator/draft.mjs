@@ -13,17 +13,24 @@ export async function draftDevlog(commitMessages, { nextNum = null, examples = [
     ? examples.map((e) => `見出し: ${e.title}\n本文: ${e.body}`).join('\n\n')
     : '（手本なし）';
 
-  const prompt = `あなたは星空アプリ「orbit-canvas」の開発者です。直近のGitコミットをもとに、サイトの「開発日誌」の新しい1件を、これまでのスタイルにそろえて書いてください。
+  const prompt = `あなたは星空アプリ「orbit-canvas」の開発者です。直近のGitコミットを見て、開発日誌を更新すべきか判定し、必要なら新しい1件を書いてください。
 
-# これまでの開発日誌（文体・書き方の手本。必ずこの調子に合わせる）
+# まず判定する
+今回のコミットに「利用者向けの機能の追加・変更」が含まれるか判定する。
+- 含まれる（新機能、既存機能の変更・改善など、サイト利用者が体験する変化）→ hasFeature を true にし、開発日誌を書く
+- 含まれない（バグ修正のみ／内部リファクタ／設定・インフラ／管理画面の裏側の整備／ドキュメント等、利用者の体験が変わらないもの）→ hasFeature を false にする（title・body は空でよい）
+
+# これまでの開発日誌（文体・書き方の手本。hasFeature が true のとき必ずこの調子に合わせる）
 ${exampleText}
 
-# 書き方のルール
+# 書き方のルール（hasFeature が true のとき）
 - 見出し：体言中心で簡潔に。例「「星を探す」に「ログ記録機能」追加」。機能名・画面名は「」で囲む。先頭の番号(#15 等)は付けない（番号はシステムが付与する）。
 - 本文：1〜3文。「何を追加/変更したか」と「どう使えるか・どう動くか」を、ですます調で淡々と説明する。あいさつ・自己紹介・感想（「こんにちは」「ソノッキーです」「がんばりました」等）は書かない。
 - コミットメッセージの専門用語をそのまま使わず、利用者目線の言葉にまとめ直す。
 - 今回の更新が複数あれば、最も主要な1つに絞る。
-- 出力はJSONのみ（前後に説明文を付けない）: {"title":"<番号なしの見出し>","body":"<本文>"}
+
+# 出力（JSONのみ・前後に説明文を付けない）
+{"hasFeature": true/false, "title":"<番号なしの見出し>", "body":"<本文>"}
 
 # 今回のコミット
 ${list}`;
@@ -43,10 +50,14 @@ ${list}`;
   if (!match) throw new Error('開発日誌の下書きJSONを抽出できませんでした');
   const obj = JSON.parse(match[0]);
 
+  // 利用者向けの機能追加・変更が無ければ、開発日誌は作らない
+  if (!obj.hasFeature) return { skip: true };
+
   // 見出しに番号が混じっていれば除去し、正しい連番を前置（番号はシステムが管理）
   const headline = (obj.title || '開発更新').toString().trim().replace(/^#\s*\d+\s*/, '');
   const title = (Number.isFinite(nextNum) ? `#${nextNum} ` : '') + headline;
   return {
+    skip: false,
     title: title.slice(0, 80),
     body: (obj.body || '').toString(),
   };
