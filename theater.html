@@ -4014,7 +4014,10 @@ function refreshRadioExpandHeightFrom(el) {
                 const audio = card.querySelector('audio.radio-player');
                 if (audio) {
                     if (isSelected && item && item.image) {
-                        const nextSrc = encodeURI(item.image);
+                        // item.image はバックエンドが返す既にエンコード済みのURL。
+                        // encodeURI を再適用すると % が %25 に二重エンコードされ、
+                        // 日本語ファイル名の音声が 403 で再生できなくなるため、そのまま使う（画像側の img.src と同じ扱い）。
+                        const nextSrc = item.image;
                         if (audio.getAttribute('src') !== nextSrc) {
                             audio.setAttribute('src', nextSrc);
                             audio.load();

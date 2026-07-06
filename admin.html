@@ -1093,8 +1093,9 @@ ${recentTxt}
             if(fileUrl) {
                 previewArea.style.display = 'block';
                 if (currentTheaterCat === 'radio') {
-                    // 日本語や"#"などを含むURLでもプレビュー再生できるようにエンコードしてから渡す
-                    previewContent.innerHTML = `<audio controls src="${encodeURI(fileUrl)}" style="width:100%;"></audio>`;
+                    // fileUrl(item.image) はバックエンドが返す既にエンコード済みのURL。
+                    // encodeURI を再適用すると % が %25 に二重エンコードされ、日本語ファイル名で 403 になるため、そのまま使う。
+                    previewContent.innerHTML = `<audio controls src="${fileUrl}" style="width:100%;"></audio>`;
                 } else {
                     previewContent.innerHTML = `<img src="${fileUrl}" class="preview-img">`;
                 }
