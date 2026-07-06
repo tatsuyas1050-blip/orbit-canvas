@@ -1,0 +1,12 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "orbit-canvas-tanabata"
+region = "ap-northeast-1"
+resolve_s3 = true
+s3_prefix = "orbit-canvas-tanabata"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+disable_rollback = false
+# サイト限定にしたい場合は下を有効化（既定は template の '*'）:
+# parameter_overrides = ["AllowOrigin=https://cosmos-connect.com"]

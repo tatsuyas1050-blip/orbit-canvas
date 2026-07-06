@@ -1,0 +1,7 @@
+{
+  "name": "orbit-canvas-tanabata-wishes",
+  "version": "1.0.0",
+  "description": "七夕短冊 みんなで共有する願い事API（Lambda + DynamoDB）。AWS SDK v3 は nodejs22.x ランタイム同梱のため依存なし。",
+  "type": "module",
+  "main": "index.mjs"
+}

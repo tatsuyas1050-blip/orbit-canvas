@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  orbit-canvas 七夕短冊 — みんなで共有する願い事API。
+  誰でも短冊を投稿(POST)・閲覧(GET)できる公開エンドポイント。
+  Lambda(Function URL) + DynamoDB。承認や認証は無し（願い事は元々公開情報）。
+
+Parameters:
+  AllowOrigin:
+    Type: String
+    Default: '*'
+    Description: >
+      CORS で許可するオリジン。公開ボードなので既定は '*'。
+      サイト限定にするなら 'https://cosmos-connect.com' などに変更。
+  MaxWishes:
+    Type: String
+    Default: '1000'
+    Description: GET で返す短冊の最大件数（=竹 約83本ぶん）。
+
+Resources:
+  WishesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: orbit-canvas-tanabata-wishes
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  WishesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: orbit-canvas-tanabata-wishes
+      Runtime: nodejs22.x
+      Handler: index.handler
+      CodeUri: ./
+      Timeout: 15
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref WishesTable
+          MAX_WISHES: !Ref MaxWishes
+          ALLOW_ORIGIN: !Ref AllowOrigin
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WishesTable
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - !Ref AllowOrigin
+          AllowMethods:
+            - GET
+            - POST
+          AllowHeaders:
+            - content-type
+
+Outputs:
+  WishApiUrl:
+    Description: これを tanabata.html の WISHES_API に貼り付けてください
+    Value: !GetAtt WishesFunctionUrl.FunctionUrl
+  TableName:
+    Value: !Ref WishesTable

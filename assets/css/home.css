@@ -223,6 +223,55 @@ body {
     opacity: 0.8;
 }
 
+/* 七夕 短冊ページへの導線ボタン（トップページから常時表示） */
+.tanabata-btn {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+    z-index: 120;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 26px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-family: var(--font-main);
+    font-size: 0.95rem;
+    letter-spacing: 0.14em;
+    color: #2a1f08;
+    background: linear-gradient(180deg, #ffe9b0, #e6b422);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 10px 30px -8px rgba(212, 175, 55, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+    opacity: 0;
+    /* タイトルのフェードイン開始後に、そっと現れる */
+    animation: tanabataBtnIn 1.2s ease-out forwards 1.2s;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.tanabata-btn:hover {
+    box-shadow: 0 14px 36px -8px rgba(212, 175, 55, 0.75), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    transform: translateX(-50%) translateY(-2px) scale(1.03);
+}
+
+.tanabata-btn:active {
+    transform: translateX(-50%) scale(0.97);
+}
+
+.tb-star {
+    font-size: 1.05em;
+    line-height: 1;
+    filter: drop-shadow(0 0 4px rgba(255, 245, 200, 0.9));
+}
+
+@keyframes tanabataBtnIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@media (max-width: 768px) {
+    .tanabata-btn { font-size: 0.85rem; padding: 12px 22px; letter-spacing: 0.1em; }
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
