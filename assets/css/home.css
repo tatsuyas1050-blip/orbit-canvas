@@ -223,11 +223,13 @@ body {
     opacity: 0.8;
 }
 
-/* 七夕 短冊ページへの導線ボタン（トップページから常時表示） */
+/* 七夕 短冊ページへの導線ボタン（トップページから常時表示）
+   位置: 画面中央(=円の中心)から円の半径ぶん下＝アニメの円のすぐ下あたり。
+   背の低い画面でも画面外に出ないよう min() で下限(画面下から84px)を設ける。 */
 .tanabata-btn {
     position: fixed;
     left: 50%;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+    top: min(calc(50% + clamp(340px, 65vw, 700px) / 2 + 22px), calc(100% - 60px));
     z-index: 120;
     display: inline-flex;
     align-items: center;
