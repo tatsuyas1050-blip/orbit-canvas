@@ -386,7 +386,7 @@
                 <li>
                     （初回のみ）ライブAPI（Lambda Function URL）を設定
                     <div class="form-group">
-                        <input type="text" id="live-api-url" value="https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
+                        <input type="text" id="live-api-url" value="https://6edh7r5ofafnwfl2ov3s3cb5pa0qsmzp.lambda-url.ap-northeast-1.on.aws/" placeholder="https://xxxx.lambda-url.ap-northeast-1.on.aws/" style="width:100%;">
                         <p style="font-size:0.82rem; opacity:0.75; margin-top:0.4rem;">
                             ※このURLは<strong>このブラウザにだけ保存</strong>されます（localStorage）。共有PCの場合は注意してください。
                         </p>
@@ -463,12 +463,20 @@
         const PUT_URL = "https://3k3w7lgiohcqh4i6m4zac534ju0nlvyx.lambda-url.ap-northeast-1.on.aws/";
 
 
-        const LIVE_API_URL_DEFAULT = "https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/"; // 例: https://xxxx.lambda-url.ap-northeast-1.on.aws/
+        // ※ theater.html の LIVE_API_URL と必ず同じ Lambda を指すこと（別だと管理画面の設定が公開ページに反映されない）
+        const LIVE_API_URL_DEFAULT = "https://6edh7r5ofafnwfl2ov3s3cb5pa0qsmzp.lambda-url.ap-northeast-1.on.aws/";
+
+        // 過去に既定だった旧URL（現在は403で死亡）。localStorageに残っていても無視して正しいURLへ移行する。
+        const LIVE_API_URL_OBSOLETE = "https://yps4yg3kyrtifsvr3nyi2uufim0bsjgk.lambda-url.ap-northeast-1.on.aws/";
 
         const LIVE_API_URL_STORAGE_KEY = "sonocky_live_api_url";
 
         function getLiveApiUrl() {
-            return localStorage.getItem(LIVE_API_URL_STORAGE_KEY) || LIVE_API_URL_DEFAULT;
+            const stored = localStorage.getItem(LIVE_API_URL_STORAGE_KEY);
+            if (stored && stored !== LIVE_API_URL_OBSOLETE) return stored;
+            // 旧URLがキャッシュされている場合は掃除して既定へ
+            if (stored === LIVE_API_URL_OBSOLETE) localStorage.removeItem(LIVE_API_URL_STORAGE_KEY);
+            return LIVE_API_URL_DEFAULT;
         }
 
         function setLiveApiUrl(url) {
