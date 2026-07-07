@@ -12,16 +12,12 @@ const s3 = new S3Client({});
 const BUCKET = process.env.BUCKET_NAME;
 const KEY = process.env.WISHES_KEY || "wishes.json";
 const MAX = parseInt(process.env.MAX_WISHES || "1000", 10);
-const ORIGIN = process.env.ALLOW_ORIGIN || "*";
 const COLORS = new Set(["aka", "ki", "midori", "murasaki", "shiro"]);
 
-const CORS = {
-  "Access-Control-Allow-Origin": ORIGIN,
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "content-type",
-  "Content-Type": "application/json; charset=utf-8",
-};
-const reply = (statusCode, obj) => ({ statusCode, headers: CORS, body: JSON.stringify(obj) });
+// CORS は Lambda Function URL 側の設定に一任する。
+// ここでも Access-Control-* を付けるとヘッダが二重になり、ブラウザが CORS エラーで拒否する。
+const HEADERS = { "Content-Type": "application/json; charset=utf-8" };
+const reply = (statusCode, obj) => ({ statusCode, headers: HEADERS, body: JSON.stringify(obj) });
 
 // 制御文字（タブ・改行・復帰は残す）を除去してトリム、最大長でカット
 function clean(s, max) {
@@ -62,7 +58,7 @@ async function writeAll(list) {
 
 export const handler = async (event) => {
   const method = event?.requestContext?.http?.method || event?.httpMethod || "GET";
-  if (method === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
+  if (method === "OPTIONS") return { statusCode: 204, headers: HEADERS, body: "" };
 
   try {
     if (method === "GET") {
