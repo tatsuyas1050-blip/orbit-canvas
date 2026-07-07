@@ -1,19 +1,18 @@
-// 七夕短冊「みんなで共有」API
+// 七夕短冊「みんなで共有」API（S3保存版）
 // GET  /  → { wishes: [ {id,text,name,color,at}, ... ] }   … 古い順（吊るされた順）
 // POST /  body {text,name,color} → { ok:true, wish:{id,text,name,color,at} }
 //
-// DynamoDB は「単一パーティション pk=WISH#v1 + sk=<at>#<id>」で時系列に並べる素朴な設計。
-// 個人規模のボードなのでこれで十分（ホットパーティションの心配はない）。
+// S3 の単一JSONファイル(wishes.json)に全短冊を配列で保存する素朴な設計。
+// 個人〜家族規模のボードを想定（同時投稿はまれなので read→append→write で十分）。
 // AWS SDK v3 は nodejs22.x ランタイムに同梱されているため node_modules 不要。
 
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 
-const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const TABLE = process.env.TABLE_NAME;
+const s3 = new S3Client({});
+const BUCKET = process.env.BUCKET_NAME;
+const KEY = process.env.WISHES_KEY || "wishes.json";
 const MAX = parseInt(process.env.MAX_WISHES || "1000", 10);
 const ORIGIN = process.env.ALLOW_ORIGIN || "*";
-const PK = "WISH#v1";
 const COLORS = new Set(["aka", "ki", "midori", "murasaki", "shiro"]);
 
 const CORS = {
@@ -24,48 +23,53 @@ const CORS = {
 };
 const reply = (statusCode, obj) => ({ statusCode, headers: CORS, body: JSON.stringify(obj) });
 
-// 制御文字（改行・タブ以外）を除去してトリムし、最大長でカット
+// 制御文字（タブ・改行・復帰は残す）を除去してトリム、最大長でカット
 function clean(s, max) {
-  return String(s == null ? "" : s)
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
-    .trim()
-    .slice(0, max);
+  const str = String(s == null ? "" : s);
+  let out = "";
+  for (const ch of str) {
+    const c = ch.codePointAt(0);
+    if ((c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) || c === 0x7f) continue;
+    out += ch;
+  }
+  return out.trim().slice(0, max);
 }
 function uid() {
   return "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+async function readAll() {
+  try {
+    const r = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: KEY }));
+    const text = await r.Body.transformToString();
+    const arr = JSON.parse(text);
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    if (e.name === "NoSuchKey" || e.$metadata?.httpStatusCode === 404) return [];
+    throw e;
+  }
+}
+async function writeAll(list) {
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: KEY,
+      Body: JSON.stringify(list),
+      ContentType: "application/json; charset=utf-8",
+    })
+  );
+}
+
 export const handler = async (event) => {
-  const method =
-    event?.requestContext?.http?.method || event?.httpMethod || "GET";
+  const method = event?.requestContext?.http?.method || event?.httpMethod || "GET";
   if (method === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
 
   try {
     if (method === "GET") {
-      const wishes = [];
-      let ExclusiveStartKey;
-      do {
-        const r = await ddb.send(
-          new QueryCommand({
-            TableName: TABLE,
-            KeyConditionExpression: "pk = :p",
-            ExpressionAttributeValues: { ":p": PK },
-            ScanIndexForward: true, // 古い順
-            Limit: 200,
-            ExclusiveStartKey,
-          })
-        );
-        for (const it of r.Items || []) {
-          wishes.push({
-            id: it.id,
-            text: it.text,
-            name: it.name || "",
-            color: it.color,
-            at: it.at,
-          });
-        }
-        ExclusiveStartKey = r.LastEvaluatedKey;
-      } while (ExclusiveStartKey && wishes.length < MAX);
+      const all = await readAll();
+      const wishes = all
+        .slice(-MAX)
+        .map((w) => ({ id: w.id, text: w.text, name: w.name || "", color: w.color, at: w.at }));
       return reply(200, { wishes });
     }
 
@@ -80,19 +84,12 @@ export const handler = async (event) => {
       if (!text) return reply(400, { error: "text required" });
       const name = clean(body.name, 16);
       const color = COLORS.has(body.color) ? body.color : "midori";
-      const at = Date.now();
-      const id = uid();
-      const Item = {
-        pk: PK,
-        sk: String(at).padStart(15, "0") + "#" + id,
-        id,
-        text,
-        name,
-        color,
-        at,
-      };
-      await ddb.send(new PutCommand({ TableName: TABLE, Item }));
-      return reply(201, { ok: true, wish: { id, text, name, color, at } });
+      const wish = { id: uid(), text, name, color, at: Date.now() };
+
+      const all = await readAll();
+      all.push(wish);
+      await writeAll(all);
+      return reply(201, { ok: true, wish });
     }
 
     return reply(405, { error: "method not allowed" });

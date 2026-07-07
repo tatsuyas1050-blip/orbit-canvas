@@ -290,7 +290,7 @@ if(!window.storage){
    backend/tanabata-wishes をデプロイし、出力 WishApiUrl を下に貼り付けると
    「みんなで共有」モードになります（全員の短冊が同じ竹に並ぶ）。
    空 "" のままなら、この端末だけの保存(localStorage)で動きます。 */
-const WISHES_API="";
+const WISHES_API="https://7g2sgevhy5tzhawmtp4gshcvmu0ejdex.lambda-url.ap-northeast-1.on.aws/";
 const SHARED=/^https?:\/\//.test(WISHES_API);
 const CACHE="tanabata:cache";   /* 共有モードのオフライン用キャッシュ */
 
