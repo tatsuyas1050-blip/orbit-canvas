@@ -6,8 +6,9 @@
 ## 構成
 
 - **Lambda（Function URL / 認証なし）** — `index.mjs`
-  - `GET /` … 全短冊を古い順で返す `{ wishes: [...] }`
-  - `POST /` … 短冊を1件追加 `{text,name,color}` → `{ ok, wish }`
+  - `GET /` … 全短冊を古い順で返す `{ wishes: [ {id,text,name,color,grove,at} ] }`
+  - `POST /` … 短冊を1件追加 `{text,name,color,grove}` → `{ ok, wish }`
+    （`grove` = どの笹にかけるか。0始まりの笹番号。0〜200）
 - **S3（非公開バケット）** — 全短冊を1個のJSONファイル `wishes.json` に配列で保存
   - 保存/読み出しはLambda経由のみ（バケットは Public Access Block で非公開）
   - 個人〜家族規模を想定。POST は read→append→write（同時投稿はまれなので十分）

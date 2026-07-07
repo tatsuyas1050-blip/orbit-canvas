@@ -440,6 +440,17 @@ function paginate(flat){
   while(gs.length<INIT_GROVES)gs.push(newGrove());
   return gs;
 }
+/* 共有モード: 各短冊の grove（どの笹か）でまとめる。末尾に空の笹を1本余らせて
+   新しい笹を始められるようにする。grove未設定の旧データは0本目へ。 */
+function groupByGrove(flat){
+  let maxUsed=-1;
+  for(const w of flat){const g=Math.max(0,w.grove|0);if(g>maxUsed)maxUsed=g;}
+  const n=Math.max(INIT_GROVES, maxUsed+2);
+  const gs=[];for(let i=0;i<n;i++)gs.push(newGrove());
+  for(const w of flat){const g=Math.min(Math.max(0,w.grove|0),n-1);gs[g].wishes.push(w);}
+  for(const gr of gs)gr.wishes.sort((a,b)=>a.at-b.at);
+  return gs;
+}
 function flatten(){return groves.reduce((a,g)=>a.concat(g.wishes),[]);}
 /* 共有API: 全短冊を古い順のフラット配列で取得 */
 async function fetchWishes(){
@@ -452,10 +463,10 @@ async function loadState(){
     try{
       const flat=await fetchWishes();
       try{localStorage.setItem(CACHE,JSON.stringify(flat));}catch(e){}
-      return {groves:paginate(flat),current:0};
+      return {groves:groupByGrove(flat),current:0};
     }catch(e){
       /* オフライン等: キャッシュがあれば表示 */
-      try{const c=localStorage.getItem(CACHE);if(c){const flat=JSON.parse(c);if(flat.length)return {groves:paginate(flat),current:0};}}catch(e2){}
+      try{const c=localStorage.getItem(CACHE);if(c){const flat=JSON.parse(c);if(flat.length)return {groves:groupByGrove(flat),current:0};}}catch(e2){}
       return null;
     }
   }
@@ -476,9 +487,10 @@ async function refreshShared(){
   if(!SHARED||anyModalOpen()||dragging||document.hidden)return;
   let flat;
   try{flat=await fetchWishes();}catch(e){return;}
-  if(flat.map(w=>w.id).join(",")===flatten().map(w=>w.id).join(","))return;   /* 変化なし */
+  const sig=a=>a.map(w=>w.id).sort().join(",");   /* 順序に依存しない差分判定 */
+  if(sig(flat)===sig(flatten()))return;   /* 変化なし */
   const keep=gi;
-  groves=paginate(flat);   /* 空配列でも paginate が INIT_GROVES 本の空竹を返す */
+  groves=groupByGrove(flat);
   gi=Math.min(keep,groves.length-1);
   buildPanels(false);updateNav();
   try{localStorage.setItem(CACHE,JSON.stringify(flat));}catch(e){}
@@ -620,7 +632,7 @@ function updateCount(){
   wishCount.classList.toggle("max", n>=MAX_WISH);
 }
 function targetLabel(){
-  if(SHARED)return "みんなの竹に短冊をかけます";
+  if(SHARED)return "今ひらいている笹（"+(gi+1)+"本目）にかけます";
   return curr().wishes.length>=CAP?"短冊がいっぱい。新しい竹にかけます":"今の竹にかけます";
 }
 document.getElementById("open-write").onclick=()=>{targetHint.textContent=targetLabel();updatePreview();updateCount();scrim.classList.add("on");sheet.classList.add("on");setTimeout(()=>wishI.focus(),300);};
@@ -638,21 +650,22 @@ submit.onclick=async()=>{
 
   if(SHARED){
     /* 1) サーバへ投稿し、採番済みの短冊を受け取る */
+    const grove=gi;   /* いま開いている笹にかける */
     let w;
     try{
       const res=await fetch(WISHES_API,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({text,name:whoI.value.trim(),color})});
+        body:JSON.stringify({text,name:whoI.value.trim(),color,grove})});
       if(!res.ok)throw new Error("POST "+res.status);
       w=(await res.json()).wish;
     }catch(e){
       showCaption("送信できませんでした。通信環境をご確認ください",3000);
       submit.disabled=false;return;
     }
-    /* 2) サーバの全短冊を取り直し、paginate と同じ順序で再構築（配置を安定させ重複を防ぐ）*/
+    /* 2) サーバの全短冊を取り直し、grove ごとに再構築（配置を安定させ重複を防ぐ）*/
     let flat;
     try{flat=await fetchWishes();}catch(e){flat=flatten();}
     if(!flat.some(x=>x.id===w.id))flat=flat.concat([w]);   /* 反映漏れ時の保険 */
-    groves=paginate(flat);
+    groves=groupByGrove(flat);
     try{localStorage.setItem(CACHE,JSON.stringify(flat));}catch(e){}
     /* 3) 追加した短冊のある竹へ移動して見せる */
     let landed=0;

@@ -65,7 +65,7 @@ export const handler = async (event) => {
       const all = await readAll();
       const wishes = all
         .slice(-MAX)
-        .map((w) => ({ id: w.id, text: w.text, name: w.name || "", color: w.color, at: w.at }));
+        .map((w) => ({ id: w.id, text: w.text, name: w.name || "", color: w.color, grove: w.grove | 0, at: w.at }));
       return reply(200, { wishes });
     }
 
@@ -80,7 +80,9 @@ export const handler = async (event) => {
       if (!text) return reply(400, { error: "text required" });
       const name = clean(body.name, 16);
       const color = COLORS.has(body.color) ? body.color : "midori";
-      const wish = { id: uid(), text, name, color, at: Date.now() };
+      // grove = どの笹か（0始まりの笹番号）。悪用防止に 0〜200 に制限
+      const grove = Math.min(Math.max(0, parseInt(body.grove, 10) || 0), 200);
+      const wish = { id: uid(), text, name, color, grove, at: Date.now() };
 
       const all = await readAll();
       all.push(wish);
