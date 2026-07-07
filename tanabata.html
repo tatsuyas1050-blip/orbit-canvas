@@ -164,6 +164,11 @@
   .swatch{width:34px;height:34px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s ease,border-color .12s ease;}
   .swatch[aria-checked=true]{border-color:#ffe6a3;transform:scale(1.12);box-shadow:0 0 0 3px rgba(255,230,163,.28);}
   .sw-aka{background:#f7cccb;}.sw-ki{background:#f6e6a5;}.sw-midori{background:#cbe8cd;}.sw-murasaki{background:#ddd2f1;}.sw-shiro{background:#f6f1e4;}
+  .groves-pick{display:flex;flex-wrap:wrap;gap:8px;}
+  .gchip{border:1px solid var(--line);background:rgba(150,165,255,.10);color:#c3ccf2;border-radius:999px;
+    padding:8px 15px;font-size:13px;letter-spacing:.03em;cursor:pointer;font-family:"Zen Maru Gothic";
+    transition:background-color .15s ease,color .15s ease,border-color .15s ease;}
+  .gchip[aria-pressed=true]{background:linear-gradient(180deg,#fff0c6,#ffd873);color:#3a2e12;border-color:#ffe6a3;font-weight:700;}
   .sheet-actions{display:flex;gap:12px;margin-top:18px;}
   .btn{flex:1;border:none;cursor:pointer;font-family:"Zen Maru Gothic";font-weight:700;font-size:15px;letter-spacing:.08em;padding:14px;border-radius:13px;transition:transform .12s ease,opacity .12s ease;}
   .btn:active{transform:scale(.97);}
@@ -253,6 +258,10 @@
         <div class="swatch sw-murasaki" data-c="murasaki" role="radio" tabindex="0" aria-checked="false" aria-label="紫"></div>
         <div class="swatch sw-shiro" data-c="shiro" role="radio" tabindex="0" aria-checked="false" aria-label="白"></div>
       </div>
+    </div>
+    <div class="field" id="grove-field" hidden>
+      <label>どの笹にかける？</label>
+      <div class="groves-pick" id="grove-pick"></div>
     </div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="cancel">とじる</button>
@@ -619,6 +628,21 @@ const MAX_WISH=40;   /* 願い事の最大文字数（textarea maxlength と サ
 const targetHint=document.getElementById("target-hint");
 const pvStrip=document.getElementById("pv-strip"),pvText=document.getElementById("pv-text");
 let color="midori";
+let pickedGrove=0;
+const groveField=document.getElementById("grove-field"),grovePick=document.getElementById("grove-pick");
+/* 共有モード: どの笹にかけるかをシート内で選ぶ（末尾は空の笹＝新しい笹）*/
+function renderGrovePicker(){
+  if(!SHARED){groveField.hidden=true;return;}
+  groveField.hidden=false;grovePick.innerHTML="";
+  for(let i=0;i<groves.length;i++){
+    const b=document.createElement("button");b.type="button";b.className="gchip";
+    const empty=groves[i].wishes.length===0;
+    b.textContent=(i+1)+"本目"+(empty?"（空）":"");
+    b.setAttribute("aria-pressed", i===pickedGrove?"true":"false");
+    b.onclick=()=>{pickedGrove=i;renderGrovePicker();targetHint.textContent=targetLabel();};
+    grovePick.appendChild(b);
+  }
+}
 function updatePreview(){
   pvStrip.className="pv-strip c-"+color;
   const t=wishI.value.trim();
@@ -632,10 +656,10 @@ function updateCount(){
   wishCount.classList.toggle("max", n>=MAX_WISH);
 }
 function targetLabel(){
-  if(SHARED)return "今ひらいている笹（"+(gi+1)+"本目）にかけます";
+  if(SHARED)return "「"+(pickedGrove+1)+"本目の笹」にかけます";
   return curr().wishes.length>=CAP?"短冊がいっぱい。新しい竹にかけます":"今の竹にかけます";
 }
-document.getElementById("open-write").onclick=()=>{targetHint.textContent=targetLabel();updatePreview();updateCount();scrim.classList.add("on");sheet.classList.add("on");setTimeout(()=>wishI.focus(),300);};
+document.getElementById("open-write").onclick=()=>{pickedGrove=Math.max(0,Math.min(gi,groves.length-1));renderGrovePicker();targetHint.textContent=targetLabel();updatePreview();updateCount();scrim.classList.add("on");sheet.classList.add("on");setTimeout(()=>wishI.focus(),300);};
 function closeSheet(){scrim.classList.remove("on");sheet.classList.remove("on");}
 scrim.onclick=closeSheet;
 document.getElementById("cancel").onclick=closeSheet;
@@ -650,7 +674,7 @@ submit.onclick=async()=>{
 
   if(SHARED){
     /* 1) サーバへ投稿し、採番済みの短冊を受け取る */
-    const grove=gi;   /* いま開いている笹にかける */
+    const grove=pickedGrove;   /* シートで選んだ笹にかける */
     let w;
     try{
       const res=await fetch(WISHES_API,{method:"POST",headers:{"Content-Type":"application/json"},
