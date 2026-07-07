@@ -471,14 +471,14 @@ async function saveState(){
   }
   try{if(window.storage){await window.storage.set(NEW,JSON.stringify({groves,current:gi}));}}catch(e){console.warn("save failed",e);}
 }
-/* 共有モード: 他の人が追加した短冊を定期的に取り込む */
+/* 共有モード: 他の人が追加した短冊を定期的に取り込む（id列が変わった時だけ再構築）*/
 async function refreshShared(){
   if(!SHARED||anyModalOpen()||dragging||document.hidden)return;
   let flat;
   try{flat=await fetchWishes();}catch(e){return;}
-  if(flat.length===flatten().length)return;   /* 件数に変化がなければ何もしない */
+  if(flat.map(w=>w.id).join(",")===flatten().map(w=>w.id).join(","))return;   /* 変化なし */
   const keep=gi;
-  groves=flat.length?paginate(flat):(function(){const a=[];while(a.length<INIT_GROVES)a.push(newGrove());return a;})();
+  groves=paginate(flat);   /* 空配列でも paginate が INIT_GROVES 本の空竹を返す */
   gi=Math.min(keep,groves.length-1);
   buildPanels(false);updateNav();
   try{localStorage.setItem(CACHE,JSON.stringify(flat));}catch(e){}
@@ -635,31 +635,51 @@ document.getElementById("colors").querySelectorAll(".swatch").forEach(sw=>{
 submit.onclick=async()=>{
   const text=wishI.value.trim();if(!text)return;
   submit.disabled=true;
-  let w;
+
   if(SHARED){
-    /* サーバへ投稿し、採番済みの短冊を受け取る */
+    /* 1) サーバへ投稿し、採番済みの短冊を受け取る */
+    let w;
     try{
       const res=await fetch(WISHES_API,{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({text,name:whoI.value.trim(),color})});
       if(!res.ok)throw new Error("POST "+res.status);
-      const o=await res.json();w=o.wish;
+      w=(await res.json()).wish;
     }catch(e){
       showCaption("送信できませんでした。通信環境をご確認ください",3000);
       submit.disabled=false;return;
     }
-  }else{
-    w={id:uid("w"),text,name:whoI.value.trim(),color,at:Date.now()};
+    /* 2) サーバの全短冊を取り直し、paginate と同じ順序で再構築（配置を安定させ重複を防ぐ）*/
+    let flat;
+    try{flat=await fetchWishes();}catch(e){flat=flatten();}
+    if(!flat.some(x=>x.id===w.id))flat=flat.concat([w]);   /* 反映漏れ時の保険 */
+    groves=paginate(flat);
+    try{localStorage.setItem(CACHE,JSON.stringify(flat));}catch(e){}
+    /* 3) 追加した短冊のある竹へ移動して見せる */
+    let landed=0;
+    for(let g=0;g<groves.length;g++){if(groves[g].wishes.some(x=>x.id===w.id)){landed=g;break;}}
+    gi=landed;
+    buildPanels(false);updateNav();
+    closeSheet();wishI.value="";whoI.value="";shootingStar();
+    /* この短冊で竹が五色そろった時だけ演出 */
+    const G=groves[gi],without={wishes:G.wishes.filter(x=>x.id!==w.id)};
+    if(groveComplete(G)&&!groveComplete(without))setTimeout(fiveColorBurst,380);
+    requestAnimationFrame(()=>{
+      const layer=track.children[gi]&&track.children[gi].querySelector(".tz-layer");
+      const el=layer&&layer.lastElementChild;
+      if(el)el.animate([{opacity:0,transform:"translateY(-14px)"},{opacity:1,transform:"translateY(0)"}],{duration:700,easing:"ease-out"});
+    });
+    return;
   }
-  /* 反映先: 共有モードは常に最新の竹(末尾)、端末内モードは今見ている竹 */
-  const targetIndex=SHARED?groves.length-1:gi;
-  const target=groves[targetIndex];
+
+  /* --- 端末内(localStorage)モード：今見ている竹に追加 --- */
+  const w={id:uid("w"),text,name:whoI.value.trim(),color,at:Date.now()};
+  const target=groves[gi];
   const spill=target.wishes.length>=CAP;
   let completedNow=false, landedIndex;
   if(spill){const g=newGrove();g.wishes.push(w);groves.push(g);landedIndex=groves.length-1;buildPanels();}
-  else{const before=groveComplete(target);target.wishes.push(w);completedNow=!before&&groveComplete(target);landedIndex=targetIndex;renderGrove(targetIndex);}
+  else{const before=groveComplete(target);target.wishes.push(w);completedNow=!before&&groveComplete(target);landedIndex=gi;renderGrove(gi);}
   await saveState();closeSheet();
   wishI.value="";whoI.value="";shootingStar();
-  /* 吊るした竹へ移動して見せる */
   requestAnimationFrame(()=>{
     gi=landedIndex;positionTrack(true);updateNav();
     if(!spill){
