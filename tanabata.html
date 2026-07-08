@@ -403,13 +403,30 @@ function meetAnim(){
   };
 }
 
-/* anchors */
-const rawAnchors=[[60,42],[72,54],[52,60],[66,72],[78,84],[58,90],[70,102],[50,108],[64,118],[76,128],[56,134],[68,144]];
+/* anchors — 枝先（葉のつけ根）から下がるよう、竹の左右・上下にばらけて配置。
+   先頭ほど離して置き、数が少ないうちは重ならないようにする（増えたら重なってOK）。
+   座標は bamboo SVG(viewBox 100x166) と同じ。x=%、y は /1.66 で%に変換。 */
+const rawAnchors=[
+  [60,16],   // 1 右上の枝先
+  [16,86],   // 2 左・中下の枝先（1の対角）
+  [63,98],   // 3 右下の枝先
+  [22,30],   // 4 左上の枝先
+  [72,68],   // 5 右中の枝先
+  [45,27],   // 6 中央上（上枝の付け根）
+  [15,110],  // 7 左下の枝先
+  [66,42],   // 8 右上寄りの枝先
+  [18,52],   // 9 左・中上の枝先
+  [52,52],   // 10 中ほどの枝（内側）
+  [47,104],  // 11 右下の枝（内側）
+  [26,90]    // 12 左下の枝（内側）
+];
 const anchors=rawAnchors.map(([x,y])=>({x:x,y:y/1.66}));
 function anchorFor(i){
   if(i<anchors.length)return anchors[i];
+  /* 12本を超えたぶんは各枝先付近に散らして追加（このあたりは重なってOK） */
   const k=i-anchors.length;
-  return {x:46+((k*37)%40)+(Math.random()*6-3), y:88+((k*23)%14)};
+  const bx=[60,18,72,16,63,22,66,15][k%8], by=[16,52,68,86,98,30,42,110][k%8];
+  return {x:bx+(Math.random()*10-5), y:(by+(Math.random()*16-8))/1.66};
 }
 
 /* bamboo */
@@ -426,6 +443,7 @@ const BAMBOO_SVG = `<svg class="bamboo" viewBox="0 0 100 166" preserveAspectRati
   <g fill="none" stroke="#4f8047" stroke-width="1" stroke-linecap="round">
     <path d="M35,110 Q50,104 63,98"/><path d="M37.6,82 Q55,76 72,68"/><path d="M40,54 Q54,48 66,42"/>
     <path d="M41,30 Q52,22 60,16"/><path d="M40,42 Q30,36 22,30"/><path d="M33,120 Q22,116 15,110"/>
+    <path d="M36,64 Q26,58 18,52"/><path d="M34,98 Q24,92 16,86"/>
   </g>
   <g fill="url(#leaf)" stroke="#2f5d33" stroke-width="0.3">
     <path d="M63,98 q9,-6 18,-3 q-8,5 -18,3 z"/><path d="M60,96 q6,-9 15,-11 q-4,9 -15,11 z"/>
@@ -436,6 +454,8 @@ const BAMBOO_SVG = `<svg class="bamboo" viewBox="0 0 100 166" preserveAspectRati
     <path d="M22,30 q-9,-5 -18,-2 q8,5 18,2 z"/><path d="M23,30 q-5,-9 -13,-11 q3,9 13,11 z"/>
     <path d="M15,110 q-9,-4 -17,-1 q8,4 17,1 z"/><path d="M16,110 q-5,-8 -13,-10 q3,8 13,10 z"/>
     <path d="M34,150 q-8,-5 -16,-3 q7,5 16,3 z"/><path d="M35,150 q-4,-9 -11,-11 q2,9 11,11 z"/>
+    <path d="M18,52 q-8,-5 -16,-2 q7,5 16,2 z"/><path d="M19,52 q-5,-8 -12,-10 q3,8 12,10 z"/>
+    <path d="M16,86 q-8,-5 -16,-2 q7,5 16,2 z"/><path d="M17,86 q-5,-8 -12,-10 q3,8 12,10 z"/>
   </g>
 </svg>`;
 
