@@ -240,6 +240,9 @@ body {
     font-family: var(--font-main);
     font-size: 0.95rem;
     letter-spacing: 0.14em;
+    /* fixed + left:50% だと利用可能幅が約50vwに制限され文字が途中で折り返す。
+       1行に固定してボタン全体を内容幅にし、中央寄せのまま収める。 */
+    white-space: nowrap;
     color: #2a1f08;
     background: linear-gradient(180deg, #ffe9b0, #e6b422);
     border: 1px solid rgba(255, 255, 255, 0.45);
