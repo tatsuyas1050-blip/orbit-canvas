@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>宇宙を学ぶ - Explore the Cosmos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="assets/img/lifelog_mark.png">
+
+    <style>
+        #starry-sky{position:fixed;inset:0;width:100%;height:100%;z-index:-1;display:block;}
+
+        .learn-main{
+            max-width:1080px;margin:0 auto;
+            padding:clamp(1.5rem,4vw,3rem) clamp(1rem,4vw,2.5rem) 5rem;
+        }
+
+        .learn-lead{text-align:center;margin:1.5rem auto 2.8rem;max-width:60ch;}
+        .learn-lead .eyebrow{
+            font-family:"Space Mono",monospace;font-size:.72rem;letter-spacing:.32em;
+            text-transform:uppercase;color:var(--accent-gold);opacity:.85;
+        }
+        .learn-lead h2{
+            font-family:'Shippori Mincho',serif;font-weight:700;
+            font-size:clamp(1.4rem,3.6vw,2.1rem);letter-spacing:.06em;margin:.8rem 0 1rem;
+            line-height:1.4;text-shadow:0 2px 24px rgba(0,0,0,.6);
+        }
+        .learn-lead p{
+            font-size:clamp(.86rem,1.7vw,.98rem);line-height:2;color:rgba(240,240,240,.82);margin:0;
+        }
+
+        /* --- カードグリッド --- */
+        .learn-grid{
+            display:grid;gap:clamp(1rem,2.4vw,1.6rem);
+            grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+        }
+        .learn-card{
+            position:relative;display:flex;flex-direction:column;
+            background:linear-gradient(160deg,rgba(24,30,44,.78),rgba(10,14,24,.72));
+            border:1px solid rgba(212,175,55,.18);border-radius:18px;overflow:hidden;
+            text-decoration:none;color:var(--text-white);
+            transition:transform .4s cubic-bezier(.19,1,.22,1),border-color .4s,box-shadow .4s;
+            backdrop-filter:blur(4px);
+        }
+        .learn-card:hover{
+            transform:translateY(-6px);border-color:rgba(212,175,55,.55);
+            box-shadow:0 18px 44px rgba(0,0,0,.45),0 0 26px rgba(212,175,55,.12);
+        }
+        .card-thumb{
+            position:relative;aspect-ratio:16/9;overflow:hidden;
+            border-bottom:1px solid rgba(212,175,55,.14);
+        }
+        .card-thumb::after{
+            content:"";position:absolute;inset:0;
+            background:radial-gradient(120% 90% at 50% 40%,transparent 45%,rgba(5,8,16,.55) 100%);
+        }
+        /* テーマ別ビジュアル（軽量CSSのみ） */
+        .thumb-cosmos{
+            background:
+              radial-gradient(60% 80% at 50% 52%,rgba(255,180,90,.9) 0%,rgba(255,120,0,.55) 18%,rgba(120,40,80,.4) 42%,rgba(8,10,22,.2) 70%),
+              radial-gradient(closest-side at 20% 30%,rgba(180,120,255,.35),transparent 70%),
+              #06070f;
+        }
+        .thumb-cosmos .rings{position:absolute;inset:0;}
+        .thumb-cosmos .rings span{
+            position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);
+            border:1px solid rgba(255,190,120,.22);border-radius:50%;
+        }
+        .thumb-solar{
+            background:
+              radial-gradient(28% 40% at 32% 52%,rgba(255,225,160,.95) 0%,rgba(255,160,50,.6) 30%,transparent 62%),
+              linear-gradient(180deg,#0a1020,#05070f);
+        }
+        .thumb-solar .orbit{
+            position:absolute;left:32%;top:52%;transform:translate(-50%,-50%) rotate(-16deg);
+            border:1px solid rgba(150,190,255,.28);border-radius:50%;
+        }
+        .thumb-solar .planet{
+            position:absolute;width:9px;height:9px;border-radius:50%;
+            background:radial-gradient(circle at 30% 30%,#bfe0ff,#4f6fdb);
+            box-shadow:0 0 8px rgba(120,180,255,.6);top:52%;left:32%;
+        }
+        .thumb-star{
+            background:radial-gradient(38% 46% at 50% 50%,rgba(255,244,214,.98) 0%,rgba(255,180,80,.85) 22%,rgba(255,90,40,.5) 45%,rgba(70,18,22,.28) 72%,#070510 100%);
+        }
+        .thumb-star .corona{position:absolute;inset:0;
+            background:radial-gradient(closest-side at 50% 50%,rgba(255,150,60,.28),transparent 68%);}
+        .thumb-scale{background:radial-gradient(62% 82% at 50% 55%,rgba(36,74,84,.5),#05070f);}
+        .thumb-scale .sr{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);
+            border:1px solid rgba(79,214,198,.32);border-radius:50%;}
+        .thumb-scale .dot{position:absolute;left:50%;top:52%;width:6px;height:6px;border-radius:50%;
+            background:#dff7f2;transform:translate(-50%,-50%);box-shadow:0 0 9px rgba(79,214,198,.85);}
+
+        .card-tag{
+            position:absolute;top:12px;left:12px;z-index:2;
+            font-family:"Space Mono",monospace;font-size:.64rem;letter-spacing:.14em;
+            color:#0b0b12;background:rgba(212,175,55,.92);
+            padding:4px 9px;border-radius:999px;font-weight:700;
+        }
+        .card-body{padding:1.1rem 1.25rem 1.35rem;display:flex;flex-direction:column;flex:1;}
+        .card-body h3{
+            font-family:'Shippori Mincho',serif;font-weight:700;
+            font-size:1.22rem;letter-spacing:.04em;margin:0;
+        }
+        .card-body .en{
+            font-family:"Space Mono",monospace;font-size:.68rem;letter-spacing:.16em;
+            text-transform:uppercase;color:var(--accent-gold);opacity:.85;margin:.35rem 0 .7rem;
+        }
+        .card-body p{
+            font-size:.84rem;line-height:1.85;color:rgba(240,240,240,.78);margin:0 0 1rem;flex:1;
+        }
+        .card-cta{
+            display:inline-flex;align-items:center;gap:.5em;align-self:flex-start;
+            font-family:"Space Mono",monospace;font-size:.78rem;letter-spacing:.1em;
+            color:var(--accent-gold);transition:gap .3s;
+        }
+        .learn-card:hover .card-cta{gap:.9em;}
+
+        /* 近日追加カード */
+        .learn-card.soon{cursor:default;opacity:.6;border-style:dashed;}
+        .learn-card.soon:hover{transform:none;box-shadow:none;border-color:rgba(212,175,55,.2);}
+        .soon-thumb{
+            aspect-ratio:16/9;display:grid;place-items:center;
+            background:linear-gradient(180deg,#0b1120,#070a12);
+            border-bottom:1px solid rgba(212,175,55,.1);
+            font-family:"Space Mono",monospace;font-size:.72rem;letter-spacing:.2em;
+            color:rgba(212,175,55,.6);
+        }
+
+        @media (max-width:900px){
+            .learn-main{padding-top:70px;}
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="starry-sky"></canvas>
+
+    <div class="menu-container">
+        <button id="menu-toggle" class="menu-toggle" aria-label="メニューを開く">
+            <span class="line"></span><span class="line"></span><span class="line"></span>
+        </button>
+        <nav id="nav-overlay" class="nav-overlay">
+            <ul class="nav-list">
+                <li><a href="/" class="nav-link">トップページ<span>Home</span></a></li>
+                <li><a href="/stars" class="nav-link">星を探す<span>Star Chart</span></a></li>
+                <li><a href="/events" class="nav-link">星空情報局<span>Sky Events</span></a></li>
+                <li><a href="/lifelog" class="nav-link">星空ライフログ<span>My Starry Sky Log</span></a></li>
+                <li><a href="/theater" class="nav-link">ソノッキーの部屋<span>Sonocky's Room</span></a></li>
+                <li><a href="/tanabata" class="nav-link">七夕 短冊<span>Tanabata Wishes</span></a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <header class="common-header">
+        <a href="/" class="header-back-btn">トップへ戻る</a>
+        <h1 class="page-title">宇宙を学ぶ<span>Explore the Cosmos</span></h1>
+    </header>
+
+    <main class="learn-main">
+        <div class="learn-lead">
+            <div class="eyebrow">Interactive Journeys</div>
+            <h2>時間と空間をたどって、宇宙のものがたりを旅する</h2>
+            <p>ビッグバンから宇宙の終焉、太陽系や星の一生、そして宇宙の果てまで。スライダーを動かしたり自動再生で、壮大な時間とスケールの流れを自分のペースで体感できる学習コンテンツです。見たいテーマを選んでください。</p>
+        </div>
+
+        <!-- コンテンツを追加するときは、この learn-grid 内に .learn-card を増やしてください -->
+        <div class="learn-grid">
+
+            <a class="learn-card" href="cosmos-timeline.html">
+                <div class="card-thumb thumb-cosmos">
+                    <div class="rings">
+                        <span style="width:40%;height:70%"></span>
+                        <span style="width:64%;height:112%"></span>
+                        <span style="width:90%;height:158%"></span>
+                    </div>
+                </div>
+                <span class="card-tag">全20章</span>
+                <div class="card-body">
+                    <h3>宇宙の年表</h3>
+                    <div class="en">Big Bang → Heat Death</div>
+                    <p>ビッグバンの一瞬から、星や銀河の誕生、地球と生命、そして遠い未来の宇宙の終焉まで。138億年とその先を、温度や赤方偏移とともに連続してたどります。</p>
+                    <span class="card-cta">この旅を見る →</span>
+                </div>
+            </a>
+
+            <a class="learn-card" href="solar-system.html">
+                <div class="card-thumb thumb-solar">
+                    <div class="orbit" style="width:52%;height:52%"></div>
+                    <div class="orbit" style="width:78%;height:78%"></div>
+                    <div class="orbit" style="width:104%;height:104%"></div>
+                    <span class="planet"></span>
+                </div>
+                <span class="card-tag">全15章</span>
+                <div class="card-body">
+                    <h3>太陽系の進化</h3>
+                    <div class="en">Solar Nebula → The Long Cooling</div>
+                    <p>冷たい分子雲の収縮から太陽の点火、惑星たちの形成と月の誕生、そして赤色巨星を経て太陽系が静かに冷えていく終わりまでを、連続した時間で描きます。</p>
+                    <span class="card-cta">この旅を見る →</span>
+                </div>
+            </a>
+
+            <a class="learn-card" href="star-life.html">
+                <div class="card-thumb thumb-star"><div class="corona"></div></div>
+                <span class="card-tag">全12章</span>
+                <div class="card-body">
+                    <h3>星の一生</h3>
+                    <div class="en">Molecular Cloud → White Dwarf</div>
+                    <p>冷たいガスの雲から生まれ、輝き、赤色巨星をへて白色矮星になるまで。ひとつの星の一生を、半径・温度・光度の変化とH-R図をたどりながら見つめます。</p>
+                    <span class="card-cta">この旅を見る →</span>
+                </div>
+            </a>
+
+            <a class="learn-card" href="cosmic-scale.html">
+                <div class="card-thumb thumb-scale">
+                    <span class="sr" style="width:26%;height:26%"></span>
+                    <span class="sr" style="width:52%;height:52%"></span>
+                    <span class="sr" style="width:80%;height:80%"></span>
+                    <span class="sr" style="width:112%;height:112%"></span>
+                    <span class="dot"></span>
+                </div>
+                <span class="card-tag">全11章</span>
+                <div class="card-body">
+                    <h3>宇宙のスケール</h3>
+                    <div class="en">Human → Observable Universe</div>
+                    <p>1メートルの人間から、地球、太陽系、天の川銀河、そして観測可能な宇宙まで。10のべき乗でズームアウトしながら、宇宙の大きさを体感します。</p>
+                    <span class="card-cta">この旅を見る →</span>
+                </div>
+            </a>
+
+            <div class="learn-card soon" aria-disabled="true">
+                <div class="soon-thumb">COMING SOON</div>
+                <div class="card-body">
+                    <h3>星座のはなし</h3>
+                    <div class="en">Stories of the Constellations</div>
+                    <p>季節の星座や神話の物語をたどるコンテンツを準備中です。お楽しみに。</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="assets/js/script.js"></script>
+</body>
+</html>

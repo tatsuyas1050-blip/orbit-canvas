@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>宇宙の年表 ── ビッグバンから宇宙の終焉まで</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{--void:#050507;--bone:#f4f3ee;--ash:#8b8b96;--line:rgba(244,243,238,.14);
+    --accent:#ff7b00;--accent-soft:rgba(255,123,0,.18);}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--void);color:var(--bone);
+    font-family:"Zen Kaku Gothic New",system-ui,sans-serif;
+    overflow:hidden;-webkit-font-smoothing:antialiased;touch-action:none;}
+  #stage{position:fixed;inset:0;display:block;z-index:0}
+  #vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:
+      radial-gradient(120% 85% at 50% 46%, transparent 40%, rgba(3,3,6,.5) 100%),
+      linear-gradient(to top, rgba(3,3,6,.78), transparent 30%),
+      linear-gradient(to right, rgba(3,3,6,.5), transparent 20%, transparent 80%, rgba(3,3,6,.3));}
+  .ui{position:fixed;z-index:2}
+  header.ui{top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
+    padding:clamp(14px,2.4vw,26px) clamp(16px,3vw,38px);pointer-events:none;}
+  .brand{display:flex;align-items:baseline;gap:.7em;pointer-events:auto}
+  .brand .mark{font-family:"Shippori Mincho",serif;font-weight:700;
+    font-size:clamp(17px,2.1vw,23px);letter-spacing:.18em;}
+  .brand .sub{font-family:"Space Mono",monospace;font-size:11px;color:var(--ash);
+    letter-spacing:.22em;text-transform:uppercase;}
+  .controls{display:flex;gap:8px;pointer-events:auto}
+  .zoomctl{right:clamp(14px,3vw,30px);bottom:clamp(96px,15vh,150px);display:flex;flex-direction:column;
+    gap:6px;align-items:center;pointer-events:auto;}
+  .zoomctl button{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+    background:rgba(10,10,18,.5);color:var(--bone);font-size:18px;cursor:pointer;backdrop-filter:blur(6px);
+    display:grid;place-items:center;transition:all .3s;}
+  .zoomctl button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .zoomctl button:disabled{opacity:.3;cursor:default}
+  .zoomctl button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .zoomctl .zlvl{font-family:"Space Mono",monospace;font-size:10px;color:var(--ash);letter-spacing:.06em}
+  .zoomctl .zhint{margin-top:6px;font-size:9px;color:var(--ash);text-align:center;line-height:1.5;
+    letter-spacing:.04em;opacity:.7;max-width:90px;}
+  button.tbtn{font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.12em;
+    color:var(--bone);background:rgba(10,10,18,.5);border:1px solid var(--line);
+    border-radius:999px;padding:8px 16px;cursor:pointer;backdrop-filter:blur(6px);
+    transition:border-color .3s,color .3s;}
+  button.tbtn:hover{border-color:var(--accent);color:var(--accent)}
+  button.tbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  nav.spine{position:fixed;z-index:2;top:50%;left:clamp(14px,3vw,40px);
+    transform:translateY(-50%);display:flex;flex-direction:column;pointer-events:auto;}
+  nav.spine .cap{font-family:"Space Mono",monospace;font-size:10px;color:var(--ash);
+    letter-spacing:.2em;margin:0 0 8px 26px;}
+  nav.spine .cap.end{margin:8px 0 0 26px}
+  nav.spine ol{list-style:none;position:relative}
+  nav.spine ol::before{content:"";position:absolute;left:5px;top:5px;bottom:5px;width:1px;
+    background:linear-gradient(to bottom,transparent,var(--line) 10%,var(--line) 90%,transparent);}
+  nav.spine ol .prog{position:absolute;left:5px;top:5px;width:1px;height:0;
+    background:var(--accent);box-shadow:0 0 8px var(--accent);transition:height .12s linear, background .6s;}
+  nav.spine li{position:relative;display:flex;align-items:center;gap:11px;
+    padding:3.5px 0;cursor:pointer;}
+  nav.spine .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;
+    border:1px solid var(--ash);background:#0a0a10;transition:all .35s ease;position:relative;z-index:1;}
+  nav.spine .lab{font-size:11.5px;color:var(--ash);white-space:nowrap;opacity:.5;
+    transition:all .35s ease;letter-spacing:.01em;}
+  nav.spine li:hover .lab{opacity:.95;color:var(--bone)}
+  nav.spine li:hover .dot{border-color:var(--bone)}
+  nav.spine li.now .dot{border-color:var(--bone);background:rgba(244,243,238,.25)}
+  nav.spine li.active .dot{background:var(--accent);border-color:var(--accent);
+    box-shadow:0 0 0 4px var(--accent-soft),0 0 16px var(--accent);transform:scale(1.3);}
+  nav.spine li.active .lab{opacity:1;color:var(--bone);font-weight:700}
+  nav.spine li.done .dot{background:var(--ash);border-color:var(--ash)}
+
+  .readout.ui{top:clamp(70px,12vh,118px);right:clamp(18px,3.4vw,46px);text-align:right;pointer-events:none;}
+  .readout .epoch-no{font-family:"Space Mono",monospace;font-size:12px;color:var(--accent);
+    letter-spacing:.2em;transition:color .6s;}
+  .readout .big-time{font-family:"Space Mono",monospace;font-weight:700;
+    font-size:clamp(24px,4.4vw,44px);line-height:1.05;margin-top:6px;
+    text-shadow:0 0 30px rgba(0,0,0,.6);min-height:1.1em;}
+  .readout .time-cap{font-family:"Space Mono",monospace;font-size:11px;color:var(--ash);
+    letter-spacing:.16em;margin-top:4px;}
+  .readout .phys{margin-top:16px;font-family:"Space Mono",monospace;font-size:12px;
+    color:rgba(244,243,238,.82);line-height:1.7;}
+  .readout .phys .lab{color:var(--ash)}
+  .readout .phys b{color:var(--accent);transition:color .6s;font-weight:700}
+
+  .panel.ui{left:50%;bottom:clamp(86px,11vh,118px);transform:translateX(-50%);
+    width:min(640px,86vw);text-align:center;pointer-events:none;}
+  .panel .kicker{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.22em;
+    color:var(--ash);text-transform:uppercase;}
+  .panel h1{font-family:"Shippori Mincho",serif;font-weight:700;
+    font-size:clamp(24px,4.4vw,40px);line-height:1.18;margin:10px 0 14px;
+    letter-spacing:.04em;text-shadow:0 2px 30px rgba(0,0,0,.7);}
+  .panel h1 .u{background:linear-gradient(transparent 72%,var(--accent-soft) 72%);padding:0 .1em;}
+  .panel p{font-size:clamp(13px,1.65vw,15.5px);line-height:1.9;color:rgba(244,243,238,.9);
+    max-width:54ch;margin:0 auto;text-shadow:0 1px 16px rgba(0,0,0,.85);}
+  .panel .meta{margin-top:12px;font-family:"Space Mono",monospace;font-size:11.5px;
+    color:var(--ash);letter-spacing:.06em;}
+  .panel .meta b{color:var(--accent);transition:color .6s}
+  .softfade{transition:opacity .5s ease}
+  .softfade.dim{opacity:0}
+
+  .tl.ui{left:50%;bottom:clamp(46px,6vh,62px);transform:translateX(-50%);
+    width:min(620px,84vw);pointer-events:auto;}
+  .tl .track{position:relative;height:22px;display:flex;align-items:center;cursor:pointer;}
+  .tl .rail{position:absolute;left:0;right:0;height:3px;border-radius:3px;background:rgba(255,255,255,.12);}
+  .tl .fill{position:absolute;left:0;height:3px;border-radius:3px;width:0;
+    background:var(--accent);box-shadow:0 0 12px var(--accent);transition:background .6s;}
+  .tl .knob{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--bone);
+    border:2px solid var(--accent);transform:translateX(-50%);
+    box-shadow:0 0 12px var(--accent-soft);transition:background .6s,border-color .6s;}
+  .tl .ticks{position:relative;height:16px;margin-top:2px}
+  .tl .tick{position:absolute;top:0;width:1px;height:5px;background:rgba(255,255,255,.18);transform:translateX(-50%);}
+  .tl .tick.now{height:8px;background:var(--bone);box-shadow:0 0 6px var(--bone)}
+  .tl .nowlab{position:absolute;top:8px;font-family:"Space Mono",monospace;font-size:8.5px;
+    color:var(--bone);transform:translateX(-50%);letter-spacing:.08em}
+  .tl .scaleLab{display:flex;justify-content:space-between;margin-top:1px;
+    font-family:"Space Mono",monospace;font-size:9.5px;color:var(--ash);letter-spacing:.1em;}
+
+  footer.ui{left:50%;bottom:clamp(10px,2vh,18px);transform:translateX(-50%);
+    display:flex;align-items:center;gap:18px;pointer-events:auto;}
+  .navbtn{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);
+    background:rgba(10,10,18,.5);color:var(--bone);font-size:17px;cursor:pointer;
+    backdrop-filter:blur(6px);display:grid;place-items:center;transition:all .3s;}
+  .navbtn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);transform:scale(1.06)}
+  .navbtn:disabled{opacity:.3;cursor:default}
+  .navbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .counter{font-family:"Space Mono",monospace;font-size:13px;letter-spacing:.14em;
+    color:var(--ash);min-width:64px;text-align:center;}
+  .counter b{color:var(--bone)}
+
+  #intro{position:fixed;inset:0;z-index:5;background:var(--void);display:grid;place-items:center;
+    text-align:center;transition:opacity 1s ease;}
+  #intro .in-mark{font-family:"Shippori Mincho",serif;font-weight:700;
+    font-size:clamp(26px,5.6vw,52px);letter-spacing:.18em;opacity:0;animation:rise 1.4s .3s forwards;}
+  #intro .in-sub{font-family:"Space Mono",monospace;font-size:12px;color:var(--ash);
+    letter-spacing:.3em;margin-top:18px;text-transform:uppercase;opacity:0;animation:rise 1.4s .8s forwards;}
+  #intro .in-go{margin-top:38px;opacity:0;animation:rise 1.4s 1.4s forwards;}
+  #intro button{font-family:"Zen Kaku Gothic New",sans-serif;font-size:15px;color:var(--void);
+    background:var(--bone);border:none;border-radius:999px;padding:13px 34px;cursor:pointer;
+    letter-spacing:.08em;font-weight:700;transition:transform .3s;}
+  #intro button:hover{transform:scale(1.05)}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  #intro.hide{opacity:0;pointer-events:none}
+
+  @media (max-width:760px){
+    nav.spine .lab,nav.spine .cap,.tl .nowlab,.zoomctl .zhint{display:none}
+    nav.spine{left:12px}
+    nav.spine li{padding:2.5px 0}
+    .readout.ui{top:60px;right:14px}
+    .panel.ui{bottom:120px;width:90vw}
+    .zoomctl{bottom:120px;right:10px}
+  }
+  /* --- 共通ナビ（戻る / メニュー）：他ページと配置・操作をそろえる --- */
+  .hleft{display:flex;align-items:center;gap:clamp(10px,1.6vw,15px);pointer-events:auto}
+  .hdr-back{font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.1em;color:var(--bone);
+    text-decoration:none;background:rgba(10,10,18,.5);border:1px solid var(--line);border-radius:999px;
+    padding:7px 15px 7px 12px;backdrop-filter:blur(6px);transition:border-color .3s,color .3s;white-space:nowrap;}
+  .hdr-back:hover{border-color:var(--accent);color:var(--accent)}
+  .hdr-back:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .menu-toggle{width:40px;height:40px;flex:0 0 auto;padding:0;background:rgba(10,10,18,.5);
+    border:1px solid var(--line);border-radius:11px;cursor:pointer;display:flex;flex-direction:column;
+    justify-content:center;align-items:center;gap:5px;backdrop-filter:blur(6px);transition:border-color .3s;}
+  .menu-toggle:hover{border-color:var(--accent)}
+  .menu-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .menu-toggle .line{width:18px;height:2px;background:var(--bone);border-radius:2px;
+    transition:transform .4s cubic-bezier(.19,1,.22,1),opacity .4s,background .4s;}
+  .menu-toggle.active .line{background:var(--accent)}
+  .menu-toggle.active .line:nth-child(1){transform:translateY(7px) rotate(45deg)}
+  .menu-toggle.active .line:nth-child(2){opacity:0}
+  .menu-toggle.active .line:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+  .nav-overlay{position:fixed;inset:0;z-index:40;background:rgba(5,6,12,.95);backdrop-filter:blur(8px);
+    display:flex;justify-content:center;align-items:center;opacity:0;visibility:hidden;
+    transition:opacity .4s ease,visibility .4s ease;}
+  .nav-overlay.open{opacity:1;visibility:visible}
+  .nav-overlay ul{list-style:none;text-align:center;padding:0;margin:0}
+  .nav-overlay li{margin:clamp(.9rem,2.3vh,1.6rem) 0;opacity:0;transform:translateY(16px);
+    transition:opacity .5s ease,transform .5s ease;}
+  .nav-overlay.open li{opacity:1;transform:none}
+  .nav-overlay.open li:nth-child(1){transition-delay:.05s}
+  .nav-overlay.open li:nth-child(2){transition-delay:.10s}
+  .nav-overlay.open li:nth-child(3){transition-delay:.15s}
+  .nav-overlay.open li:nth-child(4){transition-delay:.20s}
+  .nav-overlay.open li:nth-child(5){transition-delay:.25s}
+  .nav-overlay.open li:nth-child(6){transition-delay:.30s}
+  .nav-overlay.open li:nth-child(7){transition-delay:.35s}
+  .nav-overlay a{font-family:"Shippori Mincho",serif;text-decoration:none;color:var(--bone);
+    font-size:clamp(19px,3vw,25px);letter-spacing:.1em;display:inline-flex;flex-direction:column;
+    gap:.3em;transition:color .3s;}
+  .nav-overlay a span{font-family:"Space Mono",monospace;font-size:10.5px;letter-spacing:.16em;
+    color:var(--ash);text-transform:uppercase;}
+  .nav-overlay a:hover{color:var(--accent)}
+  .nav-close{position:absolute;top:clamp(14px,2.4vw,26px);right:clamp(16px,3vw,38px);
+    width:44px;height:44px;border-radius:50%;background:transparent;border:1px solid var(--line);
+    color:var(--bone);font-size:18px;cursor:pointer;transition:border-color .3s,color .3s;}
+  .nav-close:hover{border-color:var(--accent);color:var(--accent)}
+  @media (max-width:760px){
+    .brand .sub{display:none}
+    .hleft{gap:9px}
+    .hdr-back{font-size:11px;padding:6px 12px 6px 10px}
+    .controls{gap:6px}
+    .controls .tbtn{padding:6px 9px;font-size:11px;letter-spacing:.05em}
+    .menu-toggle{width:36px;height:36px}
+  }
+  @media (max-width:560px){.hleft .brand{display:none}}
+</style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <div id="vignette"></div>
+  <header class="ui">
+    <div class="hleft">
+      <a class="hdr-back" href="learn.html">‹ 学ぶ一覧</a>
+      <div class="brand"><span class="mark">宇宙の年表</span><span class="sub">Big Bang → Heat Death</span></div>
+    </div>
+    <div class="controls"><button class="tbtn" id="speedBtn">速さ 1×</button><button class="tbtn" id="playBtn">▶ 時間を進める</button><button class="menu-toggle" id="menu-toggle" aria-label="メニューを開く"><span class="line"></span><span class="line"></span><span class="line"></span></button></div>
+  </header>
+  <nav id="nav-overlay" class="nav-overlay" aria-label="サイトメニュー">
+    <button class="nav-close" id="nav-close" aria-label="メニューを閉じる">✕</button>
+    <ul>
+      <li><a href="/">トップページ<span>Home</span></a></li>
+      <li><a href="/stars">星を探す<span>Star Chart</span></a></li>
+      <li><a href="/events">星空情報局<span>Sky Events</span></a></li>
+      <li><a href="/lifelog">星空ライフログ<span>My Starry Sky Log</span></a></li>
+      <li><a href="learn.html">宇宙を学ぶ<span>Explore the Cosmos</span></a></li>
+      <li><a href="/theater">ソノッキーの部屋<span>Sonocky's Room</span></a></li>
+      <li><a href="/tanabata">七夕 短冊<span>Tanabata Wishes</span></a></li>
+    </ul>
+  </nav>
+  <nav class="spine" aria-label="宇宙の時代">
+    <span class="cap">誕生</span><ol id="spine"><div class="prog" id="spineProg"></div></ol><span class="cap end">終焉</span>
+  </nav>
+  <div class="readout ui">
+    <div class="epoch-no" id="rNo">CHAPTER 01</div>
+    <div class="big-time" id="rTime">0</div>
+    <div class="time-cap">ビッグバンからの経過時間</div>
+    <div class="phys" id="rPhys"></div>
+  </div>
+  <div class="panel ui">
+    <div class="kicker softfade" id="pKick"></div>
+    <h1 class="softfade" id="pTitle"></h1>
+    <p class="softfade" id="pBody"></p>
+    <div class="meta softfade" id="pMeta"></div>
+  </div>
+  <div class="tl ui">
+    <div class="track" id="track"><div class="rail"></div><div class="fill" id="tlFill"></div><div class="knob" id="tlKnob"></div></div>
+    <div class="ticks" id="ticks"></div>
+    <div class="scaleLab"><span>ビッグバン</span><span>宇宙の終焉 ・ 10¹⁰⁰年</span></div>
+  </div>
+  <footer class="ui">
+    <button class="navbtn" id="prevBtn" aria-label="前の時代">←</button>
+    <div class="counter"><b id="cNow">01</b> / <span id="cTot">20</span></div>
+    <button class="navbtn" id="nextBtn" aria-label="次の時代">→</button>
+  </footer>
+  <div class="zoomctl ui">
+    <button id="zoomIn" aria-label="拡大">＋</button>
+    <span class="zlvl" id="zlvl">×1.0</span>
+    <button id="zoomOut" aria-label="縮小">−</button>
+    <button id="zoomReset" aria-label="表示をリセット">⟲</button>
+    <span class="zhint">ホイール / ピンチで拡大<br>ドラッグで移動</span>
+  </div>
+  <div id="intro"><div>
+    <div class="in-mark">宇宙のすべての時</div>
+    <div class="in-sub">From the Big Bang to the End of Time</div>
+    <div class="in-go"><button id="startBtn">旅をはじめる</button></div>
+  </div></div>
+
+<script>
+"use strict";
+/* ============================================================
+   宇宙の年表 — 連続シミュレーション（ビッグバン → 宇宙の終焉）
+   ひとつの連続「宇宙時間 tau」で全史をつなぐ。
+   時間・温度・赤方偏移は実際の宇宙論に基づき連続計算。
+   地球はピクセル単位の球面シェーディングで描画。
+   ============================================================ */
+const PI=Math.PI, TAU=PI*2;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ss=(e0,e1,x)=>{x=clamp((x-e0)/(e1-e0),0,1);return x*x*(3-2*x);};
+const win=(x,a,b,c,d)=>ss(a,b,x)*(1-ss(c,d,x));
+const rnd=(a=1,b)=> b===undefined?Math.random()*a:a+Math.random()*(b-a);
+function hash(x,y){let n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n);}
+const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- 物理 ---------- */
+const T0=2.725, YR=3.15576e7, NOW=13.8e9*YR;
+const WP=[
+ {tau:0.0000,t:1e-43,T:1.4e32},{tau:0.0526,t:1e-35,T:1e27},{tau:0.1053,t:1e-6,T:1e13},{tau:0.1579,t:180,T:9e8},
+ {tau:0.2105,t:1.19e13,T:3000},{tau:0.2632,t:3.15e15,T:60},{tau:0.3158,t:6.3e15,T:45},{tau:0.3684,t:3.15e16,T:17},
+ {tau:0.4211,t:8.0e16,T:10},{tau:0.4737,t:2.90e17,T:3.9},{tau:0.5263,t:2.915e17,T:3.85},{tau:0.5789,t:2.92e17,T:3.8},
+ {tau:0.6100,t:2.93e17,T:3.78},                 // 月の誕生
+ {tau:0.6316,t:NOW,T:2.725},                    // 現在
+ {tau:0.6842,t:15.3e9*YR,T:2.55},               // 海の蒸発 (+15億年)
+ {tau:0.7368,t:18.3e9*YR,T:2.25},               // 銀河衝突 (+45億年)
+ {tau:0.7895,t:19.3e9*YR,T:2.10},               // 赤色巨星 (+55億年)
+ {tau:0.8421,t:21.8e9*YR,T:1.80},               // 白色矮星 (+80億年)
+ {tau:0.8947,t:1e14*YR,T:0.02},                 // 縮退期 (100兆年)
+ {tau:0.9474,t:1e40*YR,T:1e-15},                // BH時代 (10⁴⁰年)
+ {tau:1.0000,t:1e100*YR,T:1e-30},               // 熱的死 (10¹⁰⁰年)
+];
+const NSEG=WP.length-1, RECOMB_I=4, PRESENT_I=13;
+const SUP={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+const sup=s=>String(s).split('').map(c=>SUP[c]||c).join('');
+function sci(v){if(v===0)return'0';const e=Math.floor(Math.log10(v));const m=v/Math.pow(10,e);
+  const mm=Math.round(m*10)/10;return (mm===1?'':mm+'×')+'10'+sup(e);}
+function physAt(tau){tau=clamp(tau,0,1);let i=0;while(i<WP.length-1&&WP[i+1].tau<tau)i++;
+  const a=WP[i],b=WP[Math.min(i+1,WP.length-1)],f=b.tau>a.tau?(tau-a.tau)/(b.tau-a.tau):0;
+  return{t:Math.pow(10,lerp(Math.log10(a.t),Math.log10(b.t),f)),
+         T:Math.pow(10,lerp(Math.log10(a.T),Math.log10(b.T),f))};}
+function fmtYears(y){
+  if(y<1e4)return Math.round(y).toLocaleString('ja')+'年';
+  if(y<1e8)return Math.round(y/1e4).toLocaleString('ja')+'万年';
+  if(y<1e12)return Math.round(y/1e8).toLocaleString('ja')+'億年';
+  if(y<1e16)return (Math.round(y/1e11)/10).toLocaleString('ja')+'兆年';
+  return sci(y)+'年';
+}
+function fmtTime(t){
+  if(t<1e-3)return sci(t)+' 秒';
+  if(t<1)return (t*1000).toPrecision(2)+' ミリ秒';
+  if(t<60)return (t<10?t.toFixed(1):Math.round(t))+' 秒';
+  if(t<3600)return Math.round(t/60)+' 分';
+  if(t<86400)return Math.round(t/3600)+' 時間';
+  if(t<YR)return Math.round(t/86400)+' 日';
+  return fmtYears(t/YR);
+}
+function fmtTemp(T){
+  if(T<1e-3)return sci(T)+' K';
+  if(T>=1e5)return sci(T)+' K';
+  if(T>=1000)return Math.round(T).toLocaleString('ja')+' K';
+  if(T>=10)return T.toFixed(0)+' K';
+  if(T>=1)return T.toFixed(2)+' K';
+  return T.toPrecision(2)+' K';
+}
+function fmtEnergy(T){const eV=8.617e-5*T;
+  if(eV>=1e9)return (eV/1e9).toPrecision(2)+' GeV';
+  if(eV>=1e6)return (eV/1e6).toPrecision(2)+' MeV';
+  if(eV>=1e3)return (eV/1e3).toPrecision(2)+' keV';
+  if(eV>=1)return eV.toPrecision(2)+' eV';
+  return (eV*1000).toPrecision(2)+' meV';}
+function fmtFromNow(t){const d=(t-NOW)/YR;if(Math.abs(d)<2e6)return '現在';return '＋'+fmtYears(d);}
+function blackbody(T){let t=clamp(T,1000,40000)/100,r,g,b;
+  r=t<=66?255:329.7*Math.pow(t-60,-0.1332);
+  g=t<=66?(99.47*Math.log(t)-161.1):288.1*Math.pow(t-60,-0.0755);
+  b=t>=66?255:(t<=19?0:138.5*Math.log(t-10)-305);
+  return[clamp(r,0,255)|0,clamp(g,0,255)|0,clamp(b,0,255)|0];}
+
+/* ---------- 章 ---------- */
+const CH=[
+ {no:"01",accent:"#ff7b00",kick:"THE SINGULARITY",title:"ビッグバン",
+  body:"すべての始まり。空間も時間も、ここから生まれました。宇宙は想像を絶するほど小さく、熱く、密度の高い火の玉でした。",meta:"プランク時代 — 既知の物理が届く限界"},
+ {no:"02",accent:"#ffb703",kick:"COSMIC INFLATION",title:"インフレーション",
+  body:"誕生直後のほんの一瞬で、宇宙は指数関数的に急膨張しました。原子より小さかった空間が、まばたきの間もなく天文学的な大きさへ引き伸ばされます。",meta:"急膨張がゆらぎの種をまく"},
+ {no:"03",accent:"#ff5d8f",kick:"QUARK ERA",title:"クォークの海",
+  body:"まだ陽子も中性子もありません。物質のもとであるクォークやグルーオンが、灼熱のスープのように激しく飛び交っていました。",meta:"クォーク・グルーオン・プラズマ"},
+ {no:"04",accent:"#ff924c",kick:"NUCLEOSYNTHESIS",title:"元素の芽生え",
+  body:"宇宙が冷え、陽子と中性子が結びつきました。こうして水素とヘリウムの原子核が生まれます。宇宙で最初の元素が誕生した瞬間です。",meta:"水素75% ・ ヘリウム25% が決まる"},
+ {no:"05",accent:"#c77dff",kick:"RECOMBINATION",title:"宇宙の晴れ上がり",
+  body:"電子が原子核に取り込まれ、霧が晴れるように光がまっすぐ進めるようになりました。このときの光は今も宇宙マイクロ波背景放射として全天で観測できます。",meta:"宇宙が透明になり最古の光が放たれる"},
+ {no:"06",accent:"#5a6acf",kick:"COSMIC DARK AGES",title:"暗黒時代",
+  body:"まだ星はひとつもなく、宇宙は水素ガスに満ちた暗闇でした。重力がゆっくりとガスを引き寄せ、構造の種が育っていきます。",meta:"光源のない静かな時代"},
+ {no:"07",accent:"#90e0ef",kick:"FIRST LIGHT",title:"初代星の点火",
+  body:"ガスが自らの重さで縮み、ついに最初の星がともりました。暗闇に初めて光が戻ります。初代星は太陽より遥かに大きく青白く輝きました。",meta:"重元素を持たない巨大な初代星"},
+ {no:"08",accent:"#b388ff",kick:"STRUCTURE FORMS",title:"銀河の形成",
+  body:"星々が重力で集まり銀河が形づくられます。銀河はさらに網の目状の大規模構造（コズミックウェブ）へと連なっていきました。",meta:"宇宙の大規模構造が織られる"},
+ {no:"09",accent:"#a8dadc",kick:"OUR GALAXY",title:"天の川銀河",
+  body:"私たちの住む天の川銀河も、小さな銀河との合体をくり返しながら渦巻きの姿を整えていきました。その片隅に、やがて太陽が生まれます。",meta:"直径 約10万光年の渦巻銀河へ"},
+ {no:"10",accent:"#ffb703",kick:"BIRTH OF THE SUN",title:"太陽系の誕生",
+  body:"銀河の片隅で、ガスと塵の雲が自らの重力で収縮し、中心で原始太陽が産声をあげました。まわりには塵とガスが円盤状に渦を巻きます。",meta:"原始太陽 ＋ 原始惑星系円盤"},
+ {no:"11",accent:"#e07a5f",kick:"ACCRETION",title:"微惑星の衝突",
+  body:"円盤の塵が集まって微惑星になり、衝突と合体をくり返します。ぶつかるたびに大きくなり、だんだんと惑星へ育っていきました。",meta:"衝突合体が惑星の種を育てる"},
+ {no:"12",accent:"#ff8c42",kick:"THE MOLTEN WORLD",title:"地球の誕生",
+  body:"こうして地球が生まれました。誕生直後はマグマに覆われた灼熱の世界。円盤の塵が集まってできた、生まれたての惑星です。",meta:"マグマの海 ・ 灼熱の原始地球"},
+ {no:"13",accent:"#cdd0e0",kick:"BIRTH OF THE MOON",title:"月の誕生",
+  body:"生まれたばかりの地球に、火星ほどの大きさの天体が衝突しました。砕けて飛び散った高温の破片はやがて集まり、ひとつにまとまって月になります。月は地球の自転を安定させ、生命の揺りかごを整えました。",meta:"ジャイアント・インパクト ・ 破片の集積"},
+ {no:"13",accent:"#06d6a0",kick:"THE LIVING PLANET",title:"生命の惑星（現在）",now:true,
+  body:"冷えた地球に海が広がり、生命が芽生え、進化を重ねて今に至ります。青い海、緑の大地、白い雲をまとう——私たちが立つ、宇宙でただひとつ知られた生命の星です。",meta:"海 ・ 大気 ・ 生命の世界"},
+ {no:"14",accent:"#f4a259",kick:"OCEANS BOIL AWAY",title:"太陽の老化と海の蒸発",future:true,
+  body:"太陽は少しずつ明るさを増していきます。約10〜15億年後には地表が熱くなりすぎ、海はゆっくりと蒸発。やがて地球は乾いた灼熱の世界へと変わっていきます。",meta:"＋約10〜15億年 ・ 生命圏の終わり"},
+ {no:"15",accent:"#9b5de5",kick:"GALAXIES COLLIDE",title:"銀河大衝突 ・ ミルコメダ",future:true,
+  body:"約45億年後、天の川銀河はアンドロメダ銀河と衝突します。二つの渦巻きは互いを引き裂きながら混ざり合い、ひとつの巨大な銀河「ミルコメダ」へと姿を変えていきます。",meta:"＋約45億年 ・ 天の川 ＋ アンドロメダ"},
+ {no:"16",accent:"#ff6b6b",kick:"THE RED GIANT",title:"太陽、赤色巨星へ",future:true,
+  body:"約50〜60億年後、太陽は燃料を使い果たして膨張し、赤色巨星になります。その大きさは地球の軌道に迫るほど。焼け焦げた地球は、最期を迎えます。",meta:"＋約55億年 ・ 太陽が水星・金星を呑み込む"},
+ {no:"17",accent:"#bdb2ff",kick:"WHITE DWARF",title:"白色矮星と惑星状星雲",future:true,
+  body:"赤色巨星は外層をガスとして静かに吹き払い、美しい惑星状星雲を残します。中心には、地球ほどの大きさに縮んだ高温の燃えがら——白色矮星が、ゆっくりと冷えていきます。",meta:"＋約80億年 ・ 太陽の亡骸"},
+ {no:"18",accent:"#577590",kick:"DEGENERATE ERA",title:"恒星の時代の終焉",future:true,
+  body:"やがて新しい星は生まれなくなり、最後の赤色矮星も燃え尽きます。約100兆年後、宇宙から輝く星は消え、白色矮星や中性子星の残光だけが漂う暗い時代が訪れます。",meta:"約100兆年後 ・ 縮退星だけの宇宙"},
+ {no:"19",accent:"#4361ee",kick:"BLACK HOLE ERA",title:"ブラックホールの時代",future:true,
+  body:"星の残骸さえ朽ち、宇宙はブラックホールが支配する世界になります。それらもホーキング放射でごくわずかずつ蒸発し、気の遠くなる時間をかけて消えていきます。",meta:"約10⁴⁰年後 ・ ブラックホールの蒸発"},
+ {no:"20",accent:"#2a2a3a",kick:"THE HEAT DEATH",title:"宇宙の熱的死",future:true,
+  body:"最後のブラックホールも蒸発し尽くし、宇宙には拡散した光と粒子だけが、限りなく冷たく、限りなく薄く広がります。これが今の物理が描く、宇宙の終わりの姿です。",meta:"約10¹⁰⁰年後 ・ 最大エントロピー ・ 絶対零度へ"},
+];
+const CHTAU=[0,0.0526,0.1053,0.1579,0.2105,0.2632,0.3158,0.3684,0.4211,0.4737,0.5263,0.5789,0.610,0.6316,0.6842,0.7368,0.7895,0.8421,0.8947,0.9474,1.0];
+CH.forEach((c,i)=>{c.tau=CHTAU[i];c.no=String(i+1).padStart(2,'0');});
+
+/* ---------- canvas ---------- */
+const canvas=document.getElementById('stage'),ctx=canvas.getContext('2d');
+let W=0,H=0,DPR=1,CX=0,CY=0,MAXR=0;
+function resize(){DPR=Math.min(window.devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;CX=W/2;CY=H/2;MAXR=Math.hypot(W,H)/2;
+  canvas.width=W*DPR;canvas.height=H*DPR;canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);buildWorld();if(typeof clampView==='function')clampView();}
+addEventListener('resize',resize);
+
+let motes=[],webNodes=[],diskDust=[],bgStars=[];
+function buildWorld(){
+  motes=[];const nm=reduceMotion?160:480, ng=(nm/4)|0;
+  for(let gi=0;gi<ng;gi++){
+    const ga=rnd(TAU),gbr=Math.sqrt(Math.random()),gsp=rnd(.4,1.6),gph=rnd(TAU);
+    for(let k=0;k<4;k++){
+      motes.push({a:rnd(TAU),br:Math.sqrt(Math.random()),sp:gsp,ph:gph+rnd(TAU),
+        drift:rnd(-.05,.05),kind:Math.random(),
+        ga,gbr,ox:Math.cos(k/4*TAU+gi)*6.5,oy:Math.sin(k/4*TAU+gi)*6.5,role:k<2?0:1});
+    }
+  }
+  webNodes=[];const nn=reduceMotion?7:11;
+  for(let i=0;i<nn;i++)webNodes.push({x:rnd(.12,.88),y:rnd(.16,.84),sz:rnd(.5,1),rot:rnd(TAU),spin:rnd(.1,.35)*(Math.random()<.5?1:-1),seed:i});
+  webNodes[0].x=.52;webNodes[0].y=.46;webNodes[0].sz=1;
+  diskDust=[];const nd=reduceMotion?180:520;
+  for(let i=0;i<nd;i++){const t=Math.random();diskDust.push({base:60+t*MAXR*.42,a:rnd(TAU),seed:i,clump:Math.random()<.06});}
+  bgStars=[];const nb=reduceMotion?120:Math.round(W*H/10000);
+  for(let i=0;i<nb;i++)bgStars.push({x:rnd(W),y:rnd(H),r:rnd(.3,1.3),ph:rnd(TAU),sp:rnd(.6,2.2)});
+}
+function disc(x,y,r){r=Math.max(0,r);ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();}
+function ring(x,y,r){r=Math.max(0,r);ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.stroke();}
+function glow(x,y,r,col,a=1){r=Math.max(0.01,r);const g=ctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,col);g.addColorStop(1,'rgba(0,0,0,0)');ctx.globalAlpha=a;ctx.fillStyle=g;disc(x,y,r);ctx.globalAlpha=1;}
+function bgStarfield(t,a){if(a<=0)return;for(const s of bgStars){const tw=.4+.6*Math.sin(t*s.sp+s.ph);
+  ctx.globalAlpha=a*(.3+.7*tw);ctx.fillStyle='#fff';disc(s.x,s.y,s.r);}ctx.globalAlpha=1;}
+
+/* ===================================================================
+   惑星レンダラ（ピクセル単位の球面シェーディング）
+   =================================================================== */
+const TEXW=360,TEXH=180;
+const elevTex=new Float32Array(TEXW*TEXH), cloudTex=new Float32Array(TEXW*TEXH);
+function vhash3(i,j,k){let n=(i*374761393+j*668265263+k*1274126177)|0;
+  n=Math.imul(n^(n>>>13),1274126177);return((n^(n>>>16))>>>0)/4294967295;}
+function vnoise3(x,y,z){const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z);
+  const xf=x-xi,yf=y-yi,zf=z-zi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf),w=zf*zf*(3-2*zf);
+  const c000=vhash3(xi,yi,zi),c100=vhash3(xi+1,yi,zi),c010=vhash3(xi,yi+1,zi),c110=vhash3(xi+1,yi+1,zi),
+        c001=vhash3(xi,yi,zi+1),c101=vhash3(xi+1,yi,zi+1),c011=vhash3(xi,yi+1,zi+1),c111=vhash3(xi+1,yi+1,zi+1);
+  const x00=c000+(c100-c000)*u,x10=c010+(c110-c010)*u,x01=c001+(c101-c001)*u,x11=c011+(c111-c011)*u;
+  const y0=x00+(x10-x00)*v,y1=x01+(x11-x01)*v;return y0+(y1-y0)*w;}
+function fbm3(x,y,z,oct){let a=0,amp=0.5,f=1;for(let i=0;i<oct;i++){a+=amp*vnoise3(x*f,y*f,z*f);f*=2;amp*=0.5;}return a;}
+function buildPlanetTex(){
+  for(let j=0;j<TEXH;j++){const lat=(j/TEXH)*PI-PI/2,cl=Math.cos(lat),sl=Math.sin(lat);
+    for(let i=0;i<TEXW;i++){const lon=(i/TEXW)*TAU-PI;
+      const dx=cl*Math.cos(lon),dy=sl,dz=cl*Math.sin(lon);
+      const F=1.7;let e=fbm3(dx*F+5,dy*F+5,dz*F+5,5);
+      e=clamp((e-0.30)/0.45,0,1);                       // コントラストを上げ大陸を明瞭に
+      elevTex[j*TEXW+i]=e;
+      cloudTex[j*TEXW+i]=fbm3(dx*2.6+20,dy*2.6+20,dz*2.6+20,4);
+    }}
+}
+function sElev(lon,lat){let u=(lon+PI)/TAU;u-=Math.floor(u);let v=clamp((lat+PI/2)/PI,0,0.999999);
+  return elevTex[((v*TEXH)|0)*TEXW+((u*TEXW)|0)];}
+function sCloud(lon,lat){let u=(lon+PI)/TAU;u-=Math.floor(u);let v=clamp((lat+PI/2)/PI,0,0.999999);
+  return cloudTex[((v*TEXH)|0)*TEXW+((u*TEXW)|0)];}
+
+const BR=reduceMotion?110:140;
+const pcan=document.createElement('canvas');pcan.width=BR*2;pcan.height=BR*2;
+const pctx=pcan.getContext('2d');let pimg=pctx.createImageData(BR*2,BR*2),pdat=pimg.data;
+let _pf=0,_psig='';
+function norm3(x,y,z){const m=Math.hypot(x,y,z)||1;return[x/m,y/m,z/m];}
+const SUNL=norm3(-0.55,0.32,0.78);
+function drawPlanet(cx,cy,R,o){
+  const w=o.w==null?1:o.w; if(w<=0.02||R<3)return;
+  const rot=o.rot||0,croT=o.cloudRot||0;
+  const Lx=o.Lx==null?SUNL[0]:o.Lx,Ly=o.Ly==null?SUNL[1]:o.Ly,Lz=o.Lz==null?SUNL[2]:o.Lz;
+  const lava=o.lava||0,heat=o.heat||0,bio=o.bio==null?1:o.bio,scorch=o.scorch||0,
+        cloud=o.cloud==null?0.6:o.cloud,lights=o.lights||0,ice=o.ice==null?1:o.ice;
+  const sea=(o.sea==null?0.46:o.sea)-heat*0.30;
+  // 重いピクセル計算は隔フレームのみ（モード変化時は即再計算）
+  const sig=lava.toFixed(2)+heat.toFixed(2)+bio.toFixed(2)+scorch+ice.toFixed(2)+cloud.toFixed(2)+lights.toFixed(2)+(Math.round(rot*4))+(o.scorch?'s':'');
+  const recompute=(_pf++ & 1)===0 || sig!==_psig;
+  if(recompute){_psig=sig;
+  const cr=Math.cos(rot),sr=Math.sin(rot),amb=0.10,D=BR*2;
+  for(let py=0;py<D;py++){const ny=-(py-BR)/BR;
+    for(let px=0;px<D;px++){const nx=(px-BR)/BR,off=(py*D+px)*4,r2=nx*nx+ny*ny;
+      if(r2>1){pdat[off+3]=0;continue;}
+      const nz=Math.sqrt(1-r2);
+      const wx=nx*cr+nz*sr,wz=-nx*sr+nz*cr,wy=ny;
+      const lon=Math.atan2(wx,wz),lat=Math.asin(clamp(wy,-1,1)),e=sElev(lon,lat);
+      let r8,g8,b8;
+      if(scorch>0.5){const emb=ss(0.66,0.82,e);
+        r8=lerp(46,150,emb);g8=lerp(26,52,emb);b8=lerp(22,36,emb);
+        if(e>0.82){const k=(e-0.82)*5.5;r8=lerp(r8,255,k);g8=lerp(g8,150,k);b8=lerp(b8,40,k);}
+      }else{
+        if(e<sea){const d=clamp((sea-e)/Math.max(sea,0.01),0,1);
+          r8=lerp(36,5,d);g8=lerp(120,34,d);b8=lerp(168,86,d);
+        }else{const h=clamp((e-sea)/(1-sea),0,1),trop=1-Math.min(1,Math.abs(lat)/1.0);
+          if(h<0.10){r8=200;g8=186;b8=138;}
+          else if(h<0.5){r8=lerp(58,112,1-trop);g8=lerp(120,134,1-trop);b8=lerp(48,62,1-trop);}
+          else if(h<0.8){r8=118;g8=98;b8=76;}
+          else{r8=236;g8=237;b8=243;}
+        }
+        const ic=ss(1.16,1.32,Math.abs(lat))*ice;
+        if(ic>0){r8=lerp(r8,238,ic);g8=lerp(g8,242,ic);b8=lerp(b8,250,ic);}
+        if(lava>0.001){const em=ss(0.38,0.72,e);let lr=lerp(70,255,em),lg=lerp(20,140,em),lb=lerp(12,38,em);
+          if(e>0.8){lr=255;lg=210;lb=120;}r8=lerp(r8,lr,lava);g8=lerp(g8,lg,lava);b8=lerp(b8,lb,lava);}
+        if(heat>0.001){r8=lerp(r8,Math.min(255,r8*1.05+45),heat);g8=lerp(g8,g8*0.78,heat);b8=lerp(b8,b8*0.55,heat);}
+      }
+      let diff=nx*Lx+ny*Ly+nz*Lz;if(diff<0)diff=0;
+      const lit=amb+(1-amb)*diff;
+      let cr8=r8,cg8=g8,cb8=b8;
+      if(cloud>0.001&&lava<0.5&&scorch<0.5){const cd=sCloud(lon+croT,lat),ca=ss(0.5,0.72,cd)*cloud;
+        if(ca>0){cr8=lerp(cr8,250,ca);cg8=lerp(cg8,252,ca);cb8=lerp(cb8,255,ca);}}
+      let fr=cr8*lit,fg=cg8*lit,fb=cb8*lit;
+      if(lights>0&&diff<0.13&&e>=sea&&scorch<0.5&&lava<0.5){const nl=sCloud(lon+3.1,lat+1.7);
+        if(nl>0.64){const gg=(0.13-diff)/0.13*lights*(nl-0.64)/0.36;fr+=gg*255;fg+=gg*195;fb+=gg*110;}}
+      const sg=Math.max(lava*ss(0.4,0.7,e),scorch*ss(0.7,0.86,e));
+      if(sg>0){fr+=sg*255;fg+=sg*110;fb+=sg*26;}
+      pdat[off]=clamp(fr,0,255);pdat[off+1]=clamp(fg,0,255);pdat[off+2]=clamp(fb,0,255);pdat[off+3]=255;
+    }}
+  pctx.putImageData(pimg,0,0);
+  }
+  ctx.globalAlpha=w;ctx.drawImage(pcan,cx-R,cy-R,2*R,2*R);ctx.globalAlpha=1;
+  if(o.atmo>0){const ac=o.atmoCol||'120,190,255';
+    const rim=ctx.createRadialGradient(cx,cy,R*0.9,cx,cy,R*1.16);
+    rim.addColorStop(0,`rgba(${ac},0)`);rim.addColorStop(.62,`rgba(${ac},${0.30*o.atmo*w})`);rim.addColorStop(1,`rgba(${ac},0)`);
+    ctx.fillStyle=rim;disc(cx,cy,R*1.16);}
+}
+
+/* ===================================================================
+   レイヤー（連続 tau ・ クロスフェード）
+   =================================================================== */
+function layerBackground(tau,T,clock){
+  // 終盤ほど真っ暗へ
+  const dk=ss(0.86,1.0,tau);
+  ctx.fillStyle=`rgb(${4-dk*4|0},${3-dk*3|0},${8-dk*8|0})`;ctx.fillRect(0,0,W,H);
+  const starA=ss(0.24,0.40,tau)*0.6*(1-ss(0.62,0.74,tau));
+  bgStarfield(clock,starA);
+  const opaque=1-ss(0.185,0.235,tau);
+  if(opaque>0.001){const[r,g,b]=blackbody(T);
+    const grad=ctx.createRadialGradient(CX,CY,0,CX,CY,MAXR*1.1);
+    grad.addColorStop(0,`rgba(${r},${g},${b},${opaque*.82})`);
+    grad.addColorStop(.55,`rgba(${r},${g},${b},${opaque*.55})`);
+    grad.addColorStop(1,`rgba(${(r*.45)|0},${(g*.36)|0},${(b*.42)|0},${opaque*.28})`);
+    ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);}
+}
+function layerMatter(tau,T,clock){
+  const w=1-ss(0.205,0.25,tau);if(w<=0.001)return;
+  const[r,g,b]=blackbody(Math.max(T,1500));
+  const spread=lerp(0.04,1.0,ss(0.0,0.21,tau)),sz=lerp(2.6,1.05,ss(0.03,0.21,tau));
+  const bind=ss(0.105,0.165,tau);                 // クォークが集まり核子・原子核へ結合
+  const fk=(1-ss(0.10,0.21,tau))*(1-bind*0.85);   // 結合すると揺らぎが収まる
+  for(const m of motes){m.a+=m.drift*0.004;
+    const radF=m.br*spread*MAXR*0.98, fx=CX+Math.cos(m.a)*radF, fy=CY+Math.sin(m.a)*radF;
+    const radG=m.gbr*spread*MAXR*0.98, bx=CX+Math.cos(m.ga)*radG+m.ox, by=CY+Math.sin(m.ga)*radG+m.oy;
+    const x=lerp(fx,bx,bind)+fk*Math.sin(clock*m.sp*3+m.ph)*3, y=lerp(fy,by,bind)+fk*Math.cos(clock*m.sp*3+m.ph)*3;
+    // 色: 高温クォーク(黒体色) → 核子(陽子=暖色 / 中性子=灰)
+    const nr=m.role?206:255, ng2=m.role?208:140, nb=m.role?218:72;
+    const cr=lerp(r,nr,bind)|0, cg=lerp(g,ng2,bind)|0, cb=lerp(b,nb,bind)|0;
+    const fl=.6+.4*Math.sin(clock*4*m.sp+m.ph)*(1-bind*0.6);
+    ctx.globalAlpha=w*(.5+.5*fl)*clamp(1-m.br*0.3,0.3,1);
+    ctx.fillStyle=`rgb(${cr},${cg},${cb})`;disc(x,y,sz*(m.kind<.5?1:1.35));}
+  ctx.globalAlpha=1;
+}
+/* --- 創世: ⓪特異点 ①閃光 ②衝撃波 ③インフレーション（空間の急膨張） --- */
+function layerGenesis(tau,clock){
+  const w=1-ss(0.11,0.145,tau);if(w<=0.001)return;
+  // ⓪ 特異点（無の中の一点が脈打つ）
+  const pt=1-ss(0.0,0.025,tau);
+  if(pt>0.01){const pl=0.5+0.5*Math.sin(clock*18);
+    glow(CX,CY,lerp(20,4,pt)+pl*7,`rgba(255,255,255,${pt*0.9})`,1);
+    ctx.globalAlpha=pt;ctx.fillStyle='#fff';disc(CX,CY,lerp(2,6,pt));ctx.globalAlpha=1;}
+  // ① 誕生の閃光
+  const flash=ss(0.004,0.022,tau)*(1-ss(0.022,0.06,tau));
+  if(flash>0.001)glow(CX,CY,MAXR*1.3,`rgba(255,252,245,${flash*0.92})`,1);
+  // ② 膨張する衝撃波
+  for(let s=0;s<5;s++){const p=ss(s*0.012,s*0.012+0.085,tau);
+    if(p>0.001&&p<0.999){ctx.globalAlpha=w*(1-p)*0.4;ctx.strokeStyle='rgba(255,240,220,1)';ctx.lineWidth=lerp(8,0.6,p);
+      ring(CX,CY,p*MAXR*1.25);}}
+  ctx.globalAlpha=1;
+  // ③ インフレーション: 空間の格子が一気に引き伸ばされる
+  const inf=ss(0.04,0.072,tau)*(1-ss(0.092,0.13,tau));
+  if(inf>0.01){const gsz=lerp(26,160,ss(0.045,0.125,tau));
+    ctx.globalAlpha=w*inf*0.45;ctx.strokeStyle='rgba(155,190,255,0.85)';ctx.lineWidth=1;ctx.beginPath();
+    for(let gx=CX%gsz;gx<W;gx+=gsz){ctx.moveTo(gx,0);ctx.lineTo(gx,H);}
+    for(let gy=CY%gsz;gy<H;gy+=gsz){ctx.moveTo(0,gy);ctx.lineTo(W,gy);}
+    ctx.stroke();
+    for(let s=0;s<3;s++){const p=ss(0.045+s*0.008,0.115,tau);
+      ctx.globalAlpha=w*inf*0.35*(1-p);ctx.strokeStyle='rgba(175,205,255,0.9)';ctx.lineWidth=2;ring(CX,CY,p*MAXR*1.4);}
+    ctx.globalAlpha=1;}
+}
+function layerRecomb(tau){const w=win(tau,0.175,0.205,0.225,0.27);if(w<=0.001)return;
+  const flare=ss(0.175,0.21,tau)*(1-ss(0.21,0.255,tau)),prog=ss(0.19,0.255,tau),N=reduceMotion?50:150;
+  for(let i=0;i<N;i++){const a=hash(i,2)*TAU,d=prog*MAXR*1.1*(0.4+hash(i,9)*0.6),x=CX+Math.cos(a)*d,y=CY+Math.sin(a)*d;
+    ctx.globalAlpha=w*0.7*(1-prog*0.5);ctx.strokeStyle='rgba(230,185,255,0.9)';ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(a)*9,y+Math.sin(a)*9);ctx.stroke();}
+  ctx.globalAlpha=1;if(flare>0)glow(CX,CY,MAXR,`rgba(199,125,255,${flare*0.4})`,1);
+  const ca=w*0.26*ss(0.205,0.26,tau);
+  if(ca>0){const cell=48;for(let x=0;x<W;x+=cell)for(let y=0;y<H;y+=cell){const v=hash((x/cell)|0,(y/cell)|0);
+    ctx.globalAlpha=ca;ctx.fillStyle=`rgb(${140+v*70|0},${50+v*30|0},${150+(1-v)*70|0})`;ctx.fillRect(x,y,cell,cell);}ctx.globalAlpha=1;}}
+function layerDarkGas(tau,clock){const w=win(tau,0.225,0.255,0.29,0.35);if(w<=0.001)return;
+  for(let i=0;i<(reduceMotion?5:9);i++){const x=((hash(i,4)*W+clock*5*(i%2?1:-1))%(W+240))-120,y=hash(i,8)*H;
+    glow(x,y,150+hash(i,1)*110,`rgba(60,70,120,${w*.10})`,1);}}
+/* --- 初代星の点火: 原子・ガスが集まり、圧縮・加熱して星が灯る --- */
+function layerFirstStar(tau,clock){
+  const w=win(tau,0.275,0.315,0.345,0.385);if(w<=0.001)return;
+  const gather=ss(0.275,0.34,tau);     // ガス(原子)が中心へ集まる
+  const ignite=ss(0.335,0.375,tau);    // 点火
+  const N=reduceMotion?70:180;
+  for(let i=0;i<N;i++){
+    const s7=hash(i,7),a0=s7*TAU,r0=(0.16+hash(i,3)*0.84)*Math.min(W,H)*0.52;
+    const r=r0*(1-gather*0.93);                                   // 中心へ収縮
+    const a=a0+gather*5.5*(0.6+hash(i,9))+clock*0.25*(1-gather);  // らせんを描いて降着
+    const x=CX+Math.cos(a)*r,y=CY+Math.sin(a)*r*0.92,hot=gather;
+    ctx.globalAlpha=w*(0.2+0.55*hash(i,5))*(1-ignite*0.6);
+    ctx.fillStyle=`rgb(${lerp(110,255,hot)|0},${lerp(135,250,hot)|0},${lerp(205,255,hot)|0})`;
+    disc(x,y,lerp(1.7,0.7,gather));
+  }
+  ctx.globalAlpha=1;
+  // 圧縮・加熱するコア(赤→白→青)
+  const[cr,cg,cb]=blackbody(lerp(2600,13000,gather));
+  glow(CX,CY,lerp(6,54,gather)+ignite*210,`rgba(${cr},${cg},${cb},${w*(0.28+0.6*gather)})`,1);
+  if(ignite>0){
+    glow(CX,CY,ignite*Math.min(W,H)*0.55,`rgba(215,232,255,${w*ignite*0.45})`,1);
+    ctx.globalAlpha=w*ignite*0.9;ctx.strokeStyle='rgba(225,240,255,0.85)';ctx.lineWidth=1.4;
+    for(let k=0;k<8;k++){const a=k/8*TAU+0.3,L=ignite*Math.min(W,H)*0.42;
+      ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(CX+Math.cos(a)*L,CY+Math.sin(a)*L);ctx.stroke();}
+    ctx.globalAlpha=1;
+  }
+  const coreR=lerp(2,12,gather)+ignite*16;
+  ctx.globalAlpha=w;ctx.fillStyle=`rgb(${cr},${cg},${cb})`;disc(CX,CY,coreR);
+  ctx.fillStyle='#fff';ctx.globalAlpha=w*(0.3+0.7*ignite);disc(CX,CY,coreR*0.5);ctx.globalAlpha=1;
+}
+function nodePos(n,zoom){const ax=lerp(n.x,webNodes[0].x,zoom),ay=lerp(n.y,webNodes[0].y,zoom),k=lerp(1,3.4,zoom);
+  return{x:CX+(ax-webNodes[0].x)*W*k,y:CY+(ay-webNodes[0].y)*H*k,k};}
+function layerStarsWeb(tau,clock){const w=win(tau,0.345,0.375,0.39,0.44);if(w<=0.001)return;
+  const zoom=ss(0.40,0.45,tau),ignite=ss(0.345,0.37,tau),galaxy=ss(0.355,0.40,tau);
+  ctx.globalAlpha=w*galaxy*0.18;ctx.strokeStyle='rgba(150,170,255,1)';ctx.lineWidth=1;
+  for(let i=0;i<webNodes.length;i++)for(let j=i+1;j<webNodes.length;j++){const A=webNodes[i],B=webNodes[j];
+    if(Math.hypot(A.x-B.x,A.y-B.y)<0.34){const pa=nodePos(A,zoom),pb=nodePos(B,zoom);
+      ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);ctx.stroke();}}
+  ctx.globalAlpha=1;
+  for(const n of webNodes){const p=nodePos(n,zoom),sz=n.sz*lerp(8,46,galaxy)*p.k*0.6;
+    glow(p.x,p.y,sz*0.7,`rgba(180,210,255,${w*(0.25+0.3*galaxy)})`,1);
+    if(ignite>0&&galaxy<0.4){ctx.globalAlpha=w*ignite;ctx.fillStyle='#eaf4ff';disc(p.x,p.y,2.4*ignite);ctx.globalAlpha=1;}
+    if(galaxy>0.05){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(n.rot+clock*n.spin*0.3);
+      const pts=reduceMotion?28:60;for(let i=0;i<pts;i++){const t=i/pts,arm=i%2,ang=t*5+arm*PI,rad=t*sz;
+        ctx.globalAlpha=w*galaxy*(1-t)*0.9;ctx.fillStyle=t<0.2?'#fff':'#d6c6ff';disc(Math.cos(ang)*rad,Math.sin(ang)*rad*0.7,1.2);}
+      ctx.restore();ctx.globalAlpha=1;}}}
+function spiral(cx,cy,R,rotv,arms,pts,squash,colf,a){ctx.save();ctx.translate(cx,cy);ctx.rotate(rotv);ctx.scale(1,squash);
+  for(let i=0;i<pts;i++){const t=i/pts,arm=i%arms,ang=t*7+arm*(TAU/arms)+hash(i,2)*0.3,rad=t*R;
+    ctx.globalAlpha=a*(1-t*0.6)*0.85;ctx.fillStyle=colf(t,i);disc(Math.cos(ang)*rad,Math.sin(ang)*rad,1.1+(hash(i,5)<0.1?1:0));}
+  ctx.restore();ctx.globalAlpha=1;}
+function layerMilkyway(tau,clock){const w=win(tau,0.385,0.42,0.45,0.505);if(w<=0.001)return;
+  const M=Math.min(W,H);
+  const grow=ss(0.385,0.43,tau);
+  const dive=ss(0.44,0.505,tau);
+  const fade=1-ss(0.46,0.505,tau);
+  const gox=-M*0.13, goy=M*0.03;                 // 銀河核をわずかに左に。太陽は銀河の腕の中＝画面中心
+  const dz=lerp(1,5.5,dive);
+  ctx.save();
+  ctx.translate(CX,CY);ctx.scale(dz,dz);ctx.translate(-CX,-CY);   // 画面中心（太陽の場所）へまっすぐズーム
+  glow(CX+gox,CY+goy,70*grow,`rgba(255,240,210,${w*0.4*fade})`,1);
+  spiral(CX+gox,CY+goy,M*0.46*grow,clock*0.04,4,reduceMotion?260:820,0.45,
+    (t,i)=>{const c=hash(i,5);return c<0.15?'#fff':c<0.5?'#cfe0ff':'#a7d8e0';},w*fade);
+  // 太陽が生まれる星形成領域（腕の中の明るい塊）— ズームで近づく。ここから太陽がせり出す
+  glow(CX,CY,lerp(10,42,dive)*Math.max(grow,0.4),`rgba(255,228,185,${w*fade*(0.35+0.45*dive)})`,1);
+  ctx.restore();ctx.globalAlpha=1;
+  // 太陽の位置を示す円（画面中心）→ その円の中から太陽がせり出す（大きさ・位置はlayerSolarと共有）
+  const bl=.5+.5*Math.sin(clock*3), ringFade=1-ss(0.1,0.45,dive);
+  if(grow>0.5&&ringFade>0.01){ctx.strokeStyle=`rgba(255,205,100,${w*bl*fade*ringFade})`;ctx.lineWidth=1.5;ring(CX,CY,15);
+    if(dive<0.1){ctx.globalAlpha=w*fade*ringFade;ctx.fillStyle='rgba(255,210,120,1)';ctx.font='11px "Space Mono"';
+      ctx.fillText('☉ ここで太陽が生まれる',CX+20,CY+4);ctx.globalAlpha=1;}}
+  protoSun(tau,w);
+}
+function protoSun(tau,a){ // 天の川〜太陽系で共有する原始太陽（画面中心・連続した見かけの大きさ）
+  const sr=lerp(2,16,ss(0.44,0.52,tau));
+  glow(CX,CY,sr*3.2,`rgba(255,215,150,${a})`,1);
+  ctx.globalAlpha=a;ctx.fillStyle='#fff3da';disc(CX,CY,sr);ctx.fillStyle='#fffaf0';disc(CX,CY,sr*0.5);ctx.globalAlpha=1;
+}
+function layerSolar(tau,clock){const w=win(tau,0.445,0.475,0.50,0.55);if(w<=0.001)return;
+  bgStarfield(clock,w*0.2);
+  const M=Math.min(W,H);
+  const emerge=ss(0.445,0.515,tau), es=lerp(0.35,1,emerge);       // 円盤が中心から現れて拡大（太陽は中心固定）
+  const collapse=ss(0.45,0.49,tau);
+  ctx.save();ctx.translate(CX,CY);ctx.rotate(0.5);ctx.scale(es,es*0.34);
+  glow(0,0,M*0.46,`rgba(255,170,60,${w*0.10})`,1);
+  const N=reduceMotion?160:460;for(let i=0;i<N;i++){const t=hash(i,3),rad=60+t*M*0.42,
+    ang=hash(i,7)*TAU+clock*(1.4/Math.sqrt(rad))*60,x=Math.cos(ang)*rad,y=Math.sin(ang)*rad;
+    ctx.globalAlpha=w*(.5+.5*hash(i,9))*collapse;const warm=1-rad/(M*0.42);
+    ctx.fillStyle=`rgba(255,${170+warm*60|0},${90+warm*60|0},1)`;disc(x,y,1.2);}
+  ctx.restore();ctx.globalAlpha=1;
+  protoSun(tau,w);   // milkywayと同じ位置・大きさで連続
+}
+function layerAccretion(tau,clock){const w=win(tau,0.495,0.52,0.55,0.595);if(w<=0.001)return;
+  bgStarfield(clock,w*0.25);glow(CX,CY,90,`rgba(255,190,90,${w*0.5})`,1);
+  ctx.globalAlpha=w;ctx.fillStyle='#ffeccc';disc(CX,CY,12);ctx.globalAlpha=1;  // 中央の原始太陽
+  ctx.save();ctx.scale(1,0.5);const cy2=CY/0.5;
+  for(const d of diskDust){const ang=d.a+clock*(1.0/Math.sqrt(d.base))*40,x=CX+Math.cos(ang)*d.base,y=cy2+Math.sin(ang)*d.base,
+    r=d.clump?Math.min(4+ss(0.51,0.55,tau)*9,13):2.2;
+    ctx.globalAlpha=w;ctx.fillStyle=d.clump?'#c98b6a':'#9a8a82';disc(x,y,r);
+    if(d.clump&&Math.sin(ang*3+clock)>0.985)glow(x,y,16,`rgba(255,220,150,${w*.7})`,1);}
+  // 円盤の各軌道から原始惑星が生まれていく
+  const gp=ss(0.51,0.585,tau),cols=['#c98b6a','#9a8a82','#b0926f','#8f9aa5','#c0a080'];
+  for(let k=0;k<5;k++){const rad=(0.16+k*0.125)*Math.min(W,H),ang=hash(k,21)*TAU+clock*(0.8/Math.sqrt(rad))*40,
+    x=CX+Math.cos(ang)*rad,y=cy2+Math.sin(ang)*rad,pr=lerp(2,6+(k%3)*2.5,gp);
+    ctx.globalAlpha=w;ctx.fillStyle=cols[k];disc(x,y,pr);
+    if(gp>0.4)glow(x,y,pr*2.4,`rgba(255,205,150,${w*0.22*gp})`,1);}
+  ctx.restore();ctx.globalAlpha=1;}
+
+/* --- 地球（円盤で誕生 → 現在 → 海の蒸発）連続 --- */
+function layerPlanetEra(tau,clock){
+  const w=ss(0.55,0.585,tau)*(1-ss(0.685,0.73,tau));
+  if(w<=0.02)return;
+  bgStarfield(clock,w*0.5);
+  const M=Math.min(W,H),R=M*0.21;
+  const arrive=ss(0.552,0.592,tau);          // 円盤の誕生位置 → 中央へ（地球の誕生で着地）
+  const lava=1-ss(0.60,0.626,tau);           // 衝突のころまで溶融、その後冷える
+  const ocean=ss(0.614,0.634,tau);
+  const bio=ss(0.622,0.64,tau);
+  const heat=ss(0.655,0.70,tau);
+  // 中央には原始太陽が残る（地球にはならない）。地球へ寄るにつれ左の縁へ外れていく。
+  if(arrive<0.999){
+    const sunX=lerp(CX,CX-M*0.98,arrive),sunY=CY-M*0.03,sunW=w*(1-ss(0.45,1.0,arrive));
+    if(sunW>0.01){
+      ctx.save();ctx.translate(sunX,sunY);ctx.scale(1,0.45);
+      for(let i=0;i<(reduceMotion?40:110);i++){const t=hash(i,3),rad=42+t*M*0.30,
+        ang=hash(i,7)*TAU+clock*(1.2/Math.sqrt(rad))*40;
+        ctx.globalAlpha=sunW*0.45*(1-t);ctx.fillStyle='#b89a86';disc(Math.cos(ang)*rad,Math.sin(ang)*rad,1.4);}
+      ctx.restore();ctx.globalAlpha=1;
+      glow(sunX,sunY,72,`rgba(255,210,140,${sunW*0.9})`,1);
+      ctx.globalAlpha=sunW;ctx.fillStyle='#fff4dc';disc(sunX,sunY,lerp(11,6,arrive));ctx.globalAlpha=1;
+    }
+  }
+  // 地球は円盤の外側（右の軌道）で誕生し、中央へ寄ってくる
+  const bx=M*0.34,by=M*0.05,s=lerp(0.22,1,arrive),tx=lerp(bx,0,arrive),ty=lerp(by,0,arrive);
+  ctx.save();ctx.translate(CX+tx,CY+ty);ctx.scale(s,s);ctx.translate(-CX,-CY);
+  glow(CX-R*2.0,CY-R*0.5,R*2.2,`rgba(255,245,220,${w*(0.22+heat*0.25)})`,1); // 太陽光（左から）
+  drawPlanet(CX,CY,R,{w,R,rot:clock*0.05,cloudRot:clock*0.02,
+    lava,heat,bio,sea:0.46,
+    cloud:clamp(0.6*(1-heat)*(1-lava),0,0.7),
+    lights:bio*(1-heat)*0.8,ice:1-heat*0.7,
+    atmo:clamp(ocean*(1-heat*0.5),0,1),atmoCol:heat>0.3?'255,170,120':'120,190,255'});
+  ctx.restore();
+}
+/* --- 月の誕生（独立シーン: ①小惑星衝突 → ②破片が飛散 → ③集まって月に） --- */
+function layerMoonBirth(tau,clock){
+  const w=ss(0.582,0.600,tau)*(1-ss(0.688,0.73,tau));
+  if(w<=0.01)return;
+  const M=Math.min(W,H),R=M*0.21;
+  const appr=ss(0.582,0.603,tau);                 // ①小惑星の接近
+  const flash=win(tau,0.601,0.607,0.611,0.624);   //   衝突の閃光
+  const scatter=ss(0.603,0.616,tau);              // ②破片が周囲に飛び散る
+  const gather=ss(0.612,0.630,tau);               // ③破片が集まる
+  const orbit=ss(0.626,0.646,tau);                //   月として公転
+  // 月の形成点（ゆっくり動く → 公転）
+  const ma=1.0+clock*0.18, orbR=lerp(R*1.5,R*1.95,orbit);
+  const moonX=CX+Math.cos(ma)*orbR, moonY=CY+Math.sin(ma)*orbR*0.6;
+
+  // ① 小惑星（テイア）が右上から接近して衝突
+  if(tau<0.608){
+    const ix=lerp(CX+R*3.3,CX+R*0.5,appr), iy=lerp(CY-R*2.4,CY-R*0.34,appr);
+    for(let k=1;k<=5;k++){const t=k/5,tx=lerp(ix,CX+R*3.3,t*0.28),ty=lerp(iy,CY-R*2.4,t*0.28);
+      ctx.globalAlpha=w*appr*0.22*(1-t);ctx.fillStyle='#ffcaa0';disc(tx,ty,R*0.16*(1-t*0.5));}
+    ctx.globalAlpha=1;
+    glow(ix,iy,R*0.4,`rgba(255,150,80,${w*(0.4+appr*0.5)})`,1);
+    ctx.globalAlpha=w;ctx.fillStyle='#b7967f';disc(ix,iy,R*0.2);
+    ctx.fillStyle='#caa089';disc(ix-R*0.06,iy-R*0.04,R*0.1);ctx.fillStyle='#9c7f6a';disc(ix+R*0.07,iy+R*0.05,R*0.07);
+    ctx.globalAlpha=1;
+    if(appr>0.25&&appr<0.97){ctx.globalAlpha=w*0.9;ctx.fillStyle='rgba(255,205,160,0.9)';ctx.font='12px "Space Mono"';
+      ctx.fillText('小惑星（テイア）',ix+R*0.26,iy);ctx.globalAlpha=1;}
+  }
+  // 衝突の閃光
+  if(flash>0){glow(CX+R*0.4,CY-R*0.26,R*(0.7+flash*2.0),`rgba(255,210,130,${w*flash})`,1);
+    glow(CX,CY,R*flash*2.6,`rgba(255,170,90,${w*flash*0.5})`,1);}
+
+  // ②③ 破片が飛び散り → 月へ集まる（大きめの塊で動きを見せる）
+  if(scatter>0.02){const NA=reduceMotion?14:22;
+    for(let i=0;i<NA;i++){
+      const a=hash(i,13)*TAU, rOut=R*(1.3+hash(i,17)*1.5);
+      const sx=CX+Math.cos(a)*rOut*scatter, sy=CY+Math.sin(a)*rOut*0.72*scatter;  // 外向きに飛散
+      const px=lerp(sx,moonX,gather), py=lerp(sy,moonY,gather);                    // 月へ集まる
+      const sz=Math.max(lerp(R*0.07,R*0.025,gather),0.8);
+      const r=lerp(255,201,gather)|0,g=lerp(150,196,gather)|0,bl=lerp(80,205,gather)|0;
+      ctx.globalAlpha=w*(0.45+0.45*hash(i,5))*clamp(scatter*(1-gather*0.85),0,1);
+      ctx.fillStyle=`rgb(${r},${g},${bl})`;disc(px,py,sz);
+    }
+    ctx.globalAlpha=1;
+  }
+  // 月本体（集積が進むと現れる）
+  if(gather>0.05){const mr=R*0.14*gather;
+    glow(moonX,moonY,mr*2.4,`rgba(230,230,240,${w*0.45*gather})`,1);
+    ctx.globalAlpha=w*gather;ctx.fillStyle='#cdcdd6';disc(moonX,moonY,mr);
+    ctx.fillStyle='#b3b3bf';disc(moonX+mr*0.18,moonY-mr*0.1,mr*0.4);ctx.globalAlpha=1;}
+  // フェーズ・ラベル
+  let label='';
+  if(tau<0.607) label='① 小惑星が衝突';
+  else if(gather<0.45) label='② 破片が飛び散る';
+  else if(tau<0.633) label='③ 破片が集まって月に';
+  if(label){ctx.globalAlpha=w*0.85;ctx.fillStyle='rgba(222,227,240,0.9)';ctx.font='13px "Space Mono"';
+    ctx.textAlign='center';ctx.fillText(label,CX,CY-R*1.42);ctx.textAlign='left';ctx.globalAlpha=1;}
+}
+
+/* --- 銀河大衝突（ミルコメダ） --- */
+function layerGalaxyCollision(tau,clock){
+  const w=win(tau,0.695,0.725,0.755,0.80);if(w<=0.001)return;
+  const M=Math.min(W,H);
+  const approach=ss(0.695,0.732,tau);   // 接近
+  const merge=ss(0.728,0.758,tau);      // 二つが合体して一つの銀河(ミルコメダ)に
+  const dive=ss(0.758,0.80,tau);        // 合体銀河の中の太陽の場所（画面中心）へ寄る
+  const fade=1-ss(0.78,0.80,tau);
+  bgStarfield(clock,w*0.4*(1-dive));
+  const gox=-M*0.11, goy=M*0.03;                 // 合体銀河核をわずかに左に、太陽は腕の中＝画面中心
+  const recede=tau<0.732?lerp(1.5,1,ss(0.695,0.732,tau)):1;
+  const dz=lerp(1,5.0,dive);
+  ctx.save();
+  ctx.translate(CX,CY);ctx.scale(dz*recede,dz*recede);ctx.translate(-CX,-CY);   // 画面中心へまっすぐズーム
+  const GCx=CX+gox,GCy=CY+goy,Rg=M*0.24,ang=clock*0.05;
+  const sep=lerp(M*0.27,0,approach),ax=GCx-sep,ay=GCy-sep*0.4,bx=GCx+sep,by=GCy+sep*0.4;
+  const sepA=w*fade*(1-merge);
+  if(sepA>0.01){
+    spiral(ax,ay,Rg,ang,2,reduceMotion?150:440,0.5,(t,i)=>hash(i,5)<0.2?'#fff':'#cdbcff',sepA);
+    spiral(bx,by,Rg,-ang*1.2,2,reduceMotion?150:440,0.6,(t,i)=>hash(i,3)<0.2?'#fff':'#bcd0ff',sepA);
+    ctx.globalAlpha=sepA*0.5*approach;
+    for(let s=0;s<2;s++){const sx=s?bx:ax,sy=s?by:ay,dir=s?1:-1;ctx.strokeStyle=s?'rgba(190,205,255,1)':'rgba(220,200,255,1)';
+      ctx.lineWidth=1;ctx.beginPath();for(let i=0;i<36;i++){const t=i/36,r=Rg*(0.8+t*2.4),a=ang*dir+t*2.2*dir,
+        x=sx+Math.cos(a)*r*dir,y=sy+Math.sin(a)*r*0.5;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();}
+    ctx.globalAlpha=1;
+  }
+  const mA=w*fade*merge;
+  if(mA>0.01){const Rm=Rg*1.25;
+    glow(GCx,GCy,Rm*0.55,`rgba(255,240,215,${mA*0.35})`,1);
+    spiral(GCx,GCy,Rm,ang*0.6,2,reduceMotion?180:520,0.7,(t,i)=>hash(i,5)<0.15?'#fff':'#dcd0ff',mA);
+    spiral(GCx,GCy,Rm*0.9,ang*0.6+1.4,2,reduceMotion?140:380,0.55,(t,i)=>hash(i,8)<0.15?'#fff':'#cfe0ff',mA*0.85);
+  }
+  // 太陽が在る場所（腕の中の明るい塊）— ズームで近づく。ここから太陽がせり出す
+  glow(CX,CY,lerp(10,40,dive)*Math.max(merge,0.4),`rgba(255,214,160,${w*fade*(0.3+0.45*dive)*Math.max(merge,0.5)})`,1);
+  ctx.restore();ctx.globalAlpha=1;
+  // 太陽の位置を示す円（画面中心）→ その中から太陽がせり出す（赤色巨星へ受け渡し）
+  const bl=.5+.5*Math.sin(clock*3), rf=1-ss(0.1,0.45,dive);
+  if(merge>0.4&&rf>0.01){ctx.strokeStyle=`rgba(255,200,110,${w*bl*fade*rf*merge})`;ctx.lineWidth=1.5;ring(CX,CY,14);
+    if(dive<0.1&&merge>0.7){ctx.globalAlpha=w*fade*rf;ctx.fillStyle='rgba(255,210,130,1)';ctx.font='11px "Space Mono"';
+      ctx.fillText('☉ 太陽',CX+18,CY+4);ctx.globalAlpha=1;}}
+  agingSun(tau,w);
+}
+function agingSun(tau,a){ // 合体銀河〜赤色巨星で共有する太陽（画面中心・連続した見かけの大きさ）
+  const sr=lerp(3,45,ss(0.758,0.802,tau));if(sr<=3.05)return;
+  glow(CX,CY,sr*2.6,`rgba(255,175,95,${a})`,1);
+  ctx.globalAlpha=a;ctx.fillStyle='#ffd08a';disc(CX,CY,sr);ctx.fillStyle='#fff0d0';disc(CX,CY,sr*0.5);ctx.globalAlpha=1;
+}
+
+/* --- 太陽の進化（赤色巨星 → 白色矮星・惑星状星雲） --- */
+function layerRedGiant(tau,clock){
+  const w=win(tau,0.75,0.78,0.805,0.84);if(w<=0.001)return;
+  bgStarfield(clock,w*0.5);
+  const M=Math.min(W,H);
+  // 合体銀河の太陽と同じ位置(中央)・大きさから連続 → 膨張して赤色巨星に
+  const sunR = tau<0.802 ? lerp(3,45,ss(0.758,0.802,tau)) : lerp(45,M*0.34,ss(0.802,0.83,tau));
+  const swell=ss(0.802,0.83,tau);
+  glow(CX,CY,sunR*1.8,`rgba(255,90,40,${w*0.5})`,1);
+  const g=ctx.createRadialGradient(CX,CY,sunR*0.2,CX,CY,sunR);
+  g.addColorStop(0,`rgba(255,210,140,${w})`);g.addColorStop(.5,`rgba(255,120,40,${w})`);g.addColorStop(1,`rgba(150,30,15,${w})`);
+  ctx.fillStyle=g;disc(CX,CY,sunR);
+  // 焦げた地球（呑み込まれていく）
+  const ex=CX+lerp(M*0.30,sunR*0.55,swell), ey=CY-M*0.05, eR=M*0.045*(1-swell*0.4);
+  drawPlanet(ex,ey,eR,{w:w*(1-ss(0.80,0.835,tau)),R:eR,rot:clock*0.1,scorch:1,cloud:0,lights:0,ice:0,
+    Lx:-0.9,Ly:0.1,Lz:0.4,atmo:0.15,atmoCol:'255,120,60'});
+}
+function layerStellarRemnant(tau,clock){
+  const w=win(tau,0.80,0.83,0.862,0.90);if(w<=0.001)return;
+  bgStarfield(clock,w*0.5);
+  const expand=ss(0.81,0.875,tau);
+  // 惑星状星雲（広がる多重シェル）
+  for(let s=0;s<3;s++){const r=(0.15+s*0.16+expand*0.5)*Math.min(W,H);
+    const cols=['80,200,220','150,120,255','255,120,160'][s];
+    ctx.globalAlpha=w*(1-expand)*0.5;ctx.strokeStyle=`rgba(${cols},1)`;ctx.lineWidth=lerp(22,4,expand);ring(CX,CY,r);}
+  ctx.globalAlpha=1;
+  glow(CX,CY,Math.min(W,H)*0.4*expand,`rgba(120,160,255,${w*0.10})`,1);
+  // 中心の白色矮星
+  const bl=.7+.3*Math.sin(clock*5);
+  glow(CX,CY,26,`rgba(200,225,255,${w})`,1);
+  ctx.globalAlpha=w;ctx.fillStyle=`rgba(245,250,255,${bl})`;disc(CX,CY,4.5);ctx.globalAlpha=1;
+}
+function layerDegenerate(tau,clock){
+  const w=win(tau,0.86,0.892,0.918,0.95);if(w<=0.001)return;
+  // 冷えていく縮退星の残光（疎ら・微か）
+  const fade=1-ss(0.895,0.945,tau);
+  for(let i=0;i<(reduceMotion?20:46);i++){const x=hash(i,3)*W,y=hash(i,7)*H,
+    tw=.4+.6*Math.sin(clock*0.6+i),dim=hash(i,9);
+    ctx.globalAlpha=w*fade*(0.15+0.5*dim)*tw;
+    ctx.fillStyle=dim<0.3?'#9aa6ff':dim<0.7?'#fff':'#ffd9c0';disc(x,y,dim<0.3?1.4:0.9);}
+  ctx.globalAlpha=1;
+}
+function layerBlackHole(tau,clock){
+  const w=win(tau,0.92,0.95,0.965,0.995);if(w<=0.001)return;
+  const shrink=1-ss(0.95,0.99,tau);
+  const holes=[[0.5,0.46,1,0],[0.3,0.66,0.6,1],[0.72,0.62,0.7,3]];
+  for(const[hx,hy,sc,ph]of holes){const x=hx*W,y=hy*H,R=Math.min(W,H)*0.07*sc*(0.4+shrink*0.6);
+    glow(x,y,R*3.2,`rgba(120,140,255,${w*0.12*shrink})`,1);          // ホーキング放射の淡い光
+    for(let k=0;k<(reduceMotion?4:8);k++){const ph2=(clock*0.3+k*0.37)%1,a=hash(k,ph+1)*TAU+clock*0.4,
+      rr=R*(1.25+ph2*1.5);
+      ctx.globalAlpha=w*shrink*0.4*(1-ph2);ctx.fillStyle='#cfe0ff';disc(x+Math.cos(a)*rr,y+Math.sin(a)*rr,0.9);}
+    ctx.globalAlpha=1;
+    ctx.globalAlpha=w*(0.5+0.5*shrink);ctx.strokeStyle='rgba(255,235,200,0.9)';ctx.lineWidth=2;ring(x,y,R*1.15); // 光子リング
+    ctx.globalAlpha=w;ctx.fillStyle='#000';disc(x,y,R);ctx.globalAlpha=1;                                       // 事象の地平面
+    const evap=win(tau,0.96+ph*0.004,0.969+ph*0.004,0.973+ph*0.004,0.988+ph*0.004);                            // 最期の蒸発閃光
+    if(evap>0)glow(x,y,R*7*evap+8,`rgba(225,238,255,${w*evap*0.75})`,1);
+  }
+}
+function layerHeatDeath(tau,clock){
+  const w=ss(0.965,0.995,tau);if(w<=0.001)return;
+  // ほぼ完全な暗黒。拡散した極微の光が静かに消えていく。
+  const left=1-ss(0.975,1.0,tau);
+  glow(CX,CY,MAXR*0.9,`rgba(40,40,70,${w*left*0.06})`,1);
+  for(let i=0;i<14;i++){const x=hash(i,5)*W,y=hash(i,11)*H;
+    ctx.globalAlpha=w*left*0.12*(.4+.6*Math.sin(clock*0.3+i));ctx.fillStyle='#6a6aa0';disc(x,y,0.7);}
+  ctx.globalAlpha=1;
+  // 最後の一粒の光が、ゆらぎながら消えていく
+  const last=ss(0.984,0.999,tau);
+  if(last>0){const lp=(1-last)*(0.35+0.65*Math.abs(Math.sin(clock*0.5)));
+    glow(CX,CY,12*(1-last)+3,`rgba(130,140,200,${w*lp*0.5})`,1);
+    ctx.globalAlpha=w*lp;ctx.fillStyle='#9096d8';disc(CX,CY,1.4*(1-last)+0.4);ctx.globalAlpha=1;}
+}
+
+function scene(tau,clock,fn,a,b,c,d,inS,outS){
+  // inS: 立ち上がりの初期スケール(<1=手前から寄って現れる, >1=引いて現れる)
+  // outS: 立ち下がりの最終スケール(>1=奥へ抜ける, <1=遠ざかる)
+  if(win(tau,a,b,c,d)<=0.001)return;
+  inS=inS==null?0.9:inS; outS=outS==null?1.13:outS;
+  let s=1;
+  if(tau<b)s=lerp(inS,1,ss(a,b,tau));
+  else if(tau>c)s=lerp(1,outS,ss(c,d,tau));
+  ctx.save();ctx.translate(CX,CY);ctx.scale(s,s);ctx.translate(-CX,-CY);
+  fn(tau,clock);ctx.restore();
+}
+function renderWorld(tau,clock){
+  const{T}=physAt(tau);
+  layerBackground(tau,T,clock);
+  layerMatter(tau,T,clock);
+  layerGenesis(tau,clock);             // ビッグバン導入（特異点→閃光→衝撃波→インフレーション）
+  layerRecomb(tau);
+  scene(tau,clock,layerDarkGas,        0.225,0.255,0.29,0.35,  0.95,1.3);
+  scene(tau,clock,layerFirstStar,      0.275,0.315,0.345,0.385,0.9,0.55);  // ガス降着→点火→引いて銀河へ
+  scene(tau,clock,layerStarsWeb,       0.345,0.375,0.39,0.44,  1.5,1.5);
+  layerMilkyway(tau,clock);            // 銀河→太陽の連続ズームを内部で制御
+  layerSolar(tau,clock);
+  scene(tau,clock,layerAccretion,      0.495,0.52,0.55,0.595,  0.5,1.05);  // 円盤へ降りる→そのまま（地球は円盤から誕生）
+  scene(tau,clock,layerPlanetEra,      0.55,0.585,0.685,0.73,  0.4,0.5);   // 地球に着地→遠ざかる
+  scene(tau,clock,layerMoonBirth,      0.55,0.585,0.685,0.73,  0.4,0.5);   // 月の誕生（地球と一緒に動く）
+  layerGalaxyCollision(tau,clock);     // 引いて銀河規模→合体→太陽へズームイン（内部制御）
+  layerRedGiant(tau,clock);            // 合体銀河の円から太陽が現れ膨張（内部制御）
+  scene(tau,clock,layerStellarRemnant, 0.80,0.83,0.862,0.90,   0.85,0.5);  // 星雲→引いて宇宙へ
+  scene(tau,clock,layerDegenerate,     0.86,0.892,0.918,0.95,  1.5,1.1);   // 広い暗黒から
+  scene(tau,clock,layerBlackHole,      0.92,0.95,0.965,0.995,  0.9,1.1);
+  layerHeatDeath(tau,clock);
+}
+
+/* ---------- 時間制御 ---------- */
+let tau=0,playing=false,glide=null,lastChapter=-1;
+const view={zoom:1,x:0,y:0};
+let panning=null;
+const SPEEDS=[0.5,1,2,4];let spi=1,playSpeed=1;
+const PLAY_MS=140000;
+function curChapter(){let bi=0,bd=2;for(let i=0;i<CH.length;i++){const d=Math.abs(tau-CH[i].tau);if(d<bd){bd=d;bi=i;}}return bi;}
+function frame(now){const clock=now/1000;
+  if(glide){const p=clamp((now-glide.start)/glide.dur,0,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+    tau=lerp(glide.from,glide.to,e);if(p>=1)glide=null;}
+  else if(playing){tau+=16.7/PLAY_MS*playSpeed;if(tau>=1){tau=1;stopPlay();}}
+  // カメラ（中心基準のズーム＋パン）
+  const z=view.zoom;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.translate(CX+view.x,CY+view.y);ctx.scale(z,z);ctx.translate(-CX,-CY);
+  renderWorld(tau,clock);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  syncUI();requestAnimationFrame(frame);}
+
+/* ---------- UI ---------- */
+const spine=document.getElementById('spine'),spineProg=document.getElementById('spineProg');
+CH.forEach((e,i)=>{const li=document.createElement('li');
+  li.innerHTML=`<span class="dot"></span><span class="lab">${e.title}</span>`;
+  if(e.now)li.classList.add('now');
+  li.addEventListener('click',()=>{stopPlay();glideTo(e.tau);});spine.appendChild(li);});
+const spineItems=[...spine.querySelectorAll('li')];
+const rNo=document.getElementById('rNo'),rTime=document.getElementById('rTime'),rPhys=document.getElementById('rPhys'),
+  pKick=document.getElementById('pKick'),pTitle=document.getElementById('pTitle'),pBody=document.getElementById('pBody'),pMeta=document.getElementById('pMeta'),
+  cNow=document.getElementById('cNow'),cTot=document.getElementById('cTot'),
+  prevBtn=document.getElementById('prevBtn'),nextBtn=document.getElementById('nextBtn'),
+  tlFill=document.getElementById('tlFill'),tlKnob=document.getElementById('tlKnob'),playBtn=document.getElementById('playBtn');
+cTot.textContent=String(CH.length).padStart(2,'0');
+const ticks=document.getElementById('ticks');
+CH.forEach(e=>{const d=document.createElement('div');d.className='tick'+(e.now?' now':'');d.style.left=(e.tau*100)+'%';ticks.appendChild(d);
+  if(e.now){const l=document.createElement('div');l.className='nowlab';l.style.left=(e.tau*100)+'%';l.textContent='現在';ticks.appendChild(l);}});
+const fadeEls=[pKick,pTitle,pBody,pMeta];
+function hexA(hex,a){const h=hex.replace('#','');return `rgba(${parseInt(h.substr(0,2),16)},${parseInt(h.substr(2,2),16)},${parseInt(h.substr(4,2),16)},${a})`;}
+function setChapter(i){const e=CH[i];rNo.textContent='CHAPTER '+e.no;pKick.textContent=e.kick;
+  pTitle.innerHTML='<span class="u">'+e.title+'</span>';pBody.textContent=e.body;
+  pMeta.innerHTML='<b>現象</b> &nbsp;'+e.meta;cNow.textContent=e.no;
+  document.documentElement.style.setProperty('--accent',e.accent);
+  document.documentElement.style.setProperty('--accent-soft',hexA(e.accent,.18));}
+function syncUI(){const{t,T}=physAt(tau);rTime.textContent=fmtTime(t);
+  const cur=curChapter();let line2;
+  if(cur<RECOMB_I)line2=`<span class="lab">粒子エネルギー kT</span> <b>${fmtEnergy(T)}</b>`;
+  else if(cur<=PRESENT_I){const z=Math.max(0,T/T0-1);line2=`<span class="lab">赤方偏移 z</span> <b>${z>=10?Math.round(z).toLocaleString('ja'):z.toFixed(2)}</b>`;}
+  else line2=`<span class="lab">今から</span> <b>${fmtFromNow(t)}</b>`;
+  rPhys.innerHTML=`<span class="lab">温度 T</span> <b>${fmtTemp(T)}</b><br>${line2}`;
+  if(cur!==lastChapter){lastChapter=cur;fadeEls.forEach(el=>el.classList.add('dim'));
+    setTimeout(()=>{setChapter(cur);fadeEls.forEach(el=>el.classList.remove('dim'));},reduceMotion?0:420);
+    spineItems.forEach((li,k)=>{li.classList.toggle('active',k===cur);li.classList.toggle('done',k<cur);});}
+  spineProg.style.height=(tau*100)+'%';tlFill.style.width=(tau*100)+'%';tlKnob.style.left=(tau*100)+'%';
+  prevBtn.disabled=tau<=0.001&&!glide;nextBtn.disabled=tau>=0.999&&!glide;}
+
+const track=document.getElementById('track');let dragging=false;
+function tauFromEvent(ev){const r=track.getBoundingClientRect();const x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;return clamp(x/r.width,0,1);}
+function startDrag(ev){dragging=true;stopPlay();glide=null;tau=tauFromEvent(ev);ev.preventDefault();}
+function moveDrag(ev){if(dragging){tau=tauFromEvent(ev);ev.preventDefault();}}
+function endDrag(){dragging=false;}
+track.addEventListener('mousedown',startDrag);addEventListener('mousemove',moveDrag);addEventListener('mouseup',endDrag);
+track.addEventListener('touchstart',startDrag,{passive:false});addEventListener('touchmove',moveDrag,{passive:false});addEventListener('touchend',endDrag);
+function glideTo(target){glide={from:tau,to:clamp(target,0,1),start:performance.now(),dur:1400};}
+function step(dir){glideTo(CH[clamp(curChapter()+dir,0,NSEG)].tau);}
+prevBtn.addEventListener('click',()=>{stopPlay();step(-1);});
+nextBtn.addEventListener('click',()=>{stopPlay();step(1);});
+addEventListener('keydown',e=>{if(e.key==='ArrowRight'){stopPlay();step(1);}if(e.key==='ArrowLeft'){stopPlay();step(-1);}
+  if(e.key===' '){e.preventDefault();playing?stopPlay():startPlay();}});
+function startPlay(){if(tau>=0.999)tau=0;glide=null;playing=true;playBtn.textContent='❚❚ 一時停止';}
+function stopPlay(){if(!playing)return;playing=false;playBtn.textContent='▶ 時間を進める';}
+playBtn.addEventListener('click',()=>playing?stopPlay():startPlay());
+
+/* ---------- カメラ操作（ズーム / パン） ---------- */
+const zlvl=document.getElementById('zlvl'),zoomInBtn=document.getElementById('zoomIn'),
+  zoomOutBtn=document.getElementById('zoomOut'),zoomResetBtn=document.getElementById('zoomReset'),
+  speedBtn=document.getElementById('speedBtn');
+function clampView(){const mx=CX*(view.zoom-1),my=CY*(view.zoom-1);
+  view.x=clamp(view.x,-mx,mx);view.y=clamp(view.y,-my,my);
+  canvas.style.cursor=view.zoom>1.001?(panning?'grabbing':'grab'):'default';}
+function updateZoomUI(){zlvl.textContent='×'+view.zoom.toFixed(1);
+  zoomInBtn.disabled=view.zoom>=4.99;zoomOutBtn.disabled=view.zoom<=1.001;clampView();}
+function zoomTo(mx,my,z1){const z0=view.zoom;z1=clamp(z1,1,5);if(Math.abs(z1-z0)<1e-4)return;
+  view.x=(mx-CX)-((mx-CX-view.x)/z0)*z1;view.y=(my-CY)-((my-CY-view.y)/z0)*z1;
+  view.zoom=z1;updateZoomUI();}
+function resetView(){view.zoom=1;view.x=0;view.y=0;updateZoomUI();}
+// ホイール
+canvas.addEventListener('wheel',e=>{e.preventDefault();const r=canvas.getBoundingClientRect();
+  zoomTo(e.clientX-r.left,e.clientY-r.top,view.zoom*(e.deltaY<0?1.18:1/1.18));},{passive:false});
+// ドラッグでパン
+canvas.addEventListener('mousedown',e=>{if(e.button!==0)return;panning={x:e.clientX,y:e.clientY};clampView();});
+addEventListener('mousemove',e=>{if(panning){view.x+=e.clientX-panning.x;view.y+=e.clientY-panning.y;
+  panning={x:e.clientX,y:e.clientY};clampView();}});
+addEventListener('mouseup',()=>{if(panning){panning=null;clampView();}});
+// タッチ（ピンチ拡大 / 1本指パン）
+let pinch=null,panT=null;
+const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+const tmid=t=>({x:(t[0].clientX+t[1].clientX)/2,y:(t[0].clientY+t[1].clientY)/2});
+canvas.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){pinch={d:tdist(e.touches),z:view.zoom};e.preventDefault();}
+  else if(e.touches.length===1&&view.zoom>1.001){panT={x:e.touches[0].clientX,y:e.touches[0].clientY};}
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  if(pinch&&e.touches.length===2){const r=canvas.getBoundingClientRect(),m=tmid(e.touches);
+    zoomTo(m.x-r.left,m.y-r.top,clamp(pinch.z*(tdist(e.touches)/(pinch.d||1)),1,5));e.preventDefault();}
+  else if(panT&&e.touches.length===1){const t=e.touches[0];
+    view.x+=t.clientX-panT.x;view.y+=t.clientY-panT.y;panT={x:t.clientX,y:t.clientY};clampView();e.preventDefault();}
+},{passive:false});
+canvas.addEventListener('touchend',e=>{if(e.touches.length<2)pinch=null;if(e.touches.length===0)panT=null;});
+// ダブルクリックで拡大／リセット
+canvas.addEventListener('dblclick',e=>{const r=canvas.getBoundingClientRect();
+  if(view.zoom>1.5)resetView();else zoomTo(e.clientX-r.left,e.clientY-r.top,2.4);});
+zoomInBtn.addEventListener('click',()=>zoomTo(CX,CY,view.zoom*1.4));
+zoomOutBtn.addEventListener('click',()=>zoomTo(CX,CY,view.zoom/1.4));
+zoomResetBtn.addEventListener('click',resetView);
+// 再生速度
+speedBtn.addEventListener('click',()=>{spi=(spi+1)%SPEEDS.length;playSpeed=SPEEDS[spi];
+  speedBtn.textContent='速さ '+playSpeed+'×';});
+addEventListener('keydown',e=>{
+  if(e.key==='+'||e.key==='='){zoomTo(CX,CY,view.zoom*1.3);}
+  if(e.key==='-'||e.key==='_'){zoomTo(CX,CY,view.zoom/1.3);}
+  if(e.key==='0'){resetView();}});
+
+const intro=document.getElementById('intro');
+document.getElementById('startBtn').addEventListener('click',()=>{intro.classList.add('hide');setTimeout(()=>intro.style.display='none',1000);});
+buildPlanetTex();
+resize();
+setChapter(0);lastChapter=0;spineItems[0].classList.add('active');
+requestAnimationFrame(frame);
+</script>
+<script>
+(function(){var t=document.getElementById('menu-toggle'),o=document.getElementById('nav-overlay'),c=document.getElementById('nav-close');
+if(!t||!o)return;function cl(){t.classList.remove('active');o.classList.remove('open');}
+t.addEventListener('click',function(){o.classList.contains('open')?cl():(t.classList.add('active'),o.classList.add('open'));});
+if(c)c.addEventListener('click',cl);o.addEventListener('click',function(e){if(e.target===o)cl();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')cl();});})();
+</script>
+</body>
+</html>

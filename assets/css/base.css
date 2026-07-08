@@ -137,6 +137,9 @@ body {
 .nav-overlay.open .nav-list li:nth-child(3) { transition-delay: 0.3s; }
 .nav-overlay.open .nav-list li:nth-child(4) { transition-delay: 0.4s; }
 .nav-overlay.open .nav-list li:nth-child(5) { transition-delay: 0.5s; }
+.nav-overlay.open .nav-list li:nth-child(6) { transition-delay: 0.6s; }
+.nav-overlay.open .nav-list li:nth-child(7) { transition-delay: 0.7s; }
+.nav-overlay.open .nav-list li:nth-child(8) { transition-delay: 0.8s; }
 
 .nav-link {
     text-decoration: none; color: var(--text-white);
