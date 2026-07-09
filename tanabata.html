@@ -90,9 +90,8 @@
   .hang{position:absolute;z-index:4;transform-origin:top center;
     animation:sway var(--dur,5s) ease-in-out infinite alternate;animation-delay:var(--del,0s);cursor:pointer;will-change:transform;}
   @keyframes sway{from{transform:rotate(var(--a,-2.4deg));}to{transform:rotate(calc(var(--a,-2.4deg) * -1));}}
-  .thread{width:1px;height:6cqh;margin:0 auto;background:linear-gradient(var(--gold),rgba(255,230,163,.5));}
-  .threads{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
-  .knot{width:4cqw;height:4cqw;max-width:11px;max-height:11px;border-radius:50%;margin:0 auto 0;
+  .thread{width:1px;height:9cqh;margin:0 auto;background:linear-gradient(rgba(255,255,255,.12),rgba(255,255,255,.85));}
+  .knot{width:4cqw;height:4cqw;max-width:11px;max-height:11px;border-radius:50%;margin:-2cqw auto 0;
     background:radial-gradient(circle at 35% 30%,#fff6d8,var(--gold));box-shadow:0 0 5px rgba(255,230,163,.7);}
   .tanzaku{width:14cqw;min-height:26cqh;margin:-1cqw auto 0;padding:3cqh 0;border-radius:2px;
     writing-mode:vertical-rl;text-orientation:upright;display:flex;justify-content:center;align-items:flex-start;
@@ -419,7 +418,7 @@ function jrand(i,s){const n=Math.sin((i*127.1+s)*311.7)*43758.5453;return (n-Mat
 function jitter(x,y,i){
   const brick=(y<50)?-4:4;
   const jx=jrand(i,1.7)*4, jy=jrand(i,9.3)*7;
-  const yy=Math.max(11,(y+jy)/1.66+6);   // 糸(縦)を廃したぶん結び目を少し下げ、短冊位置を据え置き
+  const yy=Math.max(5,(y+jy)/1.66);      // 糸の上端（＝揺れの支点）。短冊はこの下に吊る
   return {x:Math.max(16,Math.min(84,x+brick+jx)), y:yy};
 }
 const anchors=rawAnchors.map(([x,y],i)=>jitter(x,y,i));
@@ -461,18 +460,6 @@ const BAMBOO_SVG = `<svg class="bamboo" viewBox="0 0 100 166" preserveAspectRati
     <path d="M16,86 q-8,-5 -16,-2 q7,5 16,2 z"/><path d="M17,86 q-5,-8 -12,-10 q3,8 12,10 z"/>
   </g>
 </svg>`;
-/* 糸: 各短冊の結び目から、まっすぐ上へ（短冊と平行・垂直）に細い糸を伸ばす。
-   枝には合わせない（横へ伸びると不自然なため）。 */
-function threadsSVG(g,mirror){
-  let ls='';
-  g.wishes.forEach((w,i)=>{
-    /* 結び目(knot)は hang の左端(a.x)から右へ約7%・少し下 */
-    const a=anchorFor(i), ky=a.y*1.66+2, kx=(mirror?100-a.x:a.x)+7;
-    const topY=Math.max(2,ky-15);                            // 真上へまっすぐ
-    ls+=`<line x1="${kx.toFixed(1)}" y1="${topY.toFixed(1)}" x2="${kx.toFixed(1)}" y2="${ky.toFixed(1)}"/>`;
-  });
-  return `<svg class="threads" viewBox="0 0 100 166" preserveAspectRatio="none" aria-hidden="true"><g stroke="#e7c96b" stroke-width="0.4" stroke-linecap="round" opacity="0.85">${ls}</g></svg>`;
-}
 
 /* ---------- grove model ---------- */
 const NEW="tanabata:groves", OLD="tanabata:wishes", CAP=12, INIT_GROVES=3;
@@ -557,7 +544,7 @@ function makeHang(w,idx,mirror){
   hang.style.setProperty("--del",(-Math.random()*3).toFixed(2)+"s");
   hang.style.setProperty("--a",(-1.6-Math.random()*1.6).toFixed(2)+"deg");
   const shown=w.text.length>16?w.text.slice(0,16)+"…":w.text;
-  hang.innerHTML='<div class="knot"></div><div class="tanzaku c-'+w.color+'">'+escapeHtml(shown)+'</div>';
+  hang.innerHTML='<div class="thread"></div><div class="knot"></div><div class="tanzaku c-'+w.color+'">'+escapeHtml(shown)+'</div>';
   hang.addEventListener("click",()=>openReader(w));
   return hang;
 }
@@ -575,7 +562,7 @@ function buildPanels(entrance){
     if(mirror)panel.querySelector(".bamboo").classList.add("mirror");
     const layer=panel.querySelector(".tz-layer");
     if(g.wishes.length===0){layer.appendChild(emptyEl());}
-    else{layer.insertAdjacentHTML("afterbegin",threadsSVG(g,mirror));g.wishes.forEach((w,i)=>layer.appendChild(makeHang(w,i,mirror)));}
+    else g.wishes.forEach((w,i)=>layer.appendChild(makeHang(w,i,mirror)));
     track.appendChild(panel);
   });
   positionTrack(false);
@@ -587,7 +574,7 @@ function renderGrove(index){
   const layer=panel.querySelector(".tz-layer");layer.innerHTML="";
   const g=groves[index];
   if(g.wishes.length===0){layer.appendChild(emptyEl());}
-  else{layer.insertAdjacentHTML("afterbegin",threadsSVG(g,mirror));g.wishes.forEach((w,i)=>layer.appendChild(makeHang(w,i,mirror)));}
+  else g.wishes.forEach((w,i)=>layer.appendChild(makeHang(w,i,mirror)));
 }
 function entranceAnim(){
   if(reduceMotion)return;
