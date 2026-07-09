@@ -90,7 +90,7 @@
   .hang{position:absolute;z-index:4;transform-origin:top center;
     animation:sway var(--dur,5s) ease-in-out infinite alternate;animation-delay:var(--del,0s);cursor:pointer;will-change:transform;}
   @keyframes sway{from{transform:rotate(var(--a,-2.4deg));}to{transform:rotate(calc(var(--a,-2.4deg) * -1));}}
-  .thread{width:1px;height:5cqh;margin:0 auto;background:linear-gradient(var(--gold),rgba(255,230,163,.25));}
+  .thread{width:1px;height:12cqh;margin:0 auto;background:linear-gradient(rgba(255,230,163,.25),var(--gold));}
   .knot{width:4cqw;height:4cqw;max-width:11px;max-height:11px;border-radius:50%;margin:-2cqw auto 0;
     background:radial-gradient(circle at 35% 30%,#fff6d8,var(--gold));box-shadow:0 0 5px rgba(255,230,163,.7);}
   .tanzaku{width:14cqw;min-height:26cqh;margin:-1cqw auto 0;padding:3cqh 0;border-radius:2px;
@@ -418,7 +418,10 @@ function jrand(i,s){const n=Math.sin((i*127.1+s)*311.7)*43758.5453;return (n-Mat
 function jitter(x,y,i){
   const brick=(y<50)?-4:4;
   const jx=jrand(i,1.7)*4, jy=jrand(i,9.3)*7;
-  return {x:Math.max(16,Math.min(84,x+brick+jx)), y:(y+jy)/1.66};
+  /* 糸を長くしたぶん、吊り元（糸の上端）を上へ寄せて枝から下がって見せる。
+     短冊の位置は概ね据え置き（可視率は維持）。上端は 6% で止める。 */
+  const yy=Math.max(6,(y-11.6+jy)/1.66);
+  return {x:Math.max(16,Math.min(84,x+brick+jx)), y:yy};
 }
 const anchors=rawAnchors.map(([x,y],i)=>jitter(x,y,i));
 function anchorFor(i){
