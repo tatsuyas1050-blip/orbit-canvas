@@ -472,7 +472,8 @@ const _brN=_brPts(false),_brM=_brPts(true);
 function threadsSVG(g,mirror){
   const pts=mirror?_brM:_brN;let ls='';
   g.wishes.forEach((w,i)=>{
-    const a=anchorFor(i), ky=a.y*1.66, kx=mirror?100-a.x:a.x;
+    /* 結び目(knot)は hang の左端(a.x)から右へ約7%・少し下。そこへ糸を確実につなぐ */
+    const a=anchorFor(i), ky=a.y*1.66+2, kx=(mirror?100-a.x:a.x)+7;
     /* 結び目の真上に近い枝の点を選び、まっすぐな糸で吊る（できるだけ垂直） */
     let bx=null,by=null,bs=1e9;
     for(const[px,py]of pts){if(py>ky-2)continue;const dxp=Math.abs(px-kx);if(dxp>22)continue;
