@@ -411,14 +411,22 @@ const rawAnchors=[
   [20,23],[56,76],[68,23],[32,76],[44,23],[80,76],
   [32,23],[20,76],[56,23],[44,76],[80,23],[68,76]
 ];
-const anchors=rawAnchors.map(([x,y])=>({x:x,y:y/1.66}));
+/* 見た目が「上下2段の整列」になりすぎないよう、上下段で列を半分ずらし（千鳥）、
+   さらにインデックス由来の安定したゆらぎ（毎回同じ）を加えてランダムっぽくする。
+   ゆらぎ量は「どの短冊も半分以上見える」を保てる範囲に抑えている。 */
+function jrand(i,s){const n=Math.sin((i*127.1+s)*311.7)*43758.5453;return (n-Math.floor(n))*2-1;}
+function jitter(x,y,i){
+  const brick=(y<50)?-4:4;
+  const jx=jrand(i,1.7)*4, jy=jrand(i,9.3)*7;
+  return {x:Math.max(16,Math.min(84,x+brick+jx)), y:(y+jy)/1.66};
+}
+const anchors=rawAnchors.map(([x,y],i)=>jitter(x,y,i));
 function anchorFor(i){
   if(i<anchors.length)return anchors[i];
-  /* 12本を超えたぶんは同じ2段グリッド上に散らす（このあたりは重なってOK） */
+  /* 12本を超えたぶんは同じ2段の上に散らす（このあたりは重なってOK） */
   const k=i-anchors.length;
-  const bx=[20,32,44,56,68,80][k%6];
-  const by=(Math.floor(k/6)%2===0)?23:76;
-  return {x:bx+(Math.random()*8-4), y:(by+(Math.random()*12-6))/1.66};
+  const bx=[20,32,44,56,68,80][k%6], by=(Math.floor(k/6)%2===0)?23:76;
+  return jitter(bx,by,i);
 }
 
 /* bamboo */
