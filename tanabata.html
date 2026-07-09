@@ -465,7 +465,7 @@ const BAMBOO_SVG = `<svg class="bamboo" viewBox="0 0 100 166" preserveAspectRati
    竹の芯ではなく枝の曲線上の点を始点にする。 */
 const _BR=[[35,110,50,104,63,98],[37.6,82,55,76,72,68],[40,54,54,48,66,42],[41,30,52,22,60,16],
   [40,42,30,36,22,30],[33,120,22,116,15,110],[36,64,26,58,18,52],[34,98,24,92,16,86]];
-function _brPts(mirror){const p=[];for(const b of _BR){for(let t=0.25;t<=1.001;t+=0.19){
+function _brPts(mirror){const p=[];for(const b of _BR){for(let t=0.15;t<=1.001;t+=0.14){
   const mt=1-t,bx=mt*mt*b[0]+2*mt*t*b[2]+t*t*b[4],by=mt*mt*b[1]+2*mt*t*b[3]+t*t*b[5];
   p.push([mirror?100-bx:bx,by]);}}return p;}
 const _brN=_brPts(false),_brM=_brPts(true);
@@ -473,13 +473,14 @@ function threadsSVG(g,mirror){
   const pts=mirror?_brM:_brN;let ls='';
   g.wishes.forEach((w,i)=>{
     const a=anchorFor(i), ky=a.y*1.66, kx=mirror?100-a.x:a.x;
+    /* 結び目の真上に近い枝の点を選び、まっすぐな糸で吊る（できるだけ垂直） */
     let bx=null,by=null,bs=1e9;
-    for(const[px,py]of pts){if(py>ky+1)continue;const d=Math.abs(px-kx)*1.5+(ky-py);if(d<bs){bs=d;bx=px;by=py;}}
-    if(bx===null){bs=1e9;for(const[px,py]of pts){const d=Math.hypot(px-kx,py-ky);if(d<bs){bs=d;bx=px;by=py;}}}
-    const my=(by+ky)/2+1.2;                                    // ゆるく垂らす
-    ls+=`<path d="M${bx.toFixed(1)},${by.toFixed(1)} Q${((bx+kx)/2).toFixed(1)},${my.toFixed(1)} ${kx.toFixed(1)},${ky.toFixed(1)}"/>`;
+    for(const[px,py]of pts){if(py>ky-2)continue;const dxp=Math.abs(px-kx);if(dxp>22)continue;
+      const d=dxp*2+(ky-py);if(d<bs){bs=d;bx=px;by=py;}}
+    if(bx===null){bx=kx;by=Math.max(4,ky-8);}                // 近くに枝が無ければ真上へ短く
+    ls+=`<line x1="${bx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${kx.toFixed(1)}" y2="${ky.toFixed(1)}"/>`;
   });
-  return `<svg class="threads" viewBox="0 0 100 166" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="#e7c96b" stroke-width="0.4" stroke-linecap="round" opacity="0.85">${ls}</g></svg>`;
+  return `<svg class="threads" viewBox="0 0 100 166" preserveAspectRatio="none" aria-hidden="true"><g stroke="#e7c96b" stroke-width="0.4" stroke-linecap="round" opacity="0.85">${ls}</g></svg>`;
 }
 
 /* ---------- grove model ---------- */
