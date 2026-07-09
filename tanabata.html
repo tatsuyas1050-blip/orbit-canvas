@@ -461,15 +461,23 @@ const BAMBOO_SVG = `<svg class="bamboo" viewBox="0 0 100 166" preserveAspectRati
     <path d="M16,86 q-8,-5 -16,-2 q7,5 16,2 z"/><path d="M17,86 q-5,-8 -12,-10 q3,8 12,10 z"/>
   </g>
 </svg>`;
-/* 糸: 竹の芯から各短冊の結び目まで細い線を引く（＝糸の始点が竹に来る）。
-   短冊の結び目(anchor)の少し上・竹の芯上の点から、結び目へゆるく垂れる曲線。 */
+/* 糸: 各短冊の結び目を「近くの枝（の上側）」につないで、枝から吊り下がって見せる。
+   竹の芯ではなく枝の曲線上の点を始点にする。 */
+const _BR=[[35,110,50,104,63,98],[37.6,82,55,76,72,68],[40,54,54,48,66,42],[41,30,52,22,60,16],
+  [40,42,30,36,22,30],[33,120,22,116,15,110],[36,64,26,58,18,52],[34,98,24,92,16,86]];
+function _brPts(mirror){const p=[];for(const b of _BR){for(let t=0.25;t<=1.001;t+=0.19){
+  const mt=1-t,bx=mt*mt*b[0]+2*mt*t*b[2]+t*t*b[4],by=mt*mt*b[1]+2*mt*t*b[3]+t*t*b[5];
+  p.push([mirror?100-bx:bx,by]);}}return p;}
+const _brN=_brPts(false),_brM=_brPts(true);
 function threadsSVG(g,mirror){
-  let ls='';
+  const pts=mirror?_brM:_brN;let ls='';
   g.wishes.forEach((w,i)=>{
     const a=anchorFor(i), ky=a.y*1.66, kx=mirror?100-a.x:a.x;
-    const tyy=Math.max(6,ky-9), cxs=stalkXat(tyy), tx=mirror?100-cxs:cxs;   // 竹の芯の点（始点）
-    const my=(tyy+ky)/2+1.2;                                                // 少し垂らす
-    ls+=`<path d="M${tx.toFixed(1)},${tyy.toFixed(1)} Q${((tx+kx)/2).toFixed(1)},${my.toFixed(1)} ${kx.toFixed(1)},${ky.toFixed(1)}"/>`;
+    let bx=null,by=null,bs=1e9;
+    for(const[px,py]of pts){if(py>ky+1)continue;const d=Math.abs(px-kx)*1.5+(ky-py);if(d<bs){bs=d;bx=px;by=py;}}
+    if(bx===null){bs=1e9;for(const[px,py]of pts){const d=Math.hypot(px-kx,py-ky);if(d<bs){bs=d;bx=px;by=py;}}}
+    const my=(by+ky)/2+1.2;                                    // ゆるく垂らす
+    ls+=`<path d="M${bx.toFixed(1)},${by.toFixed(1)} Q${((bx+kx)/2).toFixed(1)},${my.toFixed(1)} ${kx.toFixed(1)},${ky.toFixed(1)}"/>`;
   });
   return `<svg class="threads" viewBox="0 0 100 166" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="#e7c96b" stroke-width="0.4" stroke-linecap="round" opacity="0.85">${ls}</g></svg>`;
 }
