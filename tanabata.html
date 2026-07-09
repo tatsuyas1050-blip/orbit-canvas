@@ -98,7 +98,7 @@
     font-family:"Klee One",serif;font-weight:600;font-size:4.1cqw;line-height:1.5;letter-spacing:.04em;
     box-shadow:0 3cqh 4cqh -2cqh rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.35);
     background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.025) 0,rgba(0,0,0,.025) 1px,transparent 1px,transparent 7px);
-    transition:transform .18s ease;max-height:52cqh;overflow:hidden;position:relative;}
+    transition:transform .18s ease;max-height:32cqh;overflow:hidden;position:relative;}
   .tanzaku::after{content:"";position:absolute;top:2cqh;left:50%;transform:translateX(-50%);width:2.4cqw;height:2.4cqw;max-width:7px;max-height:7px;border-radius:50%;border:1px solid rgba(0,0,0,.18);}
   .hang:active .tanzaku{transform:scale(1.06);}
   .c-aka{background-color:#f7cccb;color:#7a2b2b;}
@@ -403,30 +403,22 @@ function meetAnim(){
   };
 }
 
-/* anchors — 枝先（葉のつけ根）から下がるよう、竹の左右・上下にばらけて配置。
-   先頭ほど離して置き、数が少ないうちは重ならないようにする（増えたら重なってOK）。
-   座標は bamboo SVG(viewBox 100x166) と同じ。x=%、y は /1.66 で%に変換。 */
+/* anchors — 短冊が重ならず「どれも半分以上見える」よう、竹の上下2段×横6列に配置。
+   x=50 を中心に左右対称（竹を反転表示する笹でも同じ見え方）。先頭ほど離して置き、
+   数が少ないうちは重ならず全体にばらける。座標は bamboo SVG(viewBox 100x166)基準、
+   y は /1.66 で%に変換。上段 rawY=23(≈14%)・下段 rawY=76(≈46%)。 */
 const rawAnchors=[
-  [60,16],   // 1 右上の枝先
-  [16,86],   // 2 左・中下の枝先（1の対角）
-  [63,98],   // 3 右下の枝先
-  [22,30],   // 4 左上の枝先
-  [72,68],   // 5 右中の枝先
-  [45,27],   // 6 中央上（上枝の付け根）
-  [15,110],  // 7 左下の枝先
-  [66,42],   // 8 右上寄りの枝先
-  [18,52],   // 9 左・中上の枝先
-  [52,52],   // 10 中ほどの枝（内側）
-  [47,104],  // 11 右下の枝（内側）
-  [26,90]    // 12 左下の枝（内側）
+  [20,23],[56,76],[68,23],[32,76],[44,23],[80,76],
+  [32,23],[20,76],[56,23],[44,76],[80,23],[68,76]
 ];
 const anchors=rawAnchors.map(([x,y])=>({x:x,y:y/1.66}));
 function anchorFor(i){
   if(i<anchors.length)return anchors[i];
-  /* 12本を超えたぶんは各枝先付近に散らして追加（このあたりは重なってOK） */
+  /* 12本を超えたぶんは同じ2段グリッド上に散らす（このあたりは重なってOK） */
   const k=i-anchors.length;
-  const bx=[60,18,72,16,63,22,66,15][k%8], by=[16,52,68,86,98,30,42,110][k%8];
-  return {x:bx+(Math.random()*10-5), y:(by+(Math.random()*16-8))/1.66};
+  const bx=[20,32,44,56,68,80][k%6];
+  const by=(Math.floor(k/6)%2===0)?23:76;
+  return {x:bx+(Math.random()*8-4), y:(by+(Math.random()*12-6))/1.66};
 }
 
 /* bamboo */
