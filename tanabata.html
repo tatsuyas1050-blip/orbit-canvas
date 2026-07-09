@@ -90,7 +90,7 @@
   .hang{position:absolute;z-index:4;transform-origin:top center;
     animation:sway var(--dur,5s) ease-in-out infinite alternate;animation-delay:var(--del,0s);cursor:pointer;will-change:transform;}
   @keyframes sway{from{transform:rotate(var(--a,-2.4deg));}to{transform:rotate(calc(var(--a,-2.4deg) * -1));}}
-  .thread{width:1px;height:12cqh;margin:0 auto;background:linear-gradient(rgba(255,230,163,.25),var(--gold));}
+  .thread{width:1px;height:6cqh;margin:0 auto;background:linear-gradient(var(--gold),rgba(255,230,163,.5));}
   .knot{width:4cqw;height:4cqw;max-width:11px;max-height:11px;border-radius:50%;margin:-2cqw auto 0;
     background:radial-gradient(circle at 35% 30%,#fff6d8,var(--gold));box-shadow:0 0 5px rgba(255,230,163,.7);}
   .tanzaku{width:14cqw;min-height:26cqh;margin:-1cqw auto 0;padding:3cqh 0;border-radius:2px;
@@ -418,9 +418,7 @@ function jrand(i,s){const n=Math.sin((i*127.1+s)*311.7)*43758.5453;return (n-Mat
 function jitter(x,y,i){
   const brick=(y<50)?-4:4;
   const jx=jrand(i,1.7)*4, jy=jrand(i,9.3)*7;
-  /* 糸を長くしたぶん、吊り元（糸の上端）を上へ寄せて枝から下がって見せる。
-     短冊の位置は概ね据え置き（可視率は維持）。上端は 6% で止める。 */
-  const yy=Math.max(6,(y-11.6+jy)/1.66);
+  const yy=Math.max(6,(y+jy)/1.66);
   return {x:Math.max(16,Math.min(84,x+brick+jx)), y:yy};
 }
 const anchors=rawAnchors.map(([x,y],i)=>jitter(x,y,i));
@@ -432,7 +430,19 @@ function anchorFor(i){
   return jitter(bx,by,i);
 }
 
-/* bamboo */
+/* bamboo — 各短冊の吊り元(anchor)まで枝を伸ばし「枝先から下がる」ように。
+   竹の芯(stalk)から anchor まで曲線の枝を描き、先端に葉を添える。
+   笹は grove ごとに反転表示するが、竹も短冊も同じ x 反転なので整合する。 */
+function stalkXat(ry){return 42-(ry-8)/158*14;}      // rawY における竹の芯の x
+let _brA='',_lfA='';
+anchors.forEach(a=>{
+  const tx=a.x, ty=a.y*1.66;                          // 枝先(=吊り元) の SVG 座標
+  const cx=stalkXat(ty), dir=(tx>=cx)?1:-1;
+  const sx=cx+dir*1.6, sy=ty+2.6, mx=(sx+tx)/2, my=ty-3.4;   // 芯から上に弓なりに伸ばす
+  _brA+=`<path d="M${sx.toFixed(1)},${sy.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)}"/>`;
+  _lfA+=`<path d="M${tx.toFixed(1)},${ty.toFixed(1)} q${7*dir},-5 ${15*dir},-2 q${-6*dir},5 ${-15*dir},2 z"/>`;
+  _lfA+=`<path d="M${(tx-1*dir).toFixed(1)},${(ty-1).toFixed(1)} q${4*dir},-8 ${11*dir},-9 q${-3*dir},7 ${-11*dir},9 z"/>`;
+});
 const BAMBOO_SVG = `<svg class="bamboo" viewBox="0 0 100 166" preserveAspectRatio="none" aria-hidden="true">
   <defs>
     <linearGradient id="stalk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2f5d33"/><stop offset="0.45" stop-color="#7bb26a"/><stop offset="1" stop-color="#3c6b3c"/></linearGradient>
@@ -443,22 +453,10 @@ const BAMBOO_SVG = `<svg class="bamboo" viewBox="0 0 100 166" preserveAspectRati
     <line x1="27.5" y1="138" x2="32.9" y2="138"/><line x1="31.0" y1="110" x2="35.7" y2="110"/>
     <line x1="34.2" y1="82" x2="38.5" y2="82"/><line x1="37.0" y1="54" x2="40.8" y2="54"/><line x1="39.2" y1="28" x2="42.6" y2="28"/>
   </g>
-  <g fill="none" stroke="#4f8047" stroke-width="1" stroke-linecap="round">
-    <path d="M35,110 Q50,104 63,98"/><path d="M37.6,82 Q55,76 72,68"/><path d="M40,54 Q54,48 66,42"/>
-    <path d="M41,30 Q52,22 60,16"/><path d="M40,42 Q30,36 22,30"/><path d="M33,120 Q22,116 15,110"/>
-    <path d="M36,64 Q26,58 18,52"/><path d="M34,98 Q24,92 16,86"/>
-  </g>
+  <g fill="none" stroke="#4f8047" stroke-width="1" stroke-linecap="round">${_brA}</g>
   <g fill="url(#leaf)" stroke="#2f5d33" stroke-width="0.3">
-    <path d="M63,98 q9,-6 18,-3 q-8,5 -18,3 z"/><path d="M60,96 q6,-9 15,-11 q-4,9 -15,11 z"/>
-    <path d="M72,68 q10,-5 19,-1 q-9,5 -19,1 z"/><path d="M70,67 q7,-9 16,-10 q-4,8 -16,10 z"/>
-    <path d="M66,42 q9,-5 17,-2 q-8,5 -17,2 z"/><path d="M64,42 q5,-9 13,-11 q-3,9 -13,11 z"/>
-    <path d="M60,16 q8,-6 16,-4 q-7,6 -16,4 z"/><path d="M59,16 q4,-9 11,-12 q-2,9 -11,12 z"/>
     <path d="M41,8 q6,-8 13,-9 q-3,8 -13,9 z"/><path d="M40,8 q-3,-9 -10,-12 q0,9 10,12 z"/>
-    <path d="M22,30 q-9,-5 -18,-2 q8,5 18,2 z"/><path d="M23,30 q-5,-9 -13,-11 q3,9 13,11 z"/>
-    <path d="M15,110 q-9,-4 -17,-1 q8,4 17,1 z"/><path d="M16,110 q-5,-8 -13,-10 q3,8 13,10 z"/>
-    <path d="M34,150 q-8,-5 -16,-3 q7,5 16,3 z"/><path d="M35,150 q-4,-9 -11,-11 q2,9 11,11 z"/>
-    <path d="M18,52 q-8,-5 -16,-2 q7,5 16,2 z"/><path d="M19,52 q-5,-8 -12,-10 q3,8 12,10 z"/>
-    <path d="M16,86 q-8,-5 -16,-2 q7,5 16,2 z"/><path d="M17,86 q-5,-8 -12,-10 q3,8 12,10 z"/>
+    ${_lfA}
   </g>
 </svg>`;
 
