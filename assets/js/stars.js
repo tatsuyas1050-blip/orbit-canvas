@@ -54,14 +54,16 @@ const CONFIG = {
         ConstellationLabels: { label: '星座名', color: '#a0d9ff', type: 'label_only', isConstellationGroup: true },
 
         // DSO（星雲・星団など）はラベルグループに含める（マークごと消す対象）
+        // shinchu-dataset由来のDSOカタログ（noMagFilter: 等級スライダーの対象外、カテゴリボタンのみで表示制御）
         MultipleStar: { label: '重星', color: '#dcd0ff', type: 'double_circle', isLabelGroup: true },
-        Galaxy: { label: '銀河', color: '#ffffdd', type: 'ellipse', isLabelGroup: true },
-        GlobularCluster: { label: '球状星団', color: '#ffcc66', type: 'circle_plus', isLabelGroup: true },
-        OpenCluster: { label: '散開星団', color: '#aaccff', type: 'circle_dotted', isLabelGroup: true },
-        EmissionNebula: { label: '散光星雲', color: '#ff9999', type: 'square', isLabelGroup: true },
-        ReflectionNebula: { label: '反射星雲', color: '#99ccff', type: 'square_stroke', isLabelGroup: true },
-        PlanetaryNebula: { label: '惑星状星雲', color: '#88ffcc', type: 'circle_cross', isLabelGroup: true },
-        SupernovaRemnant: { label: '超新星残骸', color: '#cc99ff', type: 'diamond', isLabelGroup: true },
+        Galaxy: { label: '銀河', color: '#ffffdd', type: 'ellipse', isLabelGroup: true, noMagFilter: true },
+        GlobularCluster: { label: '球状星団', color: '#ffcc66', type: 'circle_plus', isLabelGroup: true, noMagFilter: true },
+        OpenCluster: { label: '散開星団', color: '#aaccff', type: 'circle_dotted', isLabelGroup: true, noMagFilter: true },
+        EmissionNebula: { label: '散光星雲', color: '#ff9999', type: 'square', isLabelGroup: true, noMagFilter: true },
+        ReflectionNebula: { label: '反射星雲', color: '#99ccff', type: 'square_stroke', isLabelGroup: true, noMagFilter: true },
+        PlanetaryNebula: { label: '惑星状星雲', color: '#88ffcc', type: 'circle_cross', isLabelGroup: true, noMagFilter: true },
+        SupernovaRemnant: { label: '超新星残骸', color: '#cc99ff', type: 'diamond', isLabelGroup: true, noMagFilter: true },
+        ClusterNebula: { label: '星団+星雲', color: '#ffd9a0', type: 'cluster_nebula', isLabelGroup: true, noMagFilter: true },
         Comets: { label: '彗星', color: '#a0e0ff', type: 'comet' }
     },
 
@@ -109,14 +111,38 @@ const CATALOG_FILES = [
     { type: 'ConstellationLabels', file: 'constellation_labels.json' },
 
     { type: 'MultipleStar', file: 'Multiple_Star_list1.json' },
-    { type: 'Galaxy', file: 'Galaxy_list1.json' },
-    { type: 'GlobularCluster', file: 'Globular_Cluster_list1.json' },
-    { type: 'OpenCluster', file: 'Open_Cluster_list1.json' },
-    { type: 'EmissionNebula', file: 'Emission_Nebula_list1.json' },
-    { type: 'ReflectionNebula', file: 'Reflection_Nebula_list1.json' },
-    { type: 'PlanetaryNebula', file: 'Planetary_Nebula_list1.json' },
-    { type: 'SupernovaRemnant', file: 'Supernova_Remnant_list1.json' }
+    // 銀河・星団・星雲は shinchu-dataset 由来の統合カタログ（実写スプライト付き）から読み込む
+    { type: 'DSOCatalog', file: 'dso_catalog.json' }
 ];
+
+// shinchu-dataset の type コード → orbit-canvas の CONFIG.categories キー
+const DSO_TYPE_MAP = {
+    G: 'Galaxy',
+    OC: 'OpenCluster',
+    GC: 'GlobularCluster',
+    PN: 'PlanetaryNebula',
+    EN: 'EmissionNebula',
+    RN: 'ReflectionNebula',
+    SNR: 'SupernovaRemnant',
+    CN: 'ClusterNebula'
+};
+
+// 非代表DSO（M番号・固有名を持たないNGC/IC等）のラベルを表示し始める/し終えるカメラFOV（度）。
+// CONFIG.minFov(10)〜maxFov(75)の範囲内。HIDE以上でラベル非表示、SHOW以下で完全表示。
+const DSO_LABEL_FOV_HIDE = 45;
+const DSO_LABEL_FOV_SHOW = 15;
+
+// 実写DSOスプライトの明るさブースト設定。実写画像は暗い天体ほど元データの信号が弱く沈んで見えるため、
+// 等級(vmag)に応じてテクスチャのRGBを底上げする（明るい天体は等倍のまま＝白飛びさせない）。
+const DSO_PHOTO_BOOST_START_MAG = 8;   // これより明るい天体はブーストなし
+const DSO_PHOTO_BOOST_MAX_MAG = 13;    // これより暗い天体は最大ブースト
+const DSO_PHOTO_BOOST_MAX = 2.2;       // 最大ブースト倍率
+
+// 実写DSOスプライトのズームフェード閾値（画面上の長辺ピクセル数）。
+// 本アプリの最大ズーム（CONFIG.minFov=10°）でも、小さめの天体（角径1°未満）は
+// 旧来の150px到達には遠く及ばず、常に薄いままになっていたため、実際に到達可能な範囲へ再調整。
+const DSO_PHOTO_FADE_START_PX = 3;  // これ未満は完全非表示
+const DSO_PHOTO_FADE_FULL_PX = 25;  // これ以上で完全表示
 
 let scene, camera, renderer, controls;
 let groundMesh, gridHelper, compassGroup, skyMesh;
@@ -2983,6 +3009,10 @@ function createSymbolTexture(type, colorStr) {
             ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke();
             ctx.beginPath(); ctx.arc(center, center, 2, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.moveTo(center - radius - 5, center); ctx.lineTo(center + radius + 5, center); ctx.stroke(); break;
+        case 'cluster_nebula':
+            // 星団（点線円）＋星雲（正方形枠）の組み合わせ
+            ctx.beginPath(); ctx.setLineDash([4, 4]); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            ctx.strokeRect(center - radius * 0.6, center - radius * 0.6, radius * 1.2, radius * 1.2); break;
         default: ctx.beginPath(); ctx.arc(center, center, radius, 0, Math.PI * 2); ctx.stroke();
     }
     return new THREE.CanvasTexture(canvas);
@@ -3035,6 +3065,10 @@ async function fetchAllData() {
 }
 
 function createLayer(type, dataList) {
+    // shinchu-dataset統合カタログは1ファイルから複数レイヤー（銀河/星団/星雲…）を作るため、
+    // 他の分岐と違い layers[type] を作らず専用関数に委譲する
+    if (type === 'DSOCatalog') { createDSOCatalogLayers(dataList); return; }
+
     const config = CONFIG.categories[type] || { label: type, color: '#ffffff', type: 'point' };
     layers[type] = { data: dataList, mesh: new THREE.Group(), visible: true };
 
@@ -3051,10 +3085,59 @@ function createLayer(type, dataList) {
             createStarLabels(dataList, layers['StarLabels'].mesh);
         }
     } else if (type === 'SolarSystem') {
-    } else { 
-        createDSOSprites(type, dataList, config, layers[type].mesh); 
+    } else {
+        createDSOSprites(type, dataList, config, layers[type].mesh);
     }
     scene.add(layers[type].mesh);
+}
+
+// shinchu-dataset の dso_catalog.json（{objectCount, spriteCount, objects:[...]}）を
+// type コードごとに振り分け、既存の CONFIG.categories に対応するレイヤーを組み立てる
+function createDSOCatalogLayers(payload) {
+    const objects = (payload && payload.objects) ? payload.objects : (Array.isArray(payload) ? payload : []);
+    const grouped = {};
+    objects.forEach(obj => {
+        const key = DSO_TYPE_MAP[obj.type];
+        if (!key) return; // 未知のtypeコードは無視
+        if (!obj.sprite || !obj.sprite.file) return; // 実写モデルを持つ天体のみ表示する
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(normalizeDSORecord(obj));
+    });
+
+    Object.keys(DSO_TYPE_MAP).forEach(code => {
+        const key = DSO_TYPE_MAP[code];
+        const dataList = grouped[key] || [];
+        const config = CONFIG.categories[key] || { label: key, color: '#ffffff', type: 'point' };
+        layers[key] = { data: dataList, mesh: new THREE.Group(), visible: true };
+        createDSOSprites(key, dataList, config, layers[key].mesh);
+        scene.add(layers[key].mesh);
+    });
+}
+
+// shinchu-dataset のレコード（raDeg/decDeg/vMag/name.ja 等）を
+// 既存のDSO描画パイプラインが期待するフィールド名（ra_deg/dec_deg/vmag/proper_name 等）に正規化する
+function normalizeDSORecord(obj) {
+    const properName = (obj.name && obj.name.ja) ? obj.name.ja : '';
+    return {
+        name: obj.messier ? `M${obj.messier}` : (obj.designation || obj.id),
+        proper_name: properName,
+        ra_deg: obj.raDeg,
+        dec_deg: obj.decDeg,
+        vmag: (obj.vMag !== undefined && obj.vMag !== null) ? obj.vMag : undefined,
+        size_arcmin: [obj.majorAxisArcmin, obj.minorAxisArcmin],
+        con: obj.constellation,
+        pa_deg: obj.positionAngleDeg,
+        designation: obj.designation,
+        id: obj.id,
+        // 実写モデルを持つ天体（=表示対象として厳選済み）は常時ラベル表示。
+        // M番号・固有名のいずれかを持つ場合も同様（将来モデルなしの天体を加える場合に備えて条件は残す）
+        prominent: !!(obj.messier || properName || (obj.sprite && obj.sprite.file)),
+        sprite: (obj.sprite && obj.sprite.file) ? {
+            file: 'assets/catalogs/' + obj.sprite.file,
+            fovDeg: obj.sprite.fovDeg,
+            pixels: obj.sprite.pixels
+        } : null
+    };
 }
 
 function createConstellationLines(data, config, parentGroup) {
@@ -3241,9 +3324,19 @@ function createStarLabels(data, parentGroup) {
     });
 }
 
+// 実写スプライト（webp）読み込み用の共有ローダー。カタログ表示自体はブロックせず非同期にロードする。
+let dsoTextureLoader = null;
+function getDSOTextureLoader() {
+    if (!dsoTextureLoader) dsoTextureLoader = new THREE.TextureLoader();
+    return dsoTextureLoader;
+}
+
 function createDSOSprites(type, data, config, parentGroup) {
     const symbolMap = createSymbolTexture(config.type, config.color);
-    const materialBase = new THREE.SpriteMaterial({ map: symbolMap, color: 0xffd84a, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
+    // マーク（記号アイコン）は名称のみ表示にするため非表示にする。ただし visible は true のまま維持し、
+    // クリック判定（onPointerUpのレイキャスト対象=children[0]）のヒット範囲としてだけ機能させる。
+    const materialBase = new THREE.SpriteMaterial({ map: symbolMap, color: 0xffd84a, transparent: true, opacity: 0, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
+    const r = CONFIG.radius;
     data.forEach((obj) => {
         const wrapper = new THREE.Group();
         const sprite = new THREE.Sprite(materialBase.clone());
@@ -3258,14 +3351,40 @@ function createDSOSprites(type, data, config, parentGroup) {
             labelSprite.scale.set(baseW, baseH, 1);
             labelSprite.userData.baseScale = { x: baseW, y: baseH };
             labelSprite.userData.isLabel = true;
+            // prominentが明示的にfalseの天体（M番号・固有名を持たないNGC/IC等）のみズームインで段階的にラベルを表示
+            labelSprite.userData.isProminent = (obj.prominent === false) ? false : true;
             labelSprite.position.set(baseW / 2 + 8, 0, 0); wrapper.add(labelSprite);
         }
-        wrapper.userData = { 
+
+        // 実写スプライト（shinchu-dataset由来）: 実視直径ベースの世界座標サイズで配置。
+        // レイキャスト対象（children[0]）や既存のラベル拡縮ロジック（children[1]）と衝突しないよう、
+        // インデックスに依存せず userData.photoSprite 経由で参照する。
+        let photoSprite = null;
+        if (obj.sprite && obj.sprite.file && typeof obj.sprite.fovDeg === 'number') {
+            const angularSizeRad = obj.sprite.fovDeg * (Math.PI / 180);
+            const worldSize = r * angularSizeRad;
+            const texture = getDSOTextureLoader().load(obj.sprite.file);
+            const photoMat = new THREE.SpriteMaterial({
+                map: texture, transparent: true, depthTest: false, depthWrite: false,
+                blending: THREE.NormalBlending, opacity: 0, fog: false
+            });
+            const vmagForBoost = (typeof obj.vmag === 'number') ? obj.vmag : DSO_PHOTO_BOOST_START_MAG;
+            const boostT = Math.min(1, Math.max(0, (vmagForBoost - DSO_PHOTO_BOOST_START_MAG) / (DSO_PHOTO_BOOST_MAX_MAG - DSO_PHOTO_BOOST_START_MAG)));
+            photoMat.color.setScalar(1 + boostT * (DSO_PHOTO_BOOST_MAX - 1));
+            photoSprite = new THREE.Sprite(photoMat);
+            photoSprite.scale.set(worldSize, worldSize, 1);
+            photoSprite.renderOrder = 5;
+            photoSprite.userData.isPhoto = true;
+            photoSprite.userData.majorAxisWorld = worldSize;
+            wrapper.add(photoSprite);
+        }
+
+        wrapper.userData = {
             ra: obj.ra_deg !== undefined ? obj.ra_deg : (obj.ra !== undefined ? obj.ra : 0),
             dec: obj.dec_deg !== undefined ? obj.dec_deg : (obj.dec !== undefined ? obj.dec : 0),
             mag: parseFloat(obj.vmag || obj.mag || 6.0),
             originalData: { ...obj, objType: type, typeLabel: config.label },
-            meshReference: wrapper, hasLabel: true
+            meshReference: wrapper, hasLabel: true, photoSprite: photoSprite
         };
         parentGroup.add(wrapper);
     });
@@ -3307,21 +3426,33 @@ function updatePositions() {
 
     Object.keys(layers).forEach(type => {
         if (type === 'ConstellationLines' || type === 'SolarSystem') return;
-        const group = layers[type].mesh; 
+        const group = layers[type].mesh;
         if (!layers[type].visible) return;
+        const skipMagFilter = !!(CONFIG.categories[type] && CONFIG.categories[type].noMagFilter);
         group.children.forEach(child => {
-            if (child.isPoints) return; 
+            if (child.isPoints) return;
             const d = child.userData;
             let ra, dec;
-            if (d.isLabelOnly) { ra = d.ra; dec = d.dec; } 
-            else if (d.ra !== undefined) { ra = d.ra; dec = d.dec; } 
+            if (d.isLabelOnly) { ra = d.ra; dec = d.dec; }
+            else if (d.ra !== undefined) { ra = d.ra; dec = d.dec; }
             else { return; }
             const coord = calcHorizontalCoord(ra, dec, lstRad, sinLat, cosLat, r);
             child.position.set(coord.x, coord.y, coord.z);
-            if (!d.isLabelOnly && d.mag !== undefined) {
+            if (!d.isLabelOnly && d.mag !== undefined && !skipMagFilter) {
                  // StarLabelsレイヤー内の制御など
                  // ここではレイヤーのvisibleがtrueの場合のみ来るので、等級判定のみ
                  child.visible = (d.mag <= state.magLimit);
+            }
+            // 実写スプライトのパララクティック角補正（北が上に焼き込まれた画像を地平座標系の向きに合わせる）
+            if (d.photoSprite) {
+                const raRad = ra * (Math.PI / 180);
+                const decRad = dec * (Math.PI / 180);
+                let haRad = lstRad - raRad;
+                while (haRad > Math.PI) haRad -= Math.PI * 2;
+                while (haRad < -Math.PI) haRad += Math.PI * 2;
+                const py = Math.sin(haRad);
+                const px = Math.tan(latRad) * Math.cos(decRad) - Math.sin(decRad) * Math.cos(haRad);
+                d.photoSprite.material.rotation = -Math.atan2(py, px);
             }
         });
     });
@@ -3699,8 +3830,9 @@ function onPointerUp(event) {
             let mag = 6.0;
             if (candidateObj.mag !== undefined) mag = parseFloat(candidateObj.mag);
             else if (candidateObj.vmag !== undefined) mag = parseFloat(candidateObj.vmag);
-            
-            if (mag <= state.magLimit) {
+
+            const skipMagFilter = !!(candidateObj.objType && CONFIG.categories[candidateObj.objType] && CONFIG.categories[candidateObj.objType].noMagFilter);
+            if (skipMagFilter || mag <= state.magLimit) {
                 candidateObj.distToRay = distToRay;
                 candidates.push(candidateObj);
             }
@@ -3873,6 +4005,16 @@ function updateLabelSizes() {
             }
         });
     }
+    // 実写DSOスプライトのズームフェード用: 画面上での世界座標→ピクセル換算係数（天球半径=一定距離のため深度は固定）
+    const viewH = (renderer && renderer.domElement && renderer.domElement.clientHeight) || window.innerHeight || 800;
+    const fovRad = THREE.MathUtils.degToRad(camera.fov || 50);
+    const worldPerPixel = (2 * CONFIG.radius * Math.tan(fovRad / 2)) / viewH;
+
+    // 非代表天体（M番号・固有名を持たないNGC/IC等）のラベル: ズームアウト時は密集して見づらいため非表示にし、
+    // ズームインするにつれて滑らかに現れるようにする（アイコン自体は常に表示のまま）
+    const nonProminentLabelU = Math.min(1, Math.max(0, (DSO_LABEL_FOV_HIDE - camera.fov) / (DSO_LABEL_FOV_HIDE - DSO_LABEL_FOV_SHOW)));
+    const nonProminentLabelOpacity = nonProminentLabelU * nonProminentLabelU * (3 - 2 * nonProminentLabelU);
+
     Object.keys(layers).forEach(key => {
         if (key === 'star' || key === 'ConstellationLines' || key === 'ConstellationLabels' || key === 'StarLabels') return;
         const group = layers[key].mesh;
@@ -3881,7 +4023,17 @@ function updateLabelSizes() {
                 const label = wrapper.children[1];
                 if (label.userData.isLabel && label.userData.baseScale) {
                     label.scale.set(label.userData.baseScale.x * fovFactor, label.userData.baseScale.y * fovFactor, 1);
+                    if (label.userData.isProminent === false) {
+                        label.material.opacity = nonProminentLabelOpacity;
+                        label.visible = nonProminentLabelOpacity > 0.01;
+                    }
                 }
+            }
+            const photoSprite = wrapper.userData && wrapper.userData.photoSprite;
+            if (photoSprite && photoSprite.material.map && photoSprite.material.map.image) {
+                const extentPx = photoSprite.userData.majorAxisWorld / worldPerPixel;
+                const u = Math.min(1, Math.max(0, (extentPx - DSO_PHOTO_FADE_START_PX) / (DSO_PHOTO_FADE_FULL_PX - DSO_PHOTO_FADE_START_PX)));
+                photoSprite.material.opacity = u * u * (3 - 2 * u);
             }
         });
     });
