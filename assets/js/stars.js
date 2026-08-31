@@ -111,9 +111,14 @@ const CATALOG_FILES = [
     { type: 'ConstellationLabels', file: 'constellation_labels.json' },
 
     { type: 'MultipleStar', file: 'Multiple_Star_list1.json' },
+    // 天体の簡単な解説文（id→テキスト）。DSOCatalogより前に読み込まれる必要がある
+    { type: 'DSODescriptions', file: 'dso_descriptions_ja.json' },
     // 銀河・星団・星雲は shinchu-dataset 由来の統合カタログ（実写スプライト付き）から読み込む
     { type: 'DSOCatalog', file: 'dso_catalog.json' }
 ];
+
+// 天体id → 短い日本語解説文。fetchAllData内でDSODescriptionsとして読み込まれる
+let DSO_DESCRIPTIONS = {};
 
 // shinchu-dataset の type コード → orbit-canvas の CONFIG.categories キー
 const DSO_TYPE_MAP = {
@@ -126,6 +131,13 @@ const DSO_TYPE_MAP = {
     SNR: 'SupernovaRemnant',
     CN: 'ClusterNebula'
 };
+// createDSOSprites で作る「四隅レチクル＋常時ラベル」のマーカーを使っている天体種別
+// （＝汎用の十字レチクルではなく、そのレチクル自体を選択状態の表示に使う）
+const DSO_OBJECT_TYPES = new Set(Object.values(DSO_TYPE_MAP));
+// 選択中のDSOレチクルを目立たせる色とサイズ倍率。ゴールドは球状星団など元々
+// 暖色系のカテゴリ色と紛れやすいため、どのカテゴリ色とも混同しない純白＋拡大で示す。
+const DSO_RETICLE_SELECTED_COLOR = 0xffffff;
+const DSO_RETICLE_SELECTED_SCALE = 1.35;
 
 // 非代表DSO（M番号・固有名を持たないNGC/IC等）のラベルを表示し始める/し終えるカメラFOV（度）。
 // CONFIG.minFov(10)〜maxFov(75)の範囲内。HIDE以上でラベル非表示、SHOW以下で完全表示。
@@ -133,12 +145,17 @@ const DSO_LABEL_FOV_HIDE = 45;
 const DSO_LABEL_FOV_SHOW = 15;
 
 // レチクル／実写画像の外縁からラベルまでの隙間（世界座標単位）
-const DSO_LABEL_GAP = 3;
+const DSO_LABEL_GAP = 0;
 
 // レチクルの最小サイズ（画面上での見かけの大きさ、fovFactor倍される）。
 // 実写画像がこれより大きく表示されている場合は、画像を軽く縁取るサイズまでレチクルを拡大する。
 const DSO_RETICLE_MIN_SIZE = 14;
 const DSO_RETICLE_MARGIN = 1.2;
+
+// レチクルの不透明度。実写画像をしっかり縁取っている（ズームインして写真が
+// 見えている）ときは、枠が写真にかぶって邪魔にならないよう少し透明にする。
+const DSO_RETICLE_OPACITY = 0.8;
+const DSO_RETICLE_OPACITY_FRAMED = 0.16;
 
 // 実写DSOスプライトの明るさブースト設定。実写画像は暗い天体ほど元データの信号が弱く沈んで見えるため、
 // 等級(vmag)に応じてHSLの明度(L)を底上げする（明るい天体はブーストなし＝白飛びさせない）。
@@ -3095,6 +3112,9 @@ async function fetchAllData() {
 }
 
 function createLayer(type, dataList) {
+    // 天体の解説文はレイヤーではなく単なるid→テキストの辞書なので、保持するだけでよい。
+    // CATALOG_FILESで DSOCatalog より前に置くことで、DSOカタログ処理時には読み込み済みになる。
+    if (type === 'DSODescriptions') { DSO_DESCRIPTIONS = dataList || {}; return; }
     // shinchu-dataset統合カタログは1ファイルから複数レイヤー（銀河/星団/星雲…）を作るため、
     // 他の分岐と違い layers[type] を作らず専用関数に委譲する
     if (type === 'DSOCatalog') { createDSOCatalogLayers(dataList); return; }
@@ -3164,9 +3184,12 @@ function normalizeDSORecord(obj) {
         vmag: (obj.vMag !== undefined && obj.vMag !== null) ? obj.vMag : undefined,
         size_arcmin: [obj.majorAxisArcmin, obj.minorAxisArcmin],
         con: obj.constellation,
+        con_ja: obj.constellationJa,
         pa_deg: obj.positionAngleDeg,
         designation: obj.designation,
         id: obj.id,
+        desc: (DSO_DESCRIPTIONS[obj.id] && DSO_DESCRIPTIONS[obj.id].desc) || null,
+        distance_ly: (DSO_DESCRIPTIONS[obj.id] && DSO_DESCRIPTIONS[obj.id].distanceLy) || null,
         // 「特に有名」なものだけラベルを常時表示: M番号を持つ天体、または本当の固有名を持ち
         // かつ十分明るい天体（等級不明の場合は通す＝著名な散光星雲は積分等級が未定義なことが多いため）。
         // それ以外（NGC/IC番号のみ、自動生成の説明文だけ、または暗めの天体）はモデルを持っていても
@@ -3437,8 +3460,10 @@ vec3 dsoHsl2rgb(vec3 hsl) {
 function createDSOSprites(type, data, config, parentGroup) {
     // マーク: カメラのビューファインダーのような四隅だけのレチクル（角括弧）。
     // 塗りつぶし図形や引き出し線より主張が弱く、天体の実位置を直接示せるため視認性と落ち着きを両立できる。
-    const reticleMap = createReticleTexture(config.color);
-    const reticleMaterialBase = new THREE.SpriteMaterial({ map: reticleMap, transparent: true, opacity: 0.8, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
+    // テクスチャ自体は白で焼き、カテゴリ色は material.color で乗せる（選択時にゴールドへ
+    // 差し替えるだけで、元がゴールド系の球状星団などでも確実に見分けがつくようにするため）。
+    const reticleMap = createReticleTexture('#ffffff');
+    const reticleMaterialBase = new THREE.SpriteMaterial({ map: reticleMap, color: config.color, transparent: true, opacity: DSO_RETICLE_OPACITY, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
     const r = CONFIG.radius;
     data.forEach((obj) => {
         const wrapper = new THREE.Group();
@@ -3449,6 +3474,7 @@ function createDSOSprites(type, data, config, parentGroup) {
         reticle.scale.set(DSO_RETICLE_MIN_SIZE, DSO_RETICLE_MIN_SIZE, 1);
         reticle.userData.isReticle = true;
         reticle.userData.baseScale = { x: DSO_RETICLE_MIN_SIZE, y: DSO_RETICLE_MIN_SIZE };
+        reticle.userData.baseColor = config.color;
         wrapper.add(reticle);
         const name = getObjectName(obj);
         if (name !== "Unknown Object") {
@@ -3460,11 +3486,21 @@ function createDSOSprites(type, data, config, parentGroup) {
             labelSprite.scale.set(baseW, baseH, 1);
             labelSprite.userData.baseScale = { x: baseW, y: baseH };
             labelSprite.userData.isLabel = true;
+            // 選択時にレチクルと同じく純白へ切り替えるため、通常用とは別に白版のテクスチャも
+            // 用意しておく（文字はキャンバスに直接焼いているため material.color の乗算では
+            // 確実な色差にならない）。
+            labelSprite.userData.mapNormal = labelMap;
+            labelSprite.userData.mapSelected = createLabelTexture(name, '#ffffff', 32);
             // prominentが明示的にfalseの天体（M番号・固有名を持たないNGC/IC等）のみズームインで段階的にラベルを表示
             const isProminent = (obj.prominent === false) ? false : true;
             labelSprite.userData.isProminent = isProminent;
             reticle.userData.isProminent = isProminent;
-            labelSprite.position.set(baseW / 2 + 8, 0, 0); wrapper.add(labelSprite);
+            // どの天体を示しているか一目で分かるよう、ラベル末尾の右端がレチクルの左端に
+            // 接するように配置する（center をラベル自身の右端・縦中央に置き、position が
+            // そのまま接触点になるようにする）。実際の位置はカメラの向きに応じて
+            // updateLabelSizes が毎フレーム計算するので、ここでは仮の値でよい。
+            labelSprite.center.set(1, 0.5);
+            wrapper.add(labelSprite);
         }
 
         // 実写スプライト（shinchu-dataset由来）: 実視直径ベースの世界座標サイズで配置。
@@ -3906,8 +3942,14 @@ function onPointerUp(event) {
         if (type === 'ConstellationLines' || type === 'ConstellationLabels') return;
         if (layers[type].visible) {
             layers[type].mesh.children.forEach(child => {
-                if (child.visible && child.isGroup) { 
+                if (child.visible && child.isGroup) {
                     if (child.children.length > 0) intersectTargets.push(child.children[0]);
+                    // 天体名ラベルをクリックしても同じ天体を選択できるようにする
+                    // （どちらも同じ wrapper.userData を参照するので候補生成ロジックは共通のまま使える）
+                    const maybeLabel = child.children[1];
+                    if (maybeLabel && maybeLabel.visible && maybeLabel.userData && maybeLabel.userData.isLabel) {
+                        intersectTargets.push(maybeLabel);
+                    }
                 }
             });
         }
@@ -3977,8 +4019,10 @@ function onPointerUp(event) {
             }
             
             showSidePanel(targetObj);
-            updateReticle(); 
-            if (!isMobile) window.switchTab('info');
+            updateReticle();
+            // 星雲・星団・銀河は汎用の十字レチクル（詳細ボタン付き）を出さないので、
+            // モバイルでも代わりに情報パネルを自動で開く
+            if (!isMobile || DSO_OBJECT_TYPES.has(targetObj.objType)) window.switchTab('info');
         } else {
             resetSelectionHelper();
         }
@@ -4011,6 +4055,7 @@ function showSidePanel(obj) {
     let distText = "-"; let distUnit = "";
     if (obj.distance_au !== undefined) { distText = parseFloat(obj.distance_au).toFixed(3); distUnit = " AU"; }
     else if (obj.distance_pc) { distText = (obj.distance_pc * 3.26156).toFixed(1); distUnit = " 光年"; }
+    else if (obj.distance_ly) { distText = formatLightYears(obj.distance_ly); distUnit = " 光年"; }
 
     let altAzText = "-";
     if (obj.alt !== undefined && obj.az !== undefined) {
@@ -4023,6 +4068,37 @@ function showSidePanel(obj) {
     if (distEl.nextSibling && distEl.nextSibling.nodeType === 3) distEl.nextSibling.textContent = distUnit; 
     let typeText = obj.spect_type || obj.typeLabel || "Unknown";
     document.getElementById('star-type').textContent = typeText;
+
+    const descEl = document.getElementById('star-desc');
+    if (descEl) {
+        if (obj.desc) { descEl.textContent = obj.desc; descEl.style.display = ''; }
+        else { descEl.textContent = ''; descEl.style.display = 'none'; }
+    }
+
+    // 視直径・星座は星雲/星団/銀河カタログ由来のフィールドがある場合のみ表示する
+    const sizeRow = document.getElementById('star-size-row');
+    if (sizeRow) {
+        const [a, b] = Array.isArray(obj.size_arcmin) ? obj.size_arcmin : [null, null];
+        if (typeof a === 'number') {
+            document.getElementById('star-size').textContent =
+                (typeof b === 'number' && b !== a) ? `${a.toFixed(1)}′ × ${b.toFixed(1)}′` : `${a.toFixed(1)}′`;
+            sizeRow.style.display = '';
+        } else {
+            sizeRow.style.display = 'none';
+        }
+    }
+    const conRow = document.getElementById('star-con-row');
+    if (conRow) {
+        const conText = obj.con_ja || obj.con;
+        if (conText) { document.getElementById('star-con').textContent = conText; conRow.style.display = ''; }
+        else { conRow.style.display = 'none'; }
+    }
+}
+
+function formatLightYears(ly) {
+    if (ly >= 100000000) return (ly / 100000000).toFixed(1) + '億';
+    if (ly >= 10000) return Math.round(ly / 10000).toLocaleString() + '万';
+    return Math.round(ly).toLocaleString();
 }
 
 function onPointerMove(event) {
@@ -4049,6 +4125,11 @@ function updateReticle() {
         reticle.classList.remove('visible'); reticle.style.display = 'none'; return;
     }
     if (!state.selectedObject || state.shuttleValue !== 0 || state.isDragging) {
+        reticle.classList.remove('visible'); reticle.style.display = 'none'; return;
+    }
+    if (DSO_OBJECT_TYPES.has(state.selectedObject.objType)) {
+        // 星雲・星団・銀河は専用のレチクル（四隅の枠）自体がゴールドに変わって選択状態を
+        // 示すので、汎用の十字レチクルは重ねて出さない。
         reticle.classList.remove('visible'); reticle.style.display = 'none'; return;
     }
 
@@ -4145,6 +4226,10 @@ function updateLabelSizes() {
         const group = layers[key].mesh;
         group.children.forEach(wrapper => {
             const photoSprite = wrapper.userData && wrapper.userData.photoSprite;
+            // クリックで選択中の天体は、汎用の十字レチクル（#star-reticle）ではなく
+            // レチクルと天体名の両方を一回り大きく・純白にして全開表示にすることで選択状態を
+            // 示す（カテゴリ色が黄系の球状星団などでも、色だけの違いより確実に見分けがつく）。
+            const isSelected = !!(state.selectedObject && state.selectedObject.meshReference === wrapper);
 
             const reticle = wrapper.children[0];
             let reticleHalfWorld = 0;
@@ -4154,25 +4239,53 @@ function updateLabelSizes() {
                 // 小さい・褪色中の天体では最小サイズの的として機能する。
                 const minSize = reticle.userData.baseScale.x * fovFactor;
                 const framingSize = photoSprite ? photoSprite.userData.majorAxisWorld * DSO_RETICLE_MARGIN : 0;
-                const reticleSize = Math.max(minSize, framingSize);
+                const reticleSize = Math.max(minSize, framingSize) * (isSelected ? DSO_RETICLE_SELECTED_SCALE : 1);
                 reticle.scale.set(reticleSize, reticleSize, 1);
                 reticleHalfWorld = reticleSize / 2;
-                if (reticle.userData.isProminent === false) {
-                    reticle.material.opacity = 0.8 * nonProminentLabelOpacity;
-                    reticle.visible = nonProminentLabelOpacity > 0.01;
+                // 実写画像を縁取るサイズまでズームインしているほど、枠を写真の邪魔にならない
+                // 透明度まで下げる（最小サイズのままなら通常の不透明度を保つ）。
+                const framedU = minSize > 0 ? Math.min(1, Math.max(0, (reticleSize / minSize - 1) / 0.4)) : 0;
+                const framedT = framedU * framedU * (3 - 2 * framedU);
+                const framedOpacity = DSO_RETICLE_OPACITY - (DSO_RETICLE_OPACITY - DSO_RETICLE_OPACITY_FRAMED) * framedT;
+                if (isSelected) {
+                    reticle.material.color.setHex(DSO_RETICLE_SELECTED_COLOR);
+                    reticle.material.opacity = 1;
+                    reticle.visible = true;
+                } else {
+                    reticle.material.color.set(reticle.userData.baseColor);
+                    if (reticle.userData.isProminent === false) {
+                        reticle.material.opacity = framedOpacity * nonProminentLabelOpacity;
+                        reticle.visible = nonProminentLabelOpacity > 0.01;
+                    } else {
+                        reticle.material.opacity = framedOpacity;
+                        reticle.visible = true;
+                    }
                 }
             }
             if (wrapper.children.length >= 2) {
                 const label = wrapper.children[1];
                 if (label.userData.isLabel && label.userData.baseScale) {
-                    const scaledW = label.userData.baseScale.x * fovFactor;
-                    const scaledH = label.userData.baseScale.y * fovFactor;
+                    const labelScaleMul = isSelected ? DSO_RETICLE_SELECTED_SCALE : 1;
+                    const scaledW = label.userData.baseScale.x * fovFactor * labelScaleMul;
+                    const scaledH = label.userData.baseScale.y * fovFactor * labelScaleMul;
                     label.scale.set(scaledW, scaledH, 1);
-                    // レチクル（既に実写画像のサイズを考慮済み）の外側に、常に一定の隙間（DSO_LABEL_GAP）を
-                    // 保ってラベルを配置する。position は毎フレーム再計算する必要がある
-                    // （scaleだけ変えると中心基準で伸縮するため見かけの隙間がズーム量によって伸び縮みしてしまう）。
-                    label.position.x = reticleHalfWorld + DSO_LABEL_GAP + scaledW / 2;
-                    if (label.userData.isProminent === false) {
+                    if (label.userData.mapSelected) {
+                        const wantMap = isSelected ? label.userData.mapSelected : label.userData.mapNormal;
+                        if (label.material.map !== wantMap) { label.material.map = wantMap; label.material.needsUpdate = true; }
+                    }
+                    // レチクル（既に実写画像のサイズを考慮済み）の左端に、常に一定の隙間（DSO_LABEL_GAP）を
+                    // 保ってラベル末尾が接するように配置する。center が右端・縦中央なので position が
+                    // そのまま接触点になり、scaledW/2 等を足す必要はない。ラベルはwrapper（回転を持たない
+                    // Group）の子なので、position をワールド座標のX軸方向にオフセットするだけでは、
+                    // カメラの向きによって画面上で「左」ではなく奥行き方向にずれてレチクルと重なって
+                    // しまう。実際に画面上で常に左に来るよう、カメラの実際の右方向ベクトル（camRight）
+                    // を使ってオフセットする。position は毎フレーム再計算する必要がある（scaleだけ変えると
+                    // 中心基準で伸縮するため見かけの隙間がズーム量によって伸び縮みしてしまう）。
+                    label.position.copy(camRight).multiplyScalar(-(reticleHalfWorld + DSO_LABEL_GAP));
+                    if (isSelected) {
+                        label.material.opacity = 1;
+                        label.visible = true;
+                    } else if (label.userData.isProminent === false) {
                         label.material.opacity = nonProminentLabelOpacity;
                         label.visible = nonProminentLabelOpacity > 0.01;
                     }
