@@ -141,10 +141,13 @@ const DSO_RETICLE_MIN_SIZE = 14;
 const DSO_RETICLE_MARGIN = 1.2;
 
 // 実写DSOスプライトの明るさブースト設定。実写画像は暗い天体ほど元データの信号が弱く沈んで見えるため、
-// 等級(vmag)に応じてテクスチャのRGBを底上げする（明るい天体は等倍のまま＝白飛びさせない）。
+// 等級(vmag)に応じてHSLの明度(L)を底上げする（明るい天体はブーストなし＝白飛びさせない）。
+// L に対して 1-(1-L)^n のようなベキ乗カーブで掛けると、中間的な明るさのピクセルでも
+// 一気にLが0.7〜0.9台まで持ち上がり、彩度は保たれていても白っぽく「洗われた」ように見える。
+// そのためLへの単純な加算＋上限クランプという穏やかな方式にする。
 const DSO_PHOTO_BOOST_START_MAG = 8;   // これより明るい天体はブーストなし
 const DSO_PHOTO_BOOST_MAX_MAG = 13;    // これより暗い天体は最大ブースト
-const DSO_PHOTO_BOOST_MAX = 2.2;       // 最大ブースト倍率
+const DSO_PHOTO_L_GAIN_MAX = 0.12;     // 明度(L)に加算する最大値
 
 // 実写DSOスプライトのズームフェード閾値（画面上の長辺ピクセル数）。
 // 本アプリの最大ズーム（CONFIG.minFov=10°）でも、小さめの天体（角径1°未満）は
@@ -3376,14 +3379,14 @@ const _dsoNorthVec = new THREE.Vector3();
 // 異なるため（赤い天体なら赤チャンネルが先に頭打ちになる）、程度の差はあれ色相が黄色〜白側に
 // ズレてしまう。HSLに変換してL（明度）だけを持ち上げ、H（色相）・S（彩度）はそのまま維持することで、
 // 赤は暗いままではなく明るい赤として見えるようにする。
-function applyDSOPhotoBoost(material, boostValue) {
+function applyDSOPhotoBoost(material, lGain) {
     material.customProgramCacheKey = () => 'dsoPhotoBoostHSL';
     material.onBeforeCompile = (shader) => {
-        shader.uniforms.uBoost = { value: boostValue };
+        shader.uniforms.uLGain = { value: lGain };
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <common>',
             `#include <common>
-uniform float uBoost;
+uniform float uLGain;
 vec3 dsoRgb2hsl(vec3 c) {
     float maxc = max(max(c.r, c.g), c.b);
     float minc = min(min(c.r, c.g), c.b);
@@ -3424,7 +3427,7 @@ vec3 dsoHsl2rgb(vec3 hsl) {
             `#include <map_fragment>
 	{
 		vec3 dsoHsl = dsoRgb2hsl(diffuseColor.rgb);
-		dsoHsl.z = 1.0 - pow(max(1.0 - dsoHsl.z, 0.0), uBoost);
+		dsoHsl.z = min(dsoHsl.z + uLGain, 1.0);
 		diffuseColor.rgb = dsoHsl2rgb(dsoHsl);
 	}`
         );
@@ -3481,8 +3484,8 @@ function createDSOSprites(type, data, config, parentGroup) {
             });
             const vmagForBoost = (typeof obj.vmag === 'number') ? obj.vmag : DSO_PHOTO_BOOST_START_MAG;
             const boostT = Math.min(1, Math.max(0, (vmagForBoost - DSO_PHOTO_BOOST_START_MAG) / (DSO_PHOTO_BOOST_MAX_MAG - DSO_PHOTO_BOOST_START_MAG)));
-            const boostValue = 1 + boostT * (DSO_PHOTO_BOOST_MAX - 1);
-            applyDSOPhotoBoost(photoMat, boostValue);
+            const lGain = boostT * DSO_PHOTO_L_GAIN_MAX;
+            applyDSOPhotoBoost(photoMat, lGain);
             photoSprite = new THREE.Sprite(photoMat);
             photoSprite.scale.set(worldSize, worldSize, 1);
             photoSprite.renderOrder = 5;
