@@ -132,6 +132,14 @@ const DSO_TYPE_MAP = {
 const DSO_LABEL_FOV_HIDE = 45;
 const DSO_LABEL_FOV_SHOW = 15;
 
+// レチクル／実写画像の外縁からラベルまでの隙間（世界座標単位）
+const DSO_LABEL_GAP = 3;
+
+// レチクルの最小サイズ（画面上での見かけの大きさ、fovFactor倍される）。
+// 実写画像がこれより大きく表示されている場合は、画像を軽く縁取るサイズまでレチクルを拡大する。
+const DSO_RETICLE_MIN_SIZE = 14;
+const DSO_RETICLE_MARGIN = 1.2;
+
 // 実写DSOスプライトの明るさブースト設定。実写画像は暗い天体ほど元データの信号が弱く沈んで見えるため、
 // 等級(vmag)に応じてテクスチャのRGBを底上げする（明るい天体は等倍のまま＝白飛びさせない）。
 const DSO_PHOTO_BOOST_START_MAG = 8;   // これより明るい天体はブーストなし
@@ -3018,6 +3026,25 @@ function createSymbolTexture(type, colorStr) {
     return new THREE.CanvasTexture(canvas);
 }
 
+// カメラのオートフォーカス枠のような、四隅だけのレチクル（角括弧）記号。
+// 塗りつぶし図形より軽く、天体の実位置を過不足なく示す位置マーカーとして使う。
+function createReticleTexture(colorStr) {
+    const canvas = document.createElement('canvas');
+    const size = 64; canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = colorStr; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    const center = size / 2; const rad = size * 0.30; const tick = size * 0.18;
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => {
+        const cx = center + sx * rad; const cy = center + sy * rad;
+        ctx.beginPath();
+        ctx.moveTo(cx - sx * tick, cy);
+        ctx.lineTo(cx, cy);
+        ctx.lineTo(cx, cy - sy * tick);
+        ctx.stroke();
+    });
+    return new THREE.CanvasTexture(canvas);
+}
+
 function createLabelTexture(text, colorStr, fontSize = 32) {
     const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
     ctx.font = `Bold ${fontSize}px sans-serif`;
@@ -3118,6 +3145,14 @@ function createDSOCatalogLayers(payload) {
 // 既存のDSO描画パイプラインが期待するフィールド名（ra_deg/dec_deg/vmag/proper_name 等）に正規化する
 function normalizeDSORecord(obj) {
     const properName = (obj.name && obj.name.ja) ? obj.name.ja : '';
+    // shinchu-datasetのname.jaには、本当の愛称（例:「カリーナ星雲」）と、
+    // 「星座名＋（形態）種別」を機械的に組み合わせただけの自動生成説明文
+    // （例:「さそり座の散開星団」「ポンプ座の渦巻銀河」）が混在する。
+    // 後者は実質無名な天体なので、常時ラベル表示の判定からは除外する。
+    const isGenericJaName = !!(properName && obj.constellationJa &&
+        properName.indexOf(obj.constellationJa + 'の') === 0 &&
+        /(銀河|星団|星雲|残骸)$/.test(properName));
+    const hasRealProperName = !!(properName && !isGenericJaName);
     return {
         name: obj.messier ? `M${obj.messier}` : (obj.designation || obj.id),
         proper_name: properName,
@@ -3129,9 +3164,11 @@ function normalizeDSORecord(obj) {
         pa_deg: obj.positionAngleDeg,
         designation: obj.designation,
         id: obj.id,
-        // 実写モデルを持つ天体（=表示対象として厳選済み）は常時ラベル表示。
-        // M番号・固有名のいずれかを持つ場合も同様（将来モデルなしの天体を加える場合に備えて条件は残す）
-        prominent: !!(obj.messier || properName || (obj.sprite && obj.sprite.file)),
+        // 「特に有名」なものだけラベルを常時表示: M番号を持つ天体、または本当の固有名を持ち
+        // かつ十分明るい天体（等級不明の場合は通す＝著名な散光星雲は積分等級が未定義なことが多いため）。
+        // それ以外（NGC/IC番号のみ、自動生成の説明文だけ、または暗めの天体）はモデルを持っていても
+        // ズームインで段階的に表示し、文字ラベルが密集して見づらくなるのを防ぐ（アイコン自体は常時表示）
+        prominent: !!(obj.messier || (hasRealProperName && (typeof obj.vMag !== 'number' || obj.vMag <= 6.5))),
         sprite: (obj.sprite && obj.sprite.file) ? {
             file: 'assets/catalogs/' + obj.sprite.file,
             fovDeg: obj.sprite.fovDeg,
@@ -3331,16 +3368,85 @@ function getDSOTextureLoader() {
     return dsoTextureLoader;
 }
 
+// 実写スプライトの毎フレーム回転計算用に使い回すVector3（毎フレーム581個分の新規生成を避ける）
+const _dsoNorthVec = new THREE.Vector3();
+
+// 暗い天体の明るさブースト（色相・彩度を完全に保ったまま明度だけ底上げ）。
+// RGBチャンネルをそのままスカラー倍・スクリーン合成すると、チャンネルごとに1.0への近づき方が
+// 異なるため（赤い天体なら赤チャンネルが先に頭打ちになる）、程度の差はあれ色相が黄色〜白側に
+// ズレてしまう。HSLに変換してL（明度）だけを持ち上げ、H（色相）・S（彩度）はそのまま維持することで、
+// 赤は暗いままではなく明るい赤として見えるようにする。
+function applyDSOPhotoBoost(material, boostValue) {
+    material.customProgramCacheKey = () => 'dsoPhotoBoostHSL';
+    material.onBeforeCompile = (shader) => {
+        shader.uniforms.uBoost = { value: boostValue };
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <common>',
+            `#include <common>
+uniform float uBoost;
+vec3 dsoRgb2hsl(vec3 c) {
+    float maxc = max(max(c.r, c.g), c.b);
+    float minc = min(min(c.r, c.g), c.b);
+    float l = (maxc + minc) * 0.5;
+    float h = 0.0; float s = 0.0;
+    float d = maxc - minc;
+    if (d > 0.0001) {
+        s = l > 0.5 ? d / max(0.0001, 2.0 - maxc - minc) : d / max(0.0001, maxc + minc);
+        if (maxc == c.r) h = (c.g - c.b) / d + (c.g < c.b ? 6.0 : 0.0);
+        else if (maxc == c.g) h = (c.b - c.r) / d + 2.0;
+        else h = (c.r - c.g) / d + 4.0;
+        h /= 6.0;
+    }
+    return vec3(h, s, l);
+}
+float dsoHue2rgb(float p, float q, float t) {
+    if (t < 0.0) t += 1.0;
+    if (t > 1.0) t -= 1.0;
+    if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
+    if (t < 1.0 / 2.0) return q;
+    if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+    return p;
+}
+vec3 dsoHsl2rgb(vec3 hsl) {
+    float h = hsl.x; float s = hsl.y; float l = hsl.z;
+    if (s <= 0.0001) return vec3(l);
+    float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;
+    float p = 2.0 * l - q;
+    return vec3(
+        dsoHue2rgb(p, q, h + 1.0 / 3.0),
+        dsoHue2rgb(p, q, h),
+        dsoHue2rgb(p, q, h - 1.0 / 3.0)
+    );
+}`
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <map_fragment>',
+            `#include <map_fragment>
+	{
+		vec3 dsoHsl = dsoRgb2hsl(diffuseColor.rgb);
+		dsoHsl.z = 1.0 - pow(max(1.0 - dsoHsl.z, 0.0), uBoost);
+		diffuseColor.rgb = dsoHsl2rgb(dsoHsl);
+	}`
+        );
+    };
+}
+
 function createDSOSprites(type, data, config, parentGroup) {
-    const symbolMap = createSymbolTexture(config.type, config.color);
-    // マーク（記号アイコン）は名称のみ表示にするため非表示にする。ただし visible は true のまま維持し、
-    // クリック判定（onPointerUpのレイキャスト対象=children[0]）のヒット範囲としてだけ機能させる。
-    const materialBase = new THREE.SpriteMaterial({ map: symbolMap, color: 0xffd84a, transparent: true, opacity: 0, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
+    // マーク: カメラのビューファインダーのような四隅だけのレチクル（角括弧）。
+    // 塗りつぶし図形や引き出し線より主張が弱く、天体の実位置を直接示せるため視認性と落ち着きを両立できる。
+    const reticleMap = createReticleTexture(config.color);
+    const reticleMaterialBase = new THREE.SpriteMaterial({ map: reticleMap, transparent: true, opacity: 0.8, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
     const r = CONFIG.radius;
     data.forEach((obj) => {
         const wrapper = new THREE.Group();
-        const sprite = new THREE.Sprite(materialBase.clone());
-        sprite.scale.set(15, 15, 1); wrapper.add(sprite);
+        // レチクル: 位置の目印であると同時に、クリック判定（onPointerUpのレイキャスト対象=children[0]）も兼ねる。
+        // 実際のサイズは毎フレーム updateLabelSizes で、実写画像の実サイズに応じて動的に決める
+        // （最小サイズは常に fovFactor 分だけ画面上一定に保つ）。
+        const reticle = new THREE.Sprite(reticleMaterialBase.clone());
+        reticle.scale.set(DSO_RETICLE_MIN_SIZE, DSO_RETICLE_MIN_SIZE, 1);
+        reticle.userData.isReticle = true;
+        reticle.userData.baseScale = { x: DSO_RETICLE_MIN_SIZE, y: DSO_RETICLE_MIN_SIZE };
+        wrapper.add(reticle);
         const name = getObjectName(obj);
         if (name !== "Unknown Object") {
             const labelMap = createLabelTexture(name, config.color, 32);
@@ -3352,7 +3458,9 @@ function createDSOSprites(type, data, config, parentGroup) {
             labelSprite.userData.baseScale = { x: baseW, y: baseH };
             labelSprite.userData.isLabel = true;
             // prominentが明示的にfalseの天体（M番号・固有名を持たないNGC/IC等）のみズームインで段階的にラベルを表示
-            labelSprite.userData.isProminent = (obj.prominent === false) ? false : true;
+            const isProminent = (obj.prominent === false) ? false : true;
+            labelSprite.userData.isProminent = isProminent;
+            reticle.userData.isProminent = isProminent;
             labelSprite.position.set(baseW / 2 + 8, 0, 0); wrapper.add(labelSprite);
         }
 
@@ -3364,13 +3472,17 @@ function createDSOSprites(type, data, config, parentGroup) {
             const angularSizeRad = obj.sprite.fovDeg * (Math.PI / 180);
             const worldSize = r * angularSizeRad;
             const texture = getDSOTextureLoader().load(obj.sprite.file);
+            // AdditiveBlending: 空ドームは常に一番奥に不透明で描画されるため、NormalBlendingだと
+            // 天体画像の半透明な縁が背後の空の色（太陽位置や地平線グローで変動）と混ざって色が
+            // ズレて見える。加算合成にすることで背景色に影響されず天体本来の色を保つ。
             const photoMat = new THREE.SpriteMaterial({
                 map: texture, transparent: true, depthTest: false, depthWrite: false,
-                blending: THREE.NormalBlending, opacity: 0, fog: false
+                blending: THREE.AdditiveBlending, opacity: 0, fog: false
             });
             const vmagForBoost = (typeof obj.vmag === 'number') ? obj.vmag : DSO_PHOTO_BOOST_START_MAG;
             const boostT = Math.min(1, Math.max(0, (vmagForBoost - DSO_PHOTO_BOOST_START_MAG) / (DSO_PHOTO_BOOST_MAX_MAG - DSO_PHOTO_BOOST_START_MAG)));
-            photoMat.color.setScalar(1 + boostT * (DSO_PHOTO_BOOST_MAX - 1));
+            const boostValue = 1 + boostT * (DSO_PHOTO_BOOST_MAX - 1);
+            applyDSOPhotoBoost(photoMat, boostValue);
             photoSprite = new THREE.Sprite(photoMat);
             photoSprite.scale.set(worldSize, worldSize, 1);
             photoSprite.renderOrder = 5;
@@ -3443,16 +3555,16 @@ function updatePositions() {
                  // ここではレイヤーのvisibleがtrueの場合のみ来るので、等級判定のみ
                  child.visible = (d.mag <= state.magLimit);
             }
-            // 実写スプライトのパララクティック角補正（北が上に焼き込まれた画像を地平座標系の向きに合わせる）
+            // 実写スプライト（北が上に焼き込まれた画像）の「天球上の北」を世界座標ベクトルとして保存。
+            // 実際の画面上の回転はカメラの実姿勢（up/right）を使ってフレームごとに計算する
+            // （updateLabelSizes参照）。カメラ姿勢に依存しない値をここでは持たない。
             if (d.photoSprite) {
-                const raRad = ra * (Math.PI / 180);
-                const decRad = dec * (Math.PI / 180);
-                let haRad = lstRad - raRad;
-                while (haRad > Math.PI) haRad -= Math.PI * 2;
-                while (haRad < -Math.PI) haRad += Math.PI * 2;
-                const py = Math.sin(haRad);
-                const px = Math.tan(latRad) * Math.cos(decRad) - Math.sin(decRad) * Math.cos(haRad);
-                d.photoSprite.material.rotation = -Math.atan2(py, px);
+                const decEps = dec + 0.05 <= 89.9 ? 0.05 : -0.05;
+                const northPoint = calcHorizontalCoord(ra, dec + decEps, lstRad, sinLat, cosLat, r);
+                let nx = northPoint.x - coord.x, ny = northPoint.y - coord.y, nz = northPoint.z - coord.z;
+                const nlen = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+                if (decEps < 0) { nx = -nx; ny = -ny; nz = -nz; }
+                d.photoSprite.userData.northDir = { x: nx / nlen, y: ny / nlen, z: nz / nlen };
             }
         });
     });
@@ -4015,25 +4127,72 @@ function updateLabelSizes() {
     const nonProminentLabelU = Math.min(1, Math.max(0, (DSO_LABEL_FOV_HIDE - camera.fov) / (DSO_LABEL_FOV_HIDE - DSO_LABEL_FOV_SHOW)));
     const nonProminentLabelOpacity = nonProminentLabelU * nonProminentLabelU * (3 - 2 * nonProminentLabelU);
 
+    // 実写スプライトの回転をカメラの実際の姿勢から毎フレーム計算する。
+    // three.jsのSprite（ビルボード）は常にカメラの right/up ベクトルを基準に描画されるため、
+    // 「天球上の北」方向をこの2軸に投影した角度で material.rotation を決めれば、
+    // マウスドラッグ・ジャイロなどカメラの向け方によらず常に正しい向きで表示される。
+    camera.updateMatrixWorld();
+    const camElements = camera.matrixWorld.elements;
+    const camRight = new THREE.Vector3(camElements[0], camElements[1], camElements[2]);
+    const camUp = new THREE.Vector3(camElements[4], camElements[5], camElements[6]);
+    const camForward = new THREE.Vector3(-camElements[8], -camElements[9], -camElements[10]);
+
     Object.keys(layers).forEach(key => {
         if (key === 'star' || key === 'ConstellationLines' || key === 'ConstellationLabels' || key === 'StarLabels') return;
         const group = layers[key].mesh;
         group.children.forEach(wrapper => {
+            const photoSprite = wrapper.userData && wrapper.userData.photoSprite;
+
+            const reticle = wrapper.children[0];
+            let reticleHalfWorld = 0;
+            if (reticle && reticle.userData.isReticle && reticle.userData.baseScale) {
+                // 最小サイズ（画面上一定）と、実写画像を軽く縁取るサイズ（実視直径ベース）の大きい方を採用。
+                // 天体が実際に大きく見えているときはレチクルも一緒に大きくなり、
+                // 小さい・褪色中の天体では最小サイズの的として機能する。
+                const minSize = reticle.userData.baseScale.x * fovFactor;
+                const framingSize = photoSprite ? photoSprite.userData.majorAxisWorld * DSO_RETICLE_MARGIN : 0;
+                const reticleSize = Math.max(minSize, framingSize);
+                reticle.scale.set(reticleSize, reticleSize, 1);
+                reticleHalfWorld = reticleSize / 2;
+                if (reticle.userData.isProminent === false) {
+                    reticle.material.opacity = 0.8 * nonProminentLabelOpacity;
+                    reticle.visible = nonProminentLabelOpacity > 0.01;
+                }
+            }
             if (wrapper.children.length >= 2) {
                 const label = wrapper.children[1];
                 if (label.userData.isLabel && label.userData.baseScale) {
-                    label.scale.set(label.userData.baseScale.x * fovFactor, label.userData.baseScale.y * fovFactor, 1);
+                    const scaledW = label.userData.baseScale.x * fovFactor;
+                    const scaledH = label.userData.baseScale.y * fovFactor;
+                    label.scale.set(scaledW, scaledH, 1);
+                    // レチクル（既に実写画像のサイズを考慮済み）の外側に、常に一定の隙間（DSO_LABEL_GAP）を
+                    // 保ってラベルを配置する。position は毎フレーム再計算する必要がある
+                    // （scaleだけ変えると中心基準で伸縮するため見かけの隙間がズーム量によって伸び縮みしてしまう）。
+                    label.position.x = reticleHalfWorld + DSO_LABEL_GAP + scaledW / 2;
                     if (label.userData.isProminent === false) {
                         label.material.opacity = nonProminentLabelOpacity;
                         label.visible = nonProminentLabelOpacity > 0.01;
                     }
                 }
             }
-            const photoSprite = wrapper.userData && wrapper.userData.photoSprite;
             if (photoSprite && photoSprite.material.map && photoSprite.material.map.image) {
                 const extentPx = photoSprite.userData.majorAxisWorld / worldPerPixel;
                 const u = Math.min(1, Math.max(0, (extentPx - DSO_PHOTO_FADE_START_PX) / (DSO_PHOTO_FADE_FULL_PX - DSO_PHOTO_FADE_START_PX)));
                 photoSprite.material.opacity = u * u * (3 - 2 * u);
+
+                const north = photoSprite.userData.northDir;
+                if (north) {
+                    const nVec = _dsoNorthVec.set(north.x, north.y, north.z);
+                    const alongForward = nVec.dot(camForward);
+                    nVec.addScaledVector(camForward, -alongForward);
+                    const nLenSq = nVec.lengthSq();
+                    if (nLenSq > 1e-8) {
+                        nVec.multiplyScalar(1 / Math.sqrt(nLenSq));
+                        const sinT = nVec.dot(camRight);
+                        const cosT = nVec.dot(camUp);
+                        photoSprite.material.rotation = Math.atan2(-sinT, cosT);
+                    }
+                }
             }
         });
     });
